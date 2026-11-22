@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
-import { readTextFromStore } from '../lib/file-sources'
+import { readTextFromStore, writeTextToStore } from '../lib/file-sources'
 
 export type MarkdownViewMode = 'preview' | 'source'
 
@@ -81,6 +81,15 @@ export function useMarkdownDocument(
     setViewMode((m) => (m === 'preview' ? 'source' : 'preview'))
   }, [])
 
+  const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {
+    if (!path || !fileSources) return null
+    await writeTextToStore(fileSources, path, content)
+    draftCache.delete(path)
+    setDirty(false)
+    const lastModified = Date.now()
+    return { size: new Blob([content]).size, lastModified }
+  }, [path, fileSources, content])
+
   return {
     content,
     updateContent,
@@ -90,6 +99,7 @@ export function useMarkdownDocument(
     loading,
     error,
     dirty,
+    save,
   }
 }
 

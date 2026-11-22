@@ -103,7 +103,7 @@ export function FileBrowser({
         </p>
       )}
       <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
-        Rechtsklick: Viewer nach Dateityp · Metadaten als <code className="text-[10px]">datei.json</code>
+        Rechtsklick: Datei-Viewer / Metadaten · Ordner: <code className="text-[10px]">README.md</code>
       </p>
       <ul className="min-h-0 flex-1 overflow-auto">
         {listing.length === 0 && (
@@ -132,7 +132,6 @@ export function FileBrowser({
                   onOpenViewer(kind, row.path, row.name, row.id, row.size)
                 }}
                 onContextMenu={(e) => {
-                  if (row.kind !== 'file') return
                   e.preventDefault()
                   onFileContextMenu({
                     id: row.id,

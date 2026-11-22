@@ -96,8 +96,15 @@ export function useFileIndex() {
     [sidecarPaths],
   )
 
-  const registerSidecarFile = useCallback((row: RawFileRow) => {
-    setManifest((m) => (m ? appendFileToManifest(m, row) : m))
+  const registerSidecarFile = useCallback((row: RawFileRow): string | null => {
+    let newId: string | null = null
+    setManifest((m) => {
+      if (!m) return m
+      const updated = appendFileToManifest(m, row)
+      newId = updated.entries.find((e) => e.path === row.relativePath)?.id ?? null
+      return updated
+    })
+    return newId
   }, [])
 
   const selectedNode = useMemo((): IndexNode | null => {

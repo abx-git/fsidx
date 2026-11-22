@@ -24,6 +24,10 @@ interface MarkdownSlice {
   loading: boolean
   error: string | null
   dirty: boolean
+  canWrite?: boolean
+  onSave?: () => void | Promise<void>
+  saving?: boolean
+  saveError?: string | null
 }
 
 interface FileViewerRouterProps {
@@ -67,6 +71,10 @@ export function FileViewerRouter({
         dirty={markdown.dirty}
         onClose={onClose}
         showBackButton={showBackButton}
+        canWrite={markdown.canWrite}
+        onSave={markdown.onSave}
+        saving={markdown.saving}
+        saveError={markdown.saveError}
       />
     )
   }

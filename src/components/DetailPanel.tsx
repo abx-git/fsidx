@@ -1,6 +1,8 @@
+import { FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { FileIndexManifest, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
+import { DIRECTORY_README_NAME, directoryReadmePath } from '../lib/directory-readme'
 
 interface DetailPanelProps {
   manifest: FileIndexManifest
@@ -9,6 +11,8 @@ interface DetailPanelProps {
   viewerPinned: boolean
   onViewerPinnedChange: (value: boolean) => void
   viewerSlot?: ReactNode
+  onDirectoryReadme?: (dirPath: string, dirId: string) => void
+  hasDirectoryReadme?: boolean
 }
 
 export function DetailPanel({
@@ -18,6 +22,8 @@ export function DetailPanel({
   viewerPinned,
   onViewerPinnedChange,
   viewerSlot,
+  onDirectoryReadme,
+  hasDirectoryReadme,
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
 
@@ -51,6 +57,24 @@ export function DetailPanel({
       {showViewer && (
         <div className="flex min-h-[min(45vh,420px)] flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800">
           {viewerSlot}
+        </div>
+      )}
+
+      {node?.kind === 'directory' && onDirectoryReadme && (
+        <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => onDirectoryReadme(node.path, node.id)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-medium text-emerald-900 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/70"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {hasDirectoryReadme
+              ? `${DIRECTORY_README_NAME} bearbeiten`
+              : `${DIRECTORY_README_NAME} anlegen`}
+          </button>
+          <p className="mt-1 text-[10px] text-zinc-500">
+            Beschreibt den Inhalt dieses Ordners ({directoryReadmePath(node.path)}).
+          </p>
         </div>
       )}
 

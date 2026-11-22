@@ -1,6 +1,7 @@
 import {
   Eye,
   FileJson,
+  FileText,
   Pencil,
   type LucideIcon,
 } from 'lucide-react'
@@ -9,6 +10,7 @@ import {
   viewerOptionsForFile,
   type FileViewerKind,
 } from '../lib/file-viewers'
+import { DIRECTORY_README_NAME } from '../lib/directory-readme'
 
 export interface ContextMenuTarget {
   id: string
@@ -38,6 +40,8 @@ interface FileContextMenuProps {
   canWrite: boolean
   onCreateOrEditMetadata: () => void
   onOpenViewer: (kind: FileViewerKind) => void
+  hasDirectoryReadme: boolean
+  onDirectoryReadme: () => void
 }
 
 export function FileContextMenu({
@@ -47,6 +51,8 @@ export function FileContextMenu({
   canWrite,
   onCreateOrEditMetadata,
   onOpenViewer,
+  hasDirectoryReadme,
+  onDirectoryReadme,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -66,7 +72,43 @@ export function FileContextMenu({
     }
   }, [target, onClose])
 
-  if (!target || target.kind !== 'file') return null
+  if (!target) return null
+
+  if (target.kind === 'directory') {
+    return (
+      <div
+        ref={ref}
+        className="fixed z-50 min-w-[260px] max-w-[min(320px,90vw)] rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+        style={{ left: target.x, top: target.y }}
+        role="menu"
+      >
+        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+          Verzeichnis
+        </p>
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          onClick={() => {
+            onDirectoryReadme()
+            onClose()
+          }}
+        >
+          <FileText className="h-4 w-4 shrink-0 text-emerald-600" />
+          <span>
+            {hasDirectoryReadme
+              ? `${DIRECTORY_README_NAME} bearbeiten`
+              : `${DIRECTORY_README_NAME} anlegen`}
+          </span>
+        </button>
+        {!canWrite && (
+          <p className="border-t border-zinc-100 px-3 py-2 text-[11px] text-amber-700 dark:border-zinc-800 dark:text-amber-300">
+            Anlegen/Speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.
+          </p>
+        )}
+      </div>
+    )
+  }
 
   const viewerOptions = viewerOptionsForFile(target.path, target.extension)
 

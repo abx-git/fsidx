@@ -4,6 +4,7 @@ import {
   Code2,
   Download,
   Loader2,
+  Save,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +24,10 @@ interface MarkdownEditorProps {
   dirty: boolean
   onClose: () => void
   showBackButton?: boolean
+  canWrite?: boolean
+  onSave?: () => void | Promise<void>
+  saving?: boolean
+  saveError?: string | null
 }
 
 export function MarkdownEditor({
@@ -38,6 +43,10 @@ export function MarkdownEditor({
   dirty,
   onClose,
   showBackButton = true,
+  canWrite = false,
+  onSave,
+  saving = false,
+  saveError,
 }: MarkdownEditorProps) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -113,6 +122,17 @@ export function MarkdownEditor({
               Source
             </button>
           </div>
+          {canWrite && onSave && (
+            <button
+              type="button"
+              onClick={() => void onSave()}
+              disabled={saving || !dirty}
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saving ? 'Speichern…' : 'Speichern'}
+            </button>
+          )}
           <button
             type="button"
             onClick={downloadEdited}
@@ -129,6 +149,11 @@ export function MarkdownEditor({
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">
+        {saveError && (
+          <p className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+            {saveError}
+          </p>
+        )}
         {loading && (
           <p className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" />

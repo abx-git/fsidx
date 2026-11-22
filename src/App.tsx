@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { findNodeByPath } from './lib/build-manifest'
 import { defaultViewerForFile, type FileViewerKind } from './lib/file-viewers'
-import { canWriteToStore } from './lib/file-sources'
+import {
+  DIRECTORY_README_NAME,
+  buildDefaultDirectoryReadme,
+  directoryReadmePath,
+} from './lib/directory-readme'
+import { canWriteToStore, writeTextToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
 import { TreeNav } from './components/TreeNav'
@@ -36,6 +41,8 @@ function App() {
   } | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [markdownSaveError, setMarkdownSaveError] = useState<string | null>(null)
+  const [markdownSaving, setMarkdownSaving] = useState(false)
 
   const {
     manifest,
@@ -164,6 +171,79 @@ function App() {
     [setSelectedId, setSearchQuery],
   )
 
+  const handleSaveMarkdown = useCallback(async () => {
+    setMarkdownSaveError(null)
+    setMarkdownSaving(true)
+    try {
+      await markdown.save()
+    } catch (err) {
+      setMarkdownSaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
+      throw err
+    } finally {
+      setMarkdownSaving(false)
+    }
+  }, [markdown])
+
+  const markdownEditorProps = useMemo(
+    () =>
+      fileView?.viewer === 'markdown'
+        ? {
+            content: markdown.content,
+            updateContent: markdown.updateContent,
+            viewMode: markdown.viewMode,
+            setViewMode: markdown.setViewMode,
+            toggleViewMode: markdown.toggleViewMode,
+            loading: markdown.loading,
+            error: markdown.error,
+            dirty: markdown.dirty,
+            canWrite,
+            onSave: handleSaveMarkdown,
+            saving: markdownSaving,
+            saveError: markdownSaveError,
+          }
+        : null,
+    [fileView?.viewer, markdown, canWrite, handleSaveMarkdown, markdownSaving, markdownSaveError],
+  )
+
+  const handleDirectoryReadme = useCallback(
+    async (dirPath: string, dirId: string) => {
+      if (!manifest) return
+      const dirNode = findNodeByPath(manifest.tree, dirPath)
+      if (!dirNode || dirNode.kind !== 'directory') return
+
+      const mdPath = directoryReadmePath(dirPath)
+      const existing = manifest.entries.find((e) => e.path === mdPath)
+      let entryId = existing?.id ?? dirId
+
+      if (!existing) {
+        if (!fileSources || !canWrite) {
+          window.alert(
+            'README.md anlegen: Ordner mit Chrome/Edge öffnen (Schreibzugriff). Alternativ nur per Download.',
+          )
+          return
+        }
+        const body = buildDefaultDirectoryReadme(dirNode, manifest.rootName)
+        await writeTextToStore(fileSources, mdPath, body)
+        const lastModified = Date.now()
+        const size = new Blob([body]).size
+        const id = registerSidecarFile({
+          relativePath: mdPath,
+          name: DIRECTORY_README_NAME,
+          kind: 'file',
+          size,
+          lastModified,
+        })
+        entryId = id ?? entryId
+        clearMarkdownDrafts()
+      }
+
+      setMetadataTarget(null)
+      setMarkdownSaveError(null)
+      openViewer('markdown', mdPath, DIRECTORY_README_NAME, entryId, existing?.size)
+    },
+    [manifest, fileSources, canWrite, registerSidecarFile, openViewer],
+  )
+
   const openMetadata = useCallback((path: string, name: string, id: string) => {
     setFileView(null)
     setMetadataTarget({ path, name, id })
@@ -275,20 +355,7 @@ function App() {
       fileSources={fileSources}
       onClose={() => setFileView(null)}
       variant="center"
-      markdown={
-        fileView.viewer === 'markdown'
-          ? {
-              content: markdown.content,
-              updateContent: markdown.updateContent,
-              viewMode: markdown.viewMode,
-              setViewMode: markdown.setViewMode,
-              toggleViewMode: markdown.toggleViewMode,
-              loading: markdown.loading,
-              error: markdown.error,
-              dirty: markdown.dirty,
-            }
-          : null
-      }
+      markdown={markdownEditorProps}
       size={fileView.size}
     />
   ) : (
@@ -392,23 +459,16 @@ function App() {
                   fileSources={fileSources}
                   onClose={() => setFileView(null)}
                   variant="sidebar"
-                  markdown={
-                    fileView.viewer === 'markdown'
-                      ? {
-                          content: markdown.content,
-                          updateContent: markdown.updateContent,
-                          viewMode: markdown.viewMode,
-                          setViewMode: markdown.setViewMode,
-                          toggleViewMode: markdown.toggleViewMode,
-                          loading: markdown.loading,
-                          error: markdown.error,
-                          dirty: markdown.dirty,
-                        }
-                      : null
-                  }
+                  markdown={markdownEditorProps}
                   size={fileView.size}
                 />
               ) : undefined
+            }
+            onDirectoryReadme={(dirPath, dirId) => void handleDirectoryReadme(dirPath, dirId)}
+            hasDirectoryReadme={
+              inspectNode?.kind === 'directory'
+                ? indexedFilePaths.has(directoryReadmePath(inspectNode.path))
+                : false
             }
           />
         </div>
@@ -426,6 +486,15 @@ function App() {
         onOpenViewer={(kind) => {
           if (!contextMenu) return
           openViewer(kind, contextMenu.path, contextMenu.name, contextMenu.id)
+        }}
+        hasDirectoryReadme={
+          contextMenu?.kind === 'directory'
+            ? indexedFilePaths.has(directoryReadmePath(contextMenu.path))
+            : false
+        }
+        onDirectoryReadme={() => {
+          if (!contextMenu || contextMenu.kind !== 'directory') return
+          void handleDirectoryReadme(contextMenu.path, contextMenu.id)
         }}
       />
     </div>

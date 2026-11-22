@@ -1,6 +1,8 @@
 import { Folder, File, FileJson } from 'lucide-react'
 import type { IndexEntry, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
+import { defaultViewerForFile } from '../lib/file-viewers'
+import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { pathBreadcrumbs } from './TreeNav'
 import type { ContextMenuTarget } from './FileContextMenu'
@@ -16,7 +18,13 @@ interface FileBrowserProps {
   searchResults: IndexEntry[]
   indexedFilePaths: Set<string>
   hasSidecar: (filePath: string) => boolean
-  onOpenMarkdown?: (path: string, id: string) => void
+  onOpenViewer: (
+    kind: FileViewerKind,
+    path: string,
+    name: string,
+    id: string,
+    size?: number,
+  ) => void
   onFileContextMenu: (target: ContextMenuTarget) => void
 }
 
@@ -41,7 +49,7 @@ export function FileBrowser({
   searchResults,
   indexedFilePaths,
   hasSidecar,
-  onOpenMarkdown,
+  onOpenViewer,
   onFileContextMenu,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
@@ -95,7 +103,7 @@ export function FileBrowser({
         </p>
       )}
       <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
-        Rechtsklick auf eine Datei → Metadaten-JSON (<code className="text-[10px]">datei.json</code>)
+        Rechtsklick: Viewer nach Dateityp · Metadaten als <code className="text-[10px]">datei.json</code>
       </p>
       <ul className="min-h-0 flex-1 overflow-auto">
         {listing.length === 0 && (
@@ -119,11 +127,9 @@ export function FileBrowser({
                     onNavigate(row.path)
                     return
                   }
-                  const ext = row.extension ?? row.name.split('.').pop()?.toLowerCase()
-                  if (ext === 'md' || ext === 'markdown') {
-                    onSelectEntry(row.id)
-                    onOpenMarkdown?.(row.path, row.id)
-                  }
+                  onSelectEntry(row.id)
+                  const kind = defaultViewerForFile(row.path, row.extension)
+                  onOpenViewer(kind, row.path, row.name, row.id, row.size)
                 }}
                 onContextMenu={(e) => {
                   if (row.kind !== 'file') return

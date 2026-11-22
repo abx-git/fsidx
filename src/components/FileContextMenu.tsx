@@ -1,5 +1,14 @@
-import { FileJson, FileText, Pencil } from 'lucide-react'
+import {
+  Eye,
+  FileJson,
+  Pencil,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import {
+  viewerOptionsForFile,
+  type FileViewerKind,
+} from '../lib/file-viewers'
 
 export interface ContextMenuTarget {
   id: string
@@ -11,13 +20,24 @@ export interface ContextMenuTarget {
   y: number
 }
 
+const VIEWER_ICONS: Partial<Record<FileViewerKind, LucideIcon>> = {
+  markdown: Eye,
+  image: Eye,
+  text: Eye,
+  json: Eye,
+  pdf: Eye,
+  audio: Eye,
+  video: Eye,
+  binary: Eye,
+}
+
 interface FileContextMenuProps {
   target: ContextMenuTarget | null
   onClose: () => void
   hasSidecar: boolean
   canWrite: boolean
   onCreateOrEditMetadata: () => void
-  onOpenMarkdown?: () => void
+  onOpenViewer: (kind: FileViewerKind) => void
 }
 
 export function FileContextMenu({
@@ -26,7 +46,7 @@ export function FileContextMenu({
   hasSidecar,
   canWrite,
   onCreateOrEditMetadata,
-  onOpenMarkdown,
+  onOpenViewer,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -48,18 +68,39 @@ export function FileContextMenu({
 
   if (!target || target.kind !== 'file') return null
 
-  const isMd =
-    target.extension === 'md' ||
-    target.extension === 'markdown' ||
-    target.name.toLowerCase().endsWith('.md')
+  const viewerOptions = viewerOptionsForFile(target.path, target.extension)
 
   return (
     <div
       ref={ref}
-      className="fixed z-50 min-w-[220px] rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+      className="fixed z-50 min-w-[260px] max-w-[min(320px,90vw)] rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
       style={{ left: target.x, top: target.y }}
       role="menu"
     >
+      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        Öffnen mit
+      </p>
+      {viewerOptions.map((opt) => {
+        const Icon = VIEWER_ICONS[opt.kind] ?? Eye
+        return (
+          <button
+            key={opt.kind}
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onOpenViewer(opt.kind)
+              onClose()
+            }}
+          >
+            <Icon className="h-4 w-4 shrink-0 text-sky-500" />
+            <span className="truncate">{opt.label}</span>
+          </button>
+        )
+      })}
+
+      <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+
       <button
         type="button"
         role="menuitem"
@@ -78,22 +119,8 @@ export function FileContextMenu({
       </button>
       {!canWrite && (
         <p className="border-t border-zinc-100 px-3 py-2 text-[11px] text-amber-700 dark:border-zinc-800 dark:text-amber-300">
-          Schreiben: Ordner mit Chrome/Edge (read/write) öffnen.
+          Sidecar speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.
         </p>
-      )}
-      {isMd && onOpenMarkdown && (
-        <button
-          type="button"
-          role="menuitem"
-          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          onClick={() => {
-            onOpenMarkdown()
-            onClose()
-          }}
-        >
-          <FileText className="h-4 w-4 text-emerald-500" />
-          Markdown öffnen
-        </button>
       )}
     </div>
   )

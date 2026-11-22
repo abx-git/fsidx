@@ -69,3 +69,18 @@ export async function writeTextToStore(
 export function isMarkdownPath(path: string): boolean {
   return path.toLowerCase().endsWith('.md') || path.toLowerCase().endsWith('.markdown')
 }
+
+export async function readBlobFromStore(
+  store: FileSourceStore,
+  relativePath: string,
+): Promise<Blob> {
+  if (store.kind === 'files') {
+    const file = store.files.get(relativePath)
+    if (!file) throw new Error('Datei nicht im Ordner-Snapshot gefunden.')
+    return file
+  }
+  const handle = store.handles.get(relativePath)
+  if (!handle) throw new Error('Datei nicht im Index gefunden.')
+  const file = await handle.getFile()
+  return file
+}

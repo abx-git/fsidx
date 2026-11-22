@@ -1,0 +1,119 @@
+import { extensionFromName } from './mime-hint'
+import { isMarkdownPath } from './file-sources'
+
+export type FileViewerKind =
+  | 'markdown'
+  | 'image'
+  | 'text'
+  | 'json'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'binary'
+
+export interface ViewerMenuOption {
+  kind: FileViewerKind
+  label: string
+}
+
+const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'])
+const TEXT = new Set([
+  'txt',
+  'log',
+  'csv',
+  'ts',
+  'tsx',
+  'js',
+  'jsx',
+  'mjs',
+  'cjs',
+  'css',
+  'scss',
+  'html',
+  'htm',
+  'xml',
+  'yaml',
+  'yml',
+  'toml',
+  'ini',
+  'env',
+  'sh',
+  'bash',
+  'py',
+  'rb',
+  'go',
+  'rs',
+  'java',
+  'kt',
+  'c',
+  'h',
+  'cpp',
+  'hpp',
+  'sql',
+  'vue',
+  'svelte',
+])
+const JSON_EXT = new Set(['json', 'jsonc', 'json5'])
+const PDF = new Set(['pdf'])
+const AUDIO = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'weba'])
+const VIDEO = new Set(['mp4', 'webm', 'ogv', 'mov', 'mkv'])
+
+const MENU_LABELS: Record<FileViewerKind, string> = {
+  markdown: 'Markdown (Lesen / Bearbeiten)',
+  image: 'Bildvorschau',
+  text: 'Text / Quellcode',
+  json: 'JSON (formatiert)',
+  pdf: 'PDF',
+  audio: 'Audio abspielen',
+  video: 'Video abspielen',
+  binary: 'Datei-Info & Download',
+}
+
+export function fileExtension(path: string, ext?: string): string {
+  return (ext ?? extensionFromName(path) ?? '').toLowerCase()
+}
+
+export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOption[] {
+  const e = fileExtension(path, ext)
+  const kinds = new Set<FileViewerKind>()
+
+  if (isMarkdownPath(path)) kinds.add('markdown')
+  if (IMAGE.has(e)) kinds.add('image')
+  if (PDF.has(e)) kinds.add('pdf')
+  if (AUDIO.has(e)) kinds.add('audio')
+  if (VIDEO.has(e)) kinds.add('video')
+  if (JSON_EXT.has(e)) {
+    kinds.add('json')
+    kinds.add('text')
+  }
+  if (TEXT.has(e)) kinds.add('text')
+  if (kinds.size === 0) kinds.add('binary')
+  kinds.add('binary')
+
+  const order: FileViewerKind[] = [
+    'markdown',
+    'image',
+    'pdf',
+    'video',
+    'audio',
+    'json',
+    'text',
+    'binary',
+  ]
+
+  return order
+    .filter((k) => kinds.has(k))
+    .map((kind) => ({ kind, label: MENU_LABELS[kind] }))
+}
+
+export function defaultViewerForFile(path: string, ext?: string): FileViewerKind {
+  const e = fileExtension(path, ext)
+  if (isMarkdownPath(path)) return 'markdown'
+  if (IMAGE.has(e)) return 'image'
+  if (PDF.has(e)) return 'pdf'
+  if (VIDEO.has(e)) return 'video'
+  if (AUDIO.has(e)) return 'audio'
+  if (JSON_EXT.has(e)) return 'json'
+  if (TEXT.has(e)) return 'text'
+  return 'binary'
+}

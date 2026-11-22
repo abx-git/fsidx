@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { findNodeByPath } from './lib/build-manifest'
-import { canWriteToStore, isMarkdownPath } from './lib/file-sources'
+import type { FileViewerKind } from './lib/file-viewers'
+import { canWriteToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
 import { DetailPanel } from './components/DetailPanel'
 import { Welcome } from './components/Welcome'
-import { MarkdownEditor } from './components/MarkdownEditor'
 import { MetadataEditor } from './components/MetadataEditor'
+import { FileViewerRouter } from './components/viewers/FileViewerRouter'
 import {
   FileContextMenu,
   type ContextMenuTarget,
@@ -20,7 +21,13 @@ import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetada
 function App() {
   const fallbackInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const [openedMarkdownPath, setOpenedMarkdownPath] = useState<string | null>(null)
+  const [fileView, setFileView] = useState<{
+    viewer: FileViewerKind
+    path: string
+    name: string
+    id: string
+    size?: number
+  } | null>(null)
   const [metadataTarget, setMetadataTarget] = useState<{
     path: string
     name: string
@@ -52,7 +59,10 @@ function App() {
     registerSidecarFile,
   } = useFileIndex()
 
-  const markdown = useMarkdownDocument(openedMarkdownPath, fileSources)
+  const markdown = useMarkdownDocument(
+    fileView?.viewer === 'markdown' ? fileView.path : null,
+    fileSources,
+  )
 
   const sidecarExists = metadataTarget
     ? hasSidecar(metadataTarget.path)
@@ -83,16 +93,24 @@ function App() {
     return JSON.stringify(slice, null, 2)
   }, [manifest, selectedNode, currentPath])
 
-  const openMarkdown = useCallback((path: string, id: string) => {
-    if (!isMarkdownPath(path)) return
-    setMetadataTarget(null)
-    setSelectedId(id)
-    setOpenedMarkdownPath(path)
-    setSearchQuery('')
-  }, [setSelectedId, setSearchQuery])
+  const openViewer = useCallback(
+    (
+      viewer: FileViewerKind,
+      path: string,
+      name: string,
+      id: string,
+      size?: number,
+    ) => {
+      setMetadataTarget(null)
+      setSelectedId(id)
+      setFileView({ viewer, path, name, id, size })
+      setSearchQuery('')
+    },
+    [setSelectedId, setSearchQuery],
+  )
 
   const openMetadata = useCallback((path: string, name: string, id: string) => {
-    setOpenedMarkdownPath(null)
+    setFileView(null)
     setMetadataTarget({ path, name, id })
     setSelectedId(id)
     setSearchQuery('')
@@ -107,7 +125,7 @@ function App() {
       const rootName = first.webkitRelativePath?.split('/')[0] ?? 'Selected folder'
       clearMarkdownDrafts()
       clearSidecarDrafts()
-      setOpenedMarkdownPath(null)
+      setFileView(null)
       setMetadataTarget(null)
       indexFromFileList(files, rootName)
       e.target.value = ''
@@ -124,7 +142,7 @@ function App() {
         try {
           clearMarkdownDrafts()
           clearSidecarDrafts()
-          setOpenedMarkdownPath(null)
+          setFileView(null)
           setMetadataTarget(null)
           loadManifestJson(JSON.parse(String(reader.result)))
         } catch (err) {
@@ -140,7 +158,7 @@ function App() {
   const handleClear = useCallback(() => {
     clearMarkdownDrafts()
     clearSidecarDrafts()
-    setOpenedMarkdownPath(null)
+    setFileView(null)
     setMetadataTarget(null)
     clearIndex()
   }, [clearIndex])
@@ -148,7 +166,7 @@ function App() {
   const handleOpenFolder = useCallback(async () => {
     clearMarkdownDrafts()
     clearSidecarDrafts()
-    setOpenedMarkdownPath(null)
+    setFileView(null)
     setMetadataTarget(null)
     await indexFromPicker()
   }, [indexFromPicker])
@@ -177,8 +195,6 @@ function App() {
   const indexing =
     progress.phase === 'reading' || progress.phase === 'building'
 
-  const openedFileName = openedMarkdownPath?.split('/').pop() ?? ''
-
   const centerPane = metadataTarget && sidecar.sidecarPath ? (
     <MetadataEditor
       targetPath={metadataTarget.path}
@@ -198,19 +214,26 @@ function App() {
       onClose={() => setMetadataTarget(null)}
       saveError={saveError}
     />
-  ) : openedMarkdownPath ? (
-    <MarkdownEditor
-      fileName={openedFileName}
-      filePath={openedMarkdownPath}
-      content={markdown.content}
-      onChange={markdown.updateContent}
-      viewMode={markdown.viewMode}
-      onViewModeChange={markdown.setViewMode}
-      onToggleViewMode={markdown.toggleViewMode}
-      loading={markdown.loading}
-      error={markdown.error}
-      dirty={markdown.dirty}
-      onClose={() => setOpenedMarkdownPath(null)}
+  ) : fileView ? (
+    <FileViewerRouter
+      target={fileView}
+      fileSources={fileSources}
+      onClose={() => setFileView(null)}
+      markdown={
+        fileView.viewer === 'markdown'
+          ? {
+              content: markdown.content,
+              updateContent: markdown.updateContent,
+              viewMode: markdown.viewMode,
+              setViewMode: markdown.setViewMode,
+              toggleViewMode: markdown.toggleViewMode,
+              loading: markdown.loading,
+              error: markdown.error,
+              dirty: markdown.dirty,
+            }
+          : null
+      }
+      size={fileView.size}
     />
   ) : (
     <FileBrowser
@@ -227,7 +250,7 @@ function App() {
       searchResults={searchResults}
       indexedFilePaths={indexedFilePaths}
       hasSidecar={hasSidecar}
-      onOpenMarkdown={openMarkdown}
+      onOpenViewer={openViewer}
       onFileContextMenu={setContextMenu}
     />
   )
@@ -280,7 +303,7 @@ function App() {
             onSelectPath={(path) => {
               setCurrentPath(path)
               setSearchQuery('')
-              setOpenedMarkdownPath(null)
+              setFileView(null)
               setMetadataTarget(null)
             }}
           />
@@ -298,11 +321,10 @@ function App() {
           if (!contextMenu) return
           openMetadata(contextMenu.path, contextMenu.name, contextMenu.id)
         }}
-        onOpenMarkdown={
-          contextMenu && isMarkdownPath(contextMenu.path)
-            ? () => openMarkdown(contextMenu.path, contextMenu.id)
-            : undefined
-        }
+        onOpenViewer={(kind) => {
+          if (!contextMenu) return
+          openViewer(kind, contextMenu.path, contextMenu.name, contextMenu.id)
+        }}
       />
     </div>
   )

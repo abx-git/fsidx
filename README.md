@@ -11,7 +11,8 @@ A **browser-only** single-page app that indexes every file in a folder you choos
    - **`stats`**: file count, folder count, total bytes, max depth.
 3. You browse via tree + breadcrumbs, search across paths and names, inspect per-node metadata, and **export/import** the full manifest as JSON.
 4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
-5. **Rechtsklick auf eine Datei** → **Metadaten-JSON erstellen/bearbeiten**. Sidecar-Name: gleicher Pfad wie die Datei + `.json` (z. B. `docs/readme.md` → `docs/readme.md.json`). Das UI wird aus dem generischen Schema `file-metadata.v1` erzeugt (Formular oder JSON-Quelltext). Speichern in den Ordner mit Chrome/Edge und Schreibzugriff.
+5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, Datei-Info. Doppelklick öffnet den Standard-Viewer für den Typ.
+6. **Metadaten-JSON** weiterhin im Kontextmenü: Sidecar `datei.json` mit Schema-Editor (`file-metadata.v1`).
 
 Nothing is uploaded; metadata stays in memory unless you export it.
 

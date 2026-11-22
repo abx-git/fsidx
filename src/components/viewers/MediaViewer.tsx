@@ -8,6 +8,7 @@ interface MediaViewerProps {
   loading: boolean
   error: string | null
   onClose: () => void
+  showBackButton?: boolean
 }
 
 export function MediaViewer({
@@ -18,9 +19,17 @@ export function MediaViewer({
   loading,
   error,
   onClose,
+  showBackButton,
 }: MediaViewerProps) {
   return (
-    <ViewerShell title={fileName} subtitle={filePath} onClose={onClose} loading={loading} error={error}>
+    <ViewerShell
+      title={fileName}
+      subtitle={filePath}
+      onClose={onClose}
+      showBackButton={showBackButton}
+      loading={loading}
+      error={error}
+    >
       {objectUrl && (
         <div className="flex flex-col items-center justify-center gap-4 p-8">
           {kind === 'video' ? (

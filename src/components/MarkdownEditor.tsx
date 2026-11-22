@@ -22,6 +22,7 @@ interface MarkdownEditorProps {
   error: string | null
   dirty: boolean
   onClose: () => void
+  showBackButton?: boolean
 }
 
 export function MarkdownEditor({
@@ -36,6 +37,7 @@ export function MarkdownEditor({
   error,
   dirty,
   onClose,
+  showBackButton = true,
 }: MarkdownEditorProps) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -62,14 +64,16 @@ export function MarkdownEditor({
     <section className="flex h-full min-h-0 flex-col bg-white dark:bg-zinc-950">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <div className="flex min-w-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back
-          </button>
+          {showBackButton && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+          )}
           <div className="min-w-0 text-left">
             <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{fileName}</p>
             <p className="truncate font-mono text-[11px] text-zinc-500">{filePath}</p>

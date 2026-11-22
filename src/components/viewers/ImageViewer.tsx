@@ -7,6 +7,7 @@ interface ImageViewerProps {
   loading: boolean
   error: string | null
   onClose: () => void
+  showBackButton?: boolean
 }
 
 export function ImageViewer({
@@ -16,9 +17,17 @@ export function ImageViewer({
   loading,
   error,
   onClose,
+  showBackButton,
 }: ImageViewerProps) {
   return (
-    <ViewerShell title={fileName} subtitle={filePath} onClose={onClose} loading={loading} error={error}>
+    <ViewerShell
+      title={fileName}
+      subtitle={filePath}
+      onClose={onClose}
+      showBackButton={showBackButton}
+      loading={loading}
+      error={error}
+    >
       {objectUrl && (
         <div className="flex min-h-[50vh] items-center justify-center bg-zinc-100 p-4 dark:bg-zinc-900">
           <img

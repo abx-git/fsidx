@@ -10,6 +10,7 @@ interface BinaryViewerProps {
   loading: boolean
   error: string | null
   onClose: () => void
+  showBackButton?: boolean
 }
 
 export function BinaryViewer({
@@ -20,6 +21,7 @@ export function BinaryViewer({
   loading,
   error,
   onClose,
+  showBackButton,
 }: BinaryViewerProps) {
   const download = () => {
     if (!blob) return
@@ -36,6 +38,7 @@ export function BinaryViewer({
       title={fileName}
       subtitle={filePath}
       onClose={onClose}
+      showBackButton={showBackButton}
       loading={loading}
       error={error}
       toolbar={

@@ -5,6 +5,7 @@ interface ViewerShellProps {
   title: string
   subtitle: string
   onClose: () => void
+  showBackButton?: boolean
   loading?: boolean
   error?: string | null
   toolbar?: ReactNode
@@ -15,6 +16,7 @@ export function ViewerShell({
   title,
   subtitle,
   onClose,
+  showBackButton = true,
   loading,
   error,
   toolbar,
@@ -24,14 +26,16 @@ export function ViewerShell({
     <section className="flex h-full min-h-0 flex-col bg-white dark:bg-zinc-950">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <div className="flex min-w-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Zurück
-          </button>
+          {showBackButton && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Zurück
+            </button>
+          )}
           <div className="min-w-0 text-left">
             <p className="truncate text-sm font-medium">{title}</p>
             <p className="truncate font-mono text-[11px] text-zinc-500">{subtitle}</p>

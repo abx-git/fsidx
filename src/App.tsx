@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { findNodeByPath } from './lib/build-manifest'
-import type { FileViewerKind } from './lib/file-viewers'
+import { defaultViewerForFile, type FileViewerKind } from './lib/file-viewers'
 import { canWriteToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
@@ -15,6 +15,7 @@ import {
   type ContextMenuTarget,
 } from './components/FileContextMenu'
 import { useFileIndex } from './hooks/useFileIndex'
+import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 
@@ -58,6 +59,33 @@ function App() {
     hasSidecar,
     registerSidecarFile,
   } = useFileIndex()
+
+  const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
+
+  useEffect(() => {
+    if (!viewerPinned || metadataTarget) return
+    if (!selectedNode || selectedNode.kind !== 'file') {
+      setFileView(null)
+      return
+    }
+    const kind = defaultViewerForFile(selectedNode.path, selectedNode.extension)
+    setFileView((prev) => {
+      if (
+        prev?.id === selectedNode.id &&
+        prev.path === selectedNode.path &&
+        prev.viewer === kind
+      ) {
+        return prev
+      }
+      return {
+        viewer: kind,
+        path: selectedNode.path,
+        name: selectedNode.name,
+        id: selectedNode.id,
+        size: selectedNode.size,
+      }
+    })
+  }, [viewerPinned, selectedNode, metadataTarget])
 
   const markdown = useMarkdownDocument(
     fileView?.viewer === 'markdown' ? fileView.path : null,
@@ -214,11 +242,12 @@ function App() {
       onClose={() => setMetadataTarget(null)}
       saveError={saveError}
     />
-  ) : fileView ? (
+  ) : fileView && !viewerPinned ? (
     <FileViewerRouter
       target={fileView}
       fileSources={fileSources}
       onClose={() => setFileView(null)}
+      variant="center"
       markdown={
         fileView.viewer === 'markdown'
           ? {
@@ -296,7 +325,11 @@ function App() {
           error={progress.phase === 'error' ? progress.message : undefined}
         />
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_1fr_320px]">
+        <div
+          className={`grid min-h-0 flex-1 grid-cols-1 ${
+            viewerPinned ? 'lg:grid-cols-[240px_1fr_minmax(340px,38vw)]' : 'lg:grid-cols-[240px_1fr_320px]'
+          }`}
+        >
           <TreeNav
             root={manifest.tree}
             currentPath={currentPath}
@@ -308,7 +341,38 @@ function App() {
             }}
           />
           {centerPane}
-          <DetailPanel manifest={manifest} node={selectedNode} jsonPreview={jsonPreview} />
+          <DetailPanel
+            manifest={manifest}
+            node={selectedNode}
+            jsonPreview={jsonPreview}
+            viewerPinned={viewerPinned}
+            onViewerPinnedChange={setViewerPinned}
+            viewerSlot={
+              viewerPinned && fileView ? (
+                <FileViewerRouter
+                  target={fileView}
+                  fileSources={fileSources}
+                  onClose={() => setFileView(null)}
+                  variant="sidebar"
+                  markdown={
+                    fileView.viewer === 'markdown'
+                      ? {
+                          content: markdown.content,
+                          updateContent: markdown.updateContent,
+                          viewMode: markdown.viewMode,
+                          setViewMode: markdown.setViewMode,
+                          toggleViewMode: markdown.toggleViewMode,
+                          loading: markdown.loading,
+                          error: markdown.error,
+                          dirty: markdown.dirty,
+                        }
+                      : null
+                  }
+                  size={fileView.size}
+                />
+              ) : undefined
+            }
+          />
         </div>
       )}
 

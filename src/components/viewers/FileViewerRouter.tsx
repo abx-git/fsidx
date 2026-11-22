@@ -32,6 +32,8 @@ interface FileViewerRouterProps {
   onClose: () => void
   markdown?: MarkdownSlice | null
   size?: number
+  /** Full center pane vs compact right sidebar (hides Zurück). */
+  variant?: 'center' | 'sidebar'
 }
 
 export function FileViewerRouter({
@@ -40,7 +42,9 @@ export function FileViewerRouter({
   onClose,
   markdown,
   size,
+  variant = 'center',
 }: FileViewerRouterProps) {
+  const showBackButton = variant === 'center'
   const needsBlob = ['image', 'pdf', 'audio', 'video', 'binary'].includes(target.viewer)
   const blobState = useFileBlob(needsBlob ? target.path : null, fileSources)
   const textState = useFileText(
@@ -62,6 +66,7 @@ export function FileViewerRouter({
         error={markdown.error}
         dirty={markdown.dirty}
         onClose={onClose}
+        showBackButton={showBackButton}
       />
     )
   }
@@ -76,6 +81,7 @@ export function FileViewerRouter({
           loading={blobState.loading}
           error={blobState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
     case 'pdf':
@@ -87,6 +93,7 @@ export function FileViewerRouter({
           loading={blobState.loading}
           error={blobState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
     case 'audio':
@@ -99,6 +106,7 @@ export function FileViewerRouter({
           loading={blobState.loading}
           error={blobState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
     case 'video':
@@ -111,6 +119,7 @@ export function FileViewerRouter({
           loading={blobState.loading}
           error={blobState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
     case 'json':
@@ -123,6 +132,7 @@ export function FileViewerRouter({
           error={textState.error}
           onClose={onClose}
           formattedJson
+          showBackButton={showBackButton}
         />
       )
     case 'text':
@@ -134,6 +144,7 @@ export function FileViewerRouter({
           loading={textState.loading}
           error={textState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
     default:
@@ -146,6 +157,7 @@ export function FileViewerRouter({
           loading={blobState.loading}
           error={blobState.error}
           onClose={onClose}
+          showBackButton={showBackButton}
         />
       )
   }

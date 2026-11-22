@@ -8,6 +8,7 @@ interface TextViewerProps {
   error: string | null
   onClose: () => void
   formattedJson?: boolean
+  showBackButton?: boolean
 }
 
 export function TextViewer({
@@ -18,6 +19,7 @@ export function TextViewer({
   error,
   onClose,
   formattedJson,
+  showBackButton,
 }: TextViewerProps) {
   const display = formattedJson
     ? (() => {
@@ -34,6 +36,7 @@ export function TextViewer({
       title={formattedJson ? `JSON: ${fileName}` : fileName}
       subtitle={filePath}
       onClose={onClose}
+      showBackButton={showBackButton}
       loading={loading}
       error={error}
     >

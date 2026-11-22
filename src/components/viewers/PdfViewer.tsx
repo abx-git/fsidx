@@ -7,6 +7,7 @@ interface PdfViewerProps {
   loading: boolean
   error: string | null
   onClose: () => void
+  showBackButton?: boolean
 }
 
 export function PdfViewer({
@@ -16,9 +17,17 @@ export function PdfViewer({
   loading,
   error,
   onClose,
+  showBackButton,
 }: PdfViewerProps) {
   return (
-    <ViewerShell title={fileName} subtitle={filePath} onClose={onClose} loading={loading} error={error}>
+    <ViewerShell
+      title={fileName}
+      subtitle={filePath}
+      onClose={onClose}
+      showBackButton={showBackButton}
+      loading={loading}
+      error={error}
+    >
       {objectUrl && (
         <iframe
           title={fileName}

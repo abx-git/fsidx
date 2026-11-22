@@ -29,7 +29,13 @@ Nothing is uploaded; metadata stays in memory unless you export it.
 
 ## Live demo (GitHub Pages)
 
-After deploy: **https://abx-git.github.io/fsidx/**
+**URL:** https://abx-git.github.io/fsidx/
+
+**Einmalig im Repo (falls Deploy fehlschlägt):**  
+[Repository Settings → Pages](https://github.com/abx-git/fsidx/settings/pages) → **Build and deployment** → **Source: GitHub Actions**.  
+Danach [Workflow „Deploy GitHub Pages“ erneut ausführen](https://github.com/abx-git/fsidx/actions/workflows/deploy-pages.yml).
+
+Repository: https://github.com/abx-git/fsidx
 
 ## Run locally
 

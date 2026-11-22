@@ -27,6 +27,10 @@ Nothing is uploaded; metadata stays in memory unless you export it.
 }
 ```
 
+## Live demo (GitHub Pages)
+
+After deploy: **https://abx-git.github.io/fsidx/**
+
 ## Run locally
 
 ```bash

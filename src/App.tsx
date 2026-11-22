@@ -58,6 +58,9 @@ function App() {
     indexedFilePaths,
     hasSidecar,
     registerSidecarFile,
+    sessionReady,
+    needsFolderReconnect,
+    reconnectLastFolder,
   } = useFileIndex()
 
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
@@ -316,12 +319,31 @@ function App() {
         indexing={indexing}
       />
 
+      {needsFolderReconnect && manifest && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+          <span>
+            Ordner <strong className="font-medium">{manifest.rootName}</strong> ist im Index, aber
+            nach dem Reload sind die Datei-Inhalte noch nicht angebunden.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (supportsFsPicker) void reconnectLastFolder()
+              else fallbackInputRef.current?.click()
+            }}
+            className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500"
+          >
+            Ordner erneut verbinden
+          </button>
+        </div>
+      )}
+
       {!manifest ? (
         <Welcome
           onOpenFolder={handleOpenFolder}
           onFallback={() => fallbackInputRef.current?.click()}
           supportsFsPicker={supportsFsPicker}
-          loading={indexing}
+          loading={indexing || !sessionReady}
           error={progress.phase === 'error' ? progress.message : undefined}
         />
       ) : (

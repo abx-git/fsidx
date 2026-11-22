@@ -2,17 +2,46 @@ import type { RawFileRow } from './build-manifest'
 import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
 
+export const DIRECTORY_PICKER_ID = 'fsidx-root'
+
 export function supportsDirectoryPicker(): boolean {
   return typeof window.showDirectoryPicker === 'function'
+}
+
+export async function requestDirectoryPermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<boolean> {
+  const current = await handle.queryPermission({ mode: 'readwrite' })
+  if (current === 'granted') return true
+  if (current === 'denied') return false
+  return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted'
+}
+
+export async function fileSourcesFromDirectoryHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<FileSourceStore> {
+  const rows: RawFileRow[] = []
+  const handles = new Map<string, FileSystemFileHandle>()
+  await walkDirectoryHandle(handle, '', rows, handles)
+  return {
+    kind: 'handles',
+    rootName: handle.name,
+    root: handle,
+    handles,
+  }
 }
 
 export async function pickDirectoryWithFsApi(): Promise<{
   rootName: string
   rows: RawFileRow[]
   fileSources: FileSourceStore
+  rootHandle: FileSystemDirectoryHandle
 }> {
   resetIdCounter()
-  const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
+  const handle = await window.showDirectoryPicker({
+    mode: 'readwrite',
+    id: DIRECTORY_PICKER_ID,
+  })
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   await walkDirectoryHandle(handle, '', rows, handles)
@@ -20,6 +49,7 @@ export async function pickDirectoryWithFsApi(): Promise<{
     rootName: handle.name,
     rows,
     fileSources: { kind: 'handles', rootName: handle.name, root: handle, handles },
+    rootHandle: handle,
   }
 }
 

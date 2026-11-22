@@ -1,5 +1,6 @@
-import { FileText } from 'lucide-react'
+import { FileText, Maximize2, Minimize2 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { SidebarResizeHandle } from './SidebarResizeHandle'
 import type { FileIndexManifest, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
 import { DIRECTORY_README_NAME, directoryReadmePath } from '../lib/directory-readme'
@@ -13,6 +14,12 @@ interface DetailPanelProps {
   viewerSlot?: ReactNode
   onDirectoryReadme?: (dirPath: string, dirId: string) => void
   hasDirectoryReadme?: boolean
+  viewerExpanded?: boolean
+  onViewerExpandedChange?: (expanded: boolean) => void
+  onSidebarWidthChange?: (widthPx: number) => void
+  sidebarWidthPx?: number
+  sidebarMinWidth?: number
+  sidebarMaxWidth?: number
 }
 
 export function DetailPanel({
@@ -24,11 +31,26 @@ export function DetailPanel({
   viewerSlot,
   onDirectoryReadme,
   hasDirectoryReadme,
+  viewerExpanded = false,
+  onViewerExpandedChange,
+  onSidebarWidthChange,
+  sidebarWidthPx = 380,
+  sidebarMinWidth = 280,
+  sidebarMaxWidth = 960,
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
+  const detailsVisible = !showViewer || !viewerExpanded
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-l border-zinc-200 dark:border-zinc-800">
+    <aside className="relative flex h-full min-h-0 flex-col border-l border-zinc-200 dark:border-zinc-800">
+      {onSidebarWidthChange && (
+        <SidebarResizeHandle
+          minWidth={sidebarMinWidth}
+          maxWidth={sidebarMaxWidth}
+          getCurrentWidth={() => sidebarWidthPx}
+          onResize={onSidebarWidthChange}
+        />
+      )}
       <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -49,18 +71,45 @@ export function DetailPanel({
         </label>
         {viewerPinned && (
           <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-            Bei Dateiauswahl wird der Standard-Viewer hier angezeigt (Mitte bleibt die Ordneransicht).
+            Vorschau bei Dateiauswahl · <strong>Vergrößern</strong> nutzt die ganze Seitenleiste ·
+            am linken Rand ziehen für die Breite.
           </p>
         )}
       </div>
 
       {showViewer && (
-        <div className="flex min-h-[min(45vh,420px)] flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800">
-          {viewerSlot}
+        <div
+          className={`flex min-h-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
+            viewerExpanded ? 'flex-1' : 'min-h-[min(38vh,360px)] flex-1'
+          }`}
+        >
+          {onViewerExpandedChange && (
+            <div className="flex justify-end border-b border-zinc-100 px-2 py-1 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => onViewerExpandedChange(!viewerExpanded)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                title={viewerExpanded ? 'Viewer in Seitenleiste verkleinern' : 'Viewer vergrößern'}
+              >
+                {viewerExpanded ? (
+                  <>
+                    <Minimize2 className="h-3.5 w-3.5" />
+                    Verkleinern
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    Vergrößern
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          <div className="min-h-0 flex-1">{viewerSlot}</div>
         </div>
       )}
 
-      {node?.kind === 'directory' && onDirectoryReadme && (
+      {node?.kind === 'directory' && onDirectoryReadme && detailsVisible && (
         <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
           <button
             type="button"
@@ -78,7 +127,7 @@ export function DetailPanel({
         </div>
       )}
 
-      {node ? (
+      {detailsVisible && node ? (
         <dl className="space-y-2 border-b border-zinc-200 px-3 py-3 text-sm dark:border-zinc-800">
           <div>
             <dt className="text-xs text-zinc-500">Name</dt>
@@ -121,15 +170,16 @@ export function DetailPanel({
             <dd className="font-mono text-xs">{node.id}</dd>
           </div>
         </dl>
-      ) : (
+      ) : detailsVisible ? (
         <p className="px-3 py-4 text-sm text-zinc-500">
           {viewerPinned
             ? 'Datei wählen — die Vorschau erscheint oben.'
             : 'Datei oder Ordner wählen, um Metadaten anzuzeigen.'}
         </p>
-      )}
+      ) : null}
 
-      <div className={`flex min-h-0 flex-col ${showViewer ? 'max-h-40' : 'flex-1'}`}>
+      {detailsVisible && (
+      <div className={`flex min-h-0 flex-col ${showViewer && !viewerExpanded ? 'max-h-40' : 'flex-1'}`}>
         <div className="border-b border-zinc-200 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
           JSON
         </div>
@@ -137,6 +187,7 @@ export function DetailPanel({
           {jsonPreview}
         </pre>
       </div>
+      )}
     </aside>
   )
 }

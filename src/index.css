@@ -10,6 +10,19 @@ body {
   margin: 0;
 }
 
+.fsidx-main-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .fsidx-main-grid {
+    grid-template-columns: 240px 1fr var(--fsidx-sidebar-w, 320px);
+  }
+}
+
 .markdown-preview h1,
 .markdown-preview h2,
 .markdown-preview h3,

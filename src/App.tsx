@@ -21,6 +21,7 @@ import {
 } from './components/FileContextMenu'
 import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
+import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 
@@ -71,6 +72,14 @@ function App() {
   } = useFileIndex()
 
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
+  const {
+    expanded: viewerExpanded,
+    setExpanded: setViewerExpanded,
+    widthPx: sidebarWidthPx,
+    setWidthPx: setSidebarWidthPx,
+    minWidth: sidebarMinWidth,
+    maxWidth: sidebarMaxWidth,
+  } = useViewerSidebarLayout()
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -436,9 +445,8 @@ function App() {
         />
       ) : (
         <div
-          className={`grid min-h-0 flex-1 grid-cols-1 ${
-            viewerPinned ? 'lg:grid-cols-[240px_1fr_minmax(340px,38vw)]' : 'lg:grid-cols-[240px_1fr_320px]'
-          }`}
+          className="fsidx-main-grid min-h-0 flex-1"
+          style={{ ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px` }}
         >
           <TreeNav
             root={manifest.tree}
@@ -470,6 +478,12 @@ function App() {
                 ? indexedFilePaths.has(directoryReadmePath(inspectNode.path))
                 : false
             }
+            viewerExpanded={viewerExpanded}
+            onViewerExpandedChange={viewerPinned ? setViewerExpanded : undefined}
+            onSidebarWidthChange={setSidebarWidthPx}
+            sidebarWidthPx={sidebarWidthPx}
+            sidebarMinWidth={sidebarMinWidth}
+            sidebarMaxWidth={sidebarMaxWidth}
           />
         </div>
       )}

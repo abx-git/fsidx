@@ -195,7 +195,7 @@ function App() {
   const indexing =
     progress.phase === 'reading' || progress.phase === 'building'
 
-  const centerPane = metadataTarget && sidecar.sidecarPath ? (
+  const centerPane = !manifest ? null : metadataTarget && sidecar.sidecarPath ? (
     <MetadataEditor
       targetPath={metadataTarget.path}
       targetName={metadataTarget.name}
@@ -237,7 +237,7 @@ function App() {
     />
   ) : (
     <FileBrowser
-      rootName={manifest!.rootName}
+      rootName={manifest.rootName}
       currentNode={currentNode}
       currentPath={currentPath}
       onNavigate={(path) => {

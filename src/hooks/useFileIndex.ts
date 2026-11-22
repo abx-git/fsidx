@@ -9,7 +9,9 @@ import type { FileSourceStore } from '../lib/file-sources'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
 import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
-import { findNodeByPath } from '../lib/build-manifest'
+import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
+import { appendFileToManifest } from '../lib/manifest-append'
+import { sidecarPathForFile } from '../lib/sidecar'
 
 export function useFileIndex() {
   const [manifest, setManifest] = useState<FileIndexManifest | null>(null)
@@ -31,6 +33,31 @@ export function useFileIndex() {
     if (!manifest || !searchQuery.trim()) return []
     return searchEntries(manifest.entries, { query: searchQuery })
   }, [manifest, searchQuery])
+
+  const indexedFilePaths = useMemo(() => {
+    if (!manifest) return new Set<string>()
+    return new Set(
+      manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path),
+    )
+  }, [manifest])
+
+  const sidecarPaths = useMemo(() => {
+    const set = new Set<string>()
+    for (const path of indexedFilePaths) {
+      const sidecar = sidecarPathForFile(path)
+      if (indexedFilePaths.has(sidecar)) set.add(sidecar)
+    }
+    return set
+  }, [indexedFilePaths])
+
+  const hasSidecar = useCallback(
+    (filePath: string) => sidecarPaths.has(sidecarPathForFile(filePath)),
+    [sidecarPaths],
+  )
+
+  const registerSidecarFile = useCallback((row: RawFileRow) => {
+    setManifest((m) => (m ? appendFileToManifest(m, row) : m))
+  }, [])
 
   const selectedNode = useMemo((): IndexNode | null => {
     if (!manifest || !selectedId) return null
@@ -117,5 +144,8 @@ export function useFileIndex() {
     loadManifestJson,
     clearIndex,
     supportsFsPicker: supportsDirectoryPicker(),
+    indexedFilePaths,
+    hasSidecar,
+    registerSidecarFile,
   }
 }

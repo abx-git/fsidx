@@ -1,7 +1,9 @@
-import { Folder, File } from 'lucide-react'
+import { Folder, File, FileJson } from 'lucide-react'
 import type { IndexEntry, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
+import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { pathBreadcrumbs } from './TreeNav'
+import type { ContextMenuTarget } from './FileContextMenu'
 
 interface FileBrowserProps {
   rootName: string
@@ -12,7 +14,10 @@ interface FileBrowserProps {
   selectedId: string | null
   searchQuery: string
   searchResults: IndexEntry[]
+  indexedFilePaths: Set<string>
+  hasSidecar: (filePath: string) => boolean
   onOpenMarkdown?: (path: string, id: string) => void
+  onFileContextMenu: (target: ContextMenuTarget) => void
 }
 
 type Row = {
@@ -34,12 +39,15 @@ export function FileBrowser({
   selectedId,
   searchQuery,
   searchResults,
+  indexedFilePaths,
+  hasSidecar,
   onOpenMarkdown,
+  onFileContextMenu,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
   const crumbs = pathBreadcrumbs(currentPath, rootName)
 
-  const listing: Row[] = inSearch
+  const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
         id: e.id,
         kind: e.kind,
@@ -58,6 +66,10 @@ export function FileBrowser({
         lastModified: child.lastModified,
         extension: child.extension,
       }))
+  ).filter(
+    (row) =>
+      row.kind === 'directory' || !isSidecarForIndexedFile(row.path, indexedFilePaths),
+  )
 
   return (
     <section className="flex h-full min-h-0 flex-col">
@@ -79,17 +91,21 @@ export function FileBrowser({
       )}
       {inSearch && (
         <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-          {searchResults.length} match{searchResults.length === 1 ? '' : 'es'} for &quot;{searchQuery}&quot;
+          {searchResults.length} Treffer für &quot;{searchQuery}&quot;
         </p>
       )}
+      <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
+        Rechtsklick auf eine Datei → Metadaten-JSON (<code className="text-[10px]">datei.json</code>)
+      </p>
       <ul className="min-h-0 flex-1 overflow-auto">
         {listing.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-zinc-500">
-            {inSearch ? 'No results in this index.' : 'This folder is empty.'}
+            {inSearch ? 'Keine Treffer.' : 'Dieser Ordner ist leer.'}
           </li>
         )}
         {listing.map((row) => {
           const isSelected = selectedId === row.id
+          const meta = row.kind === 'file' && hasSidecar(row.path)
           return (
             <li key={row.id}>
               <button
@@ -109,6 +125,19 @@ export function FileBrowser({
                     onOpenMarkdown?.(row.path, row.id)
                   }
                 }}
+                onContextMenu={(e) => {
+                  if (row.kind !== 'file') return
+                  e.preventDefault()
+                  onFileContextMenu({
+                    id: row.id,
+                    path: row.path,
+                    name: row.name,
+                    kind: row.kind,
+                    extension: row.extension,
+                    x: e.clientX,
+                    y: e.clientY,
+                  })
+                }}
                 className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b border-zinc-100 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:border-zinc-800/80 dark:hover:bg-zinc-900 ${
                   isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30' : ''
                 }`}
@@ -120,6 +149,11 @@ export function FileBrowser({
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}
                   <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{row.name}</span>
+                  {meta && (
+                    <span title="Metadaten-JSON vorhanden" className="inline-flex">
+                      <FileJson className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                    </span>
+                  )}
                   {inSearch && (
                     <span className="truncate text-xs text-zinc-400">{row.path}</span>
                   )}

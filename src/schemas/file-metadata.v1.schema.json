@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/file-metadata.v1.schema.json",
+  "title": "fsidx Datei-Metadaten",
+  "description": "Sidecar-JSON neben einer indexierten Datei (Dateiname + .json). Erweiterbar über extensions und zusätzliche Felder.",
+  "type": "object",
+  "required": ["version", "target"],
+  "additionalProperties": true,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "title": "Schema-URI",
+      "default": "https://abx-git.github.io/fsidx/schemas/file-metadata.v1.schema.json"
+    },
+    "version": {
+      "type": "integer",
+      "title": "Formatversion",
+      "const": 1,
+      "default": 1
+    },
+    "target": {
+      "type": "object",
+      "title": "Zieldatei",
+      "required": ["path", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "title": "Relativer Pfad"
+        },
+        "name": {
+          "type": "string",
+          "title": "Dateiname"
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "title": "Titel",
+      "description": "Kurzer Anzeigename"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Zusammenfassung"
+    },
+    "tags": {
+      "type": "array",
+      "title": "Schlagwörter",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": ["draft", "review", "done", "archived"],
+      "default": "draft"
+    },
+    "relations": {
+      "type": "array",
+      "title": "Verknüpfungen",
+      "description": "Pfade zu verwandten Dateien im Index",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind"],
+        "properties": {
+          "path": { "type": "string", "title": "Pfad" },
+          "kind": {
+            "type": "string",
+            "title": "Art",
+            "enum": ["related", "parent", "child", "see-also"]
+          },
+          "label": { "type": "string", "title": "Label" }
+        }
+      },
+      "default": []
+    },
+    "extensions": {
+      "type": "object",
+      "title": "Erweiterungen",
+      "description": "Beliebige, namespaced Zusatzfelder (z. B. plugin-id → Objekt)",
+      "additionalProperties": true,
+      "default": {}
+    }
+  }
+}

@@ -11,8 +11,27 @@ A **browser-only** single-page app that indexes every file in a folder you choos
    - **`stats`**: file count, folder count, total bytes, max depth.
 3. You browse via tree + breadcrumbs, search across paths and names, inspect per-node metadata, and **export/import** the full manifest as JSON.
 4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
+5. **Rechtsklick auf eine Datei** → **Metadaten-JSON erstellen/bearbeiten**. Sidecar-Name: gleicher Pfad wie die Datei + `.json` (z. B. `docs/readme.md` → `docs/readme.md.json`). Das UI wird aus dem generischen Schema `file-metadata.v1` erzeugt (Formular oder JSON-Quelltext). Speichern in den Ordner mit Chrome/Edge und Schreibzugriff.
 
 Nothing is uploaded; metadata stays in memory unless you export it.
+
+## Sidecar-Metadaten (JSON Schema)
+
+- Schema: [`public/schemas/file-metadata.v1.schema.json`](public/schemas/file-metadata.v1.schema.json) (auch live unter `/fsidx/schemas/...` auf GitHub Pages)
+- Pflichtfelder: `version` (1), `target` (`path`, `name`)
+- Erweiterbar: `extensions` (beliebige Objekte) und `additionalProperties` auf Root-Ebene
+- Optional: `title`, `summary`, `tags`, `status`, `relations`
+
+```json
+{
+  "$schema": "https://abx-git.github.io/fsidx/schemas/file-metadata.v1.schema.json",
+  "version": 1,
+  "target": { "path": "notes/idee.md", "name": "idee.md" },
+  "title": "Projektidee",
+  "tags": ["draft"],
+  "extensions": { "my-plugin": { "priority": 2 } }
+}
+```
 
 ## JSON manifest shape
 

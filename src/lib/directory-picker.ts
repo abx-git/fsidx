@@ -12,14 +12,14 @@ export async function pickDirectoryWithFsApi(): Promise<{
   fileSources: FileSourceStore
 }> {
   resetIdCounter()
-  const handle = await window.showDirectoryPicker({ mode: 'read' })
+  const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   await walkDirectoryHandle(handle, '', rows, handles)
   return {
     rootName: handle.name,
     rows,
-    fileSources: { kind: 'handles', rootName: handle.name, handles },
+    fileSources: { kind: 'handles', rootName: handle.name, root: handle, handles },
   }
 }
 

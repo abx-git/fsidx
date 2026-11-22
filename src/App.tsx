@@ -108,10 +108,34 @@ function App() {
 
   const canWrite = canWriteToStore(fileSources)
 
+  const inspectNode = useMemo(() => {
+    if (!manifest) return null
+    return selectedNode ?? currentNode ?? manifest.tree
+  }, [manifest, selectedNode, currentNode])
+
+  const navigateToPath = useCallback(
+    (path: string, selectId?: string | null) => {
+      setCurrentPath(path)
+      setSearchQuery('')
+      setMetadataTarget(null)
+      setSaveError(null)
+      setFileView(null)
+      if (selectId !== undefined) setSelectedId(selectId)
+    },
+    [setCurrentPath, setSearchQuery, setSelectedId],
+  )
+
+  useEffect(() => {
+    if (!manifest || currentPath === '') return
+    if (!findNodeByPath(manifest.tree, currentPath)) {
+      setCurrentPath('')
+      setSelectedId(null)
+    }
+  }, [manifest, currentPath, setCurrentPath, setSelectedId])
+
   const jsonPreview = useMemo(() => {
     if (!manifest) return ''
-    const target =
-      selectedNode ?? findNodeByPath(manifest.tree, currentPath) ?? manifest.tree
+    const target = inspectNode ?? manifest.tree
     const slice =
       target === manifest.tree
         ? {
@@ -122,7 +146,7 @@ function App() {
           }
         : target
     return JSON.stringify(slice, null, 2)
-  }, [manifest, selectedNode, currentPath])
+  }, [manifest, inspectNode])
 
   const openViewer = useCallback(
     (
@@ -226,11 +250,11 @@ function App() {
   const indexing =
     progress.phase === 'reading' || progress.phase === 'building'
 
-  const centerPane = !manifest ? null : metadataTarget && sidecar.sidecarPath ? (
+  const centerPane = !manifest ? null : metadataTarget ? (
     <MetadataEditor
       targetPath={metadataTarget.path}
       targetName={metadataTarget.name}
-      sidecarPath={sidecar.sidecarPath}
+      sidecarPath={sidecarPathForFile(metadataTarget.path)}
       data={sidecar.data}
       onChange={sidecar.updateData}
       viewMode={sidecar.viewMode}
@@ -272,10 +296,7 @@ function App() {
       rootName={manifest.rootName}
       currentNode={currentNode}
       currentPath={currentPath}
-      onNavigate={(path) => {
-        setCurrentPath(path)
-        setSearchQuery('')
-      }}
+      onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={setSelectedId}
       selectedId={selectedId}
       searchQuery={searchQuery}
@@ -355,17 +376,12 @@ function App() {
           <TreeNav
             root={manifest.tree}
             currentPath={currentPath}
-            onSelectPath={(path) => {
-              setCurrentPath(path)
-              setSearchQuery('')
-              setFileView(null)
-              setMetadataTarget(null)
-            }}
+            onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
           />
           {centerPane}
           <DetailPanel
             manifest={manifest}
-            node={selectedNode}
+            node={inspectNode}
             jsonPreview={jsonPreview}
             viewerPinned={viewerPinned}
             onViewerPinnedChange={setViewerPinned}

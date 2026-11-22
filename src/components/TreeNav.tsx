@@ -5,7 +5,7 @@ import type { IndexNode } from '../types'
 interface TreeNavProps {
   root: IndexNode
   currentPath: string
-  onSelectPath: (path: string) => void
+  onSelectPath: (path: string, nodeId: string) => void
 }
 
 function TreeNode({
@@ -16,7 +16,7 @@ function TreeNode({
 }: {
   node: IndexNode
   currentPath: string
-  onSelectPath: (path: string) => void
+  onSelectPath: (path: string, nodeId: string) => void
   defaultOpen?: boolean
 }) {
   const isDir = node.kind === 'directory'
@@ -28,29 +28,40 @@ function TreeNode({
 
   return (
     <div className="select-none">
-      <button
-        type="button"
-        onClick={() => {
-          onSelectPath(node.path)
-          if (hasChildren) setOpen((v) => !v)
-        }}
-        className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+      <div
+        className={`flex w-full items-center gap-0.5 rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
           isActive ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100' : 'text-zinc-700 dark:text-zinc-300'
         }`}
-        style={{ paddingLeft: `${node.depth * 12 + 8}px` }}
+        style={{ paddingLeft: `${node.depth * 12 + 4}px` }}
       >
         {hasChildren ? (
-          open ? (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          )
+          <button
+            type="button"
+            aria-label={open ? 'Einklappen' : 'Aufklappen'}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen((v) => !v)
+            }}
+            className="rounded p-1 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+          >
+            {open ? (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+            )}
+          </button>
         ) : (
-          <span className="inline-block w-3.5" />
+          <span className="inline-block w-7" />
         )}
-        <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-        <span className="truncate">{node.name || '(root)'}</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => onSelectPath(node.path, node.id)}
+          className="flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 pr-2 text-left"
+        >
+          <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          <span className="truncate">{node.name || '(root)'}</span>
+        </button>
+      </div>
       {open &&
         node.children?.map((child) =>
           child.kind === 'directory' ? (

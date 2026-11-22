@@ -59,7 +59,15 @@ export function useFileIndex() {
 
   const currentNode = useMemo(() => {
     if (!manifest) return null
-    return findNodeByPath(manifest.tree, currentPath)
+    const node = findNodeByPath(manifest.tree, currentPath)
+    if (!node) return null
+    if (node.kind === 'file') {
+      const parentPath = node.path.includes('/')
+        ? node.path.replace(/\/[^/]+$/, '')
+        : ''
+      return findNodeByPath(manifest.tree, parentPath) ?? manifest.tree
+    }
+    return node
   }, [manifest, currentPath])
 
   const searchResults = useMemo(() => {

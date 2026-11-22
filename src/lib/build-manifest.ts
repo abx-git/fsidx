@@ -156,7 +156,10 @@ export function findNodeByPath(root: IndexNode, path: string): IndexNode | null 
   let current: IndexNode | null = root
   for (const part of parts) {
     if (!current?.children) return null
-    current = current.children.find((c) => c.name === part) ?? null
+    current =
+      current.children.find((c) => c.name === part) ??
+      current.children.find((c) => c.name.toLowerCase() === part.toLowerCase()) ??
+      null
   }
   return current
 }

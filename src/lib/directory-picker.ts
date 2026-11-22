@@ -1,4 +1,5 @@
 import type { RawFileRow } from './build-manifest'
+import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
 
 export function supportsDirectoryPicker(): boolean {
@@ -8,18 +9,25 @@ export function supportsDirectoryPicker(): boolean {
 export async function pickDirectoryWithFsApi(): Promise<{
   rootName: string
   rows: RawFileRow[]
+  fileSources: FileSourceStore
 }> {
   resetIdCounter()
   const handle = await window.showDirectoryPicker({ mode: 'read' })
   const rows: RawFileRow[] = []
-  await walkDirectoryHandle(handle, '', rows)
-  return { rootName: handle.name, rows }
+  const handles = new Map<string, FileSystemFileHandle>()
+  await walkDirectoryHandle(handle, '', rows, handles)
+  return {
+    rootName: handle.name,
+    rows,
+    fileSources: { kind: 'handles', rootName: handle.name, handles },
+  }
 }
 
 async function walkDirectoryHandle(
   dirHandle: FileSystemDirectoryHandle,
   prefix: string,
   rows: RawFileRow[],
+  handles: Map<string, FileSystemFileHandle>,
 ): Promise<void> {
   for await (const [name, child] of dirHandle.entries()) {
     const relativePath = prefix ? `${prefix}/${name}` : name
@@ -30,7 +38,7 @@ async function walkDirectoryHandle(
         name,
         kind: 'directory',
       })
-      await walkDirectoryHandle(child, relativePath, rows)
+      await walkDirectoryHandle(child, relativePath, rows, handles)
     } else {
       let size: number | undefined
       let lastModified: number | undefined
@@ -41,6 +49,7 @@ async function walkDirectoryHandle(
       } catch {
         /* permission or transient read failure */
       }
+      handles.set(relativePath, child)
       rows.push({
         relativePath,
         name,
@@ -56,10 +65,11 @@ async function walkDirectoryHandle(
 export function rowsFromFileList(
   fileList: FileList,
   rootName: string,
-): { rootName: string; rows: RawFileRow[] } {
+): { rootName: string; rows: RawFileRow[]; fileSources: FileSourceStore } {
   resetIdCounter()
   const dirSet = new Set<string>()
   const rows: RawFileRow[] = []
+  const files = new Map<string, File>()
 
   for (const file of Array.from(fileList)) {
     const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath
@@ -73,6 +83,7 @@ export function rowsFromFileList(
       dirSet.add(built)
     }
 
+    files.set(rel, file)
     rows.push({
       relativePath: rel,
       name: file.name,
@@ -91,5 +102,9 @@ export function rowsFromFileList(
     })
   }
 
-  return { rootName, rows }
+  return {
+    rootName,
+    rows,
+    fileSources: { kind: 'files', rootName, files },
+  }
 }

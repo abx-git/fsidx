@@ -5,6 +5,7 @@ import {
   rowsFromFileList,
   supportsDirectoryPicker,
 } from '../lib/directory-picker'
+import type { FileSourceStore } from '../lib/file-sources'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
 import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
@@ -12,6 +13,7 @@ import { findNodeByPath } from '../lib/build-manifest'
 
 export function useFileIndex() {
   const [manifest, setManifest] = useState<FileIndexManifest | null>(null)
+  const [fileSources, setFileSources] = useState<FileSourceStore | null>(null)
   const [progress, setProgress] = useState<IndexingProgress>({
     phase: 'idle',
     scanned: 0,
@@ -40,10 +42,11 @@ export function useFileIndex() {
   const indexFromPicker = useCallback(async () => {
     setProgress({ phase: 'reading', scanned: 0 })
     try {
-      const { rootName, rows } = await pickDirectoryWithFsApi()
+      const { rootName, rows, fileSources: sources } = await pickDirectoryWithFsApi()
       setProgress({ phase: 'building', scanned: rows.length })
       const built = buildManifestFromRows(rootName, rows)
       setManifest(built)
+      setFileSources(sources)
       setCurrentPath('')
       setSelectedId(null)
       setSearchQuery('')
@@ -64,9 +67,10 @@ export function useFileIndex() {
   const indexFromFileList = useCallback((fileList: FileList, rootName: string) => {
     setProgress({ phase: 'building', scanned: fileList.length })
     resetIdCounter()
-    const { rows } = rowsFromFileList(fileList, rootName)
+    const { rows, fileSources: sources } = rowsFromFileList(fileList, rootName)
     const built = buildManifestFromRows(rootName, rows)
     setManifest(built)
+    setFileSources(sources)
     setCurrentPath('')
     setSelectedId(null)
     setSearchQuery('')
@@ -79,6 +83,7 @@ export function useFileIndex() {
       throw new Error('Invalid manifest: expected version 1 with tree and entries')
     }
     setManifest(data)
+    setFileSources(null)
     setCurrentPath('')
     setSelectedId(null)
     setSearchQuery('')
@@ -87,6 +92,7 @@ export function useFileIndex() {
 
   const clearIndex = useCallback(() => {
     setManifest(null)
+    setFileSources(null)
     setCurrentPath('')
     setSelectedId(null)
     setSearchQuery('')
@@ -95,6 +101,7 @@ export function useFileIndex() {
 
   return {
     manifest,
+    fileSources,
     progress,
     currentPath,
     setCurrentPath,

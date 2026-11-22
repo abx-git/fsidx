@@ -12,6 +12,7 @@ interface FileBrowserProps {
   selectedId: string | null
   searchQuery: string
   searchResults: IndexEntry[]
+  onOpenMarkdown?: (path: string, id: string) => void
 }
 
 type Row = {
@@ -33,6 +34,7 @@ export function FileBrowser({
   selectedId,
   searchQuery,
   searchResults,
+  onOpenMarkdown,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
   const crumbs = pathBreadcrumbs(currentPath, rootName)
@@ -97,7 +99,15 @@ export function FileBrowser({
                   if (row.kind === 'directory' && !inSearch) onNavigate(row.path)
                 }}
                 onDoubleClick={() => {
-                  if (row.kind === 'directory') onNavigate(row.path)
+                  if (row.kind === 'directory') {
+                    onNavigate(row.path)
+                    return
+                  }
+                  const ext = row.extension ?? row.name.split('.').pop()?.toLowerCase()
+                  if (ext === 'md' || ext === 'markdown') {
+                    onSelectEntry(row.id)
+                    onOpenMarkdown?.(row.path, row.id)
+                  }
                 }}
                 className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b border-zinc-100 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:border-zinc-800/80 dark:hover:bg-zinc-900 ${
                   isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30' : ''

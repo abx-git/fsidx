@@ -10,6 +10,7 @@ A **browser-only** single-page app that indexes every file in a folder you choos
    - **`entries`**: flat list with `searchText` for client-side search.
    - **`stats`**: file count, folder count, total bytes, max depth.
 3. You browse via tree + breadcrumbs, search across paths and names, inspect per-node metadata, and **export/import** the full manifest as JSON.
+4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
 
 Nothing is uploaded; metadata stays in memory unless you export it.
 
@@ -59,7 +60,9 @@ src/
     search.ts             # Client-side search
     mime-hint.ts          # Extension → MIME hints
   hooks/useFileIndex.ts   # App state for indexing & navigation
-  components/             # Header, tree, browser, detail panel, welcome
+  components/             # Header, tree, browser, MarkdownEditor, welcome
+  hooks/useMarkdownDocument.ts
+  lib/file-sources.ts     # In-memory file handles for reading .md content
   App.tsx
 ```
 

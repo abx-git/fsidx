@@ -31,9 +31,15 @@ Nothing is uploaded; metadata stays in memory unless you export it.
 
 **URL:** https://abx-git.github.io/fsidx/
 
-**Einmalig im Repo (falls Deploy fehlschlägt):**  
-[Repository Settings → Pages](https://github.com/abx-git/fsidx/settings/pages) → **Build and deployment** → **Source: GitHub Actions**.  
-Danach [Workflow „Deploy GitHub Pages“ erneut ausführen](https://github.com/abx-git/fsidx/actions/workflows/deploy-pages.yml).
+**Einmalig – Pages freischalten (sonst bleibt die URL 404):**
+
+1. Warten, bis der [Workflow „Deploy GitHub Pages“](https://github.com/abx-git/fsidx/actions/workflows/deploy-pages.yml) **grün** ist (legt den Branch `gh-pages` an).
+2. [Settings → Pages](https://github.com/abx-git/fsidx/settings/pages) öffnen.
+3. **Build and deployment** → **Source: Deploy from a branch**
+4. **Branch: `gh-pages`** · Ordner: **`/ (root)`** → **Save**
+5. Nach 1–2 Minuten ist https://abx-git.github.io/fsidx/ erreichbar.
+
+*(Alternative Quelle „GitHub Actions“ funktioniert erst, wenn Pages im Repo bereits aktiviert ist – deshalb nutzen wir den `gh-pages`-Branch.)*
 
 Repository: https://github.com/abx-git/fsidx
 

@@ -12,7 +12,7 @@
 
 ## Modi
 
-- **live** (`viewMode: reading`): nur die Zeile unter der Schreibmarke als Roh-Markdown, alle anderen Zeilen gerendert (kein Block-Highlight).
+- **live** (`viewMode: reading`): Fließtext zeilenweise als Roh-Markdown; **gesamte** Codeblöcke (``` und eingerückt) sowie **ganze Tabellen** beim Bearbeiten. Pfeiltasten zeilenweise, Tab zum Einrücken.
 - **source** (`viewMode: source`): voller CodeMirror-Quelltext, Zeilennummern, ohne Vorschau.
 
 ## Entfernt (Legacy)

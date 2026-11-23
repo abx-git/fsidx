@@ -59,15 +59,40 @@ export function findTableRanges(state: EditorState): DocRange[] {
 }
 
 export function findFencedCodeRanges(state: EditorState): DocRange[] {
+  return findSyntaxBlockRanges(state, ['FencedCode'])
+}
+
+/** Vier-Leerzeichen-Codeblöcke (ohne ```) */
+export function findIndentedCodeRanges(state: EditorState): DocRange[] {
+  return findSyntaxBlockRanges(state, ['CodeBlock'])
+}
+
+function findSyntaxBlockRanges(state: EditorState, names: string[]): DocRange[] {
   const ranges: DocRange[] = []
+  const want = new Set(names)
   syntaxTree(state).iterate({
     enter(node: SyntaxNodeRef) {
-      if (node.type.name === 'FencedCode') {
+      if (want.has(node.type.name)) {
         ranges.push({ from: node.from, to: node.to })
       }
     },
   })
   return ranges
+}
+
+function syntaxBlockAtCursor(state: EditorState, head: number, names: string[]): DocRange | null {
+  const want = new Set(names)
+  let found: DocRange | null = null
+  syntaxTree(state).iterate({
+    enter(node: SyntaxNodeRef) {
+      if (!want.has(node.type.name)) return
+      if (head >= node.from && head <= node.to) {
+        found = { from: node.from, to: node.to }
+        return false
+      }
+    },
+  })
+  return found
 }
 
 function lineRange(state: EditorState, lineNo: number): DocRange {
@@ -141,17 +166,15 @@ export function splitParagraphAroundLine(
 }
 
 export function fencedCodeAtCursor(state: EditorState, head: number): DocRange | null {
-  let found: DocRange | null = null
-  syntaxTree(state).iterate({
-    enter(node: SyntaxNodeRef) {
-      if (node.type.name !== 'FencedCode') return
-      if (head >= node.from && head <= node.to) {
-        found = { from: node.from, to: node.to }
-        return false
-      }
-    },
-  })
-  return found
+  return syntaxBlockAtCursor(state, head, ['FencedCode'])
+}
+
+export function indentedCodeAtCursor(state: EditorState, head: number): DocRange | null {
+  return syntaxBlockAtCursor(state, head, ['CodeBlock'])
+}
+
+export function codeBlockAtCursor(state: EditorState, head: number): DocRange | null {
+  return fencedCodeAtCursor(state, head) ?? indentedCodeAtCursor(state, head)
 }
 
 export function tableAtCursor(state: EditorState, head: number): DocRange | null {
@@ -161,15 +184,27 @@ export function tableAtCursor(state: EditorState, head: number): DocRange | null
   return null
 }
 
-/** Nur die Zeile unter dem Cursor — kein ganzer Tabellen-/Codeblock. */
+/** Tabellen/Code: ganzer Block; Fließtext: eine Zeile. */
 export function activeRegionKey(state: EditorState): string {
   const head = state.selection.main.head
+  const code = codeBlockAtCursor(state, head)
+  if (code) return `code:${state.doc.lineAt(code.from).number}`
+  const table = tableAtCursor(state, head)
+  if (table) return `table:${state.doc.lineAt(table.from).number}`
   return `line:${state.doc.lineAt(head).number}`
 }
 
-/** Genau die Dokumentzeile an der Marke: dort Roh-Markdown, sonst Vorschau. */
+/**
+ * Roh-Markdown: ganzer Code-/Tabellenblock — sonst nur die Cursor-Zeile
+ * (Listen-Einrückung bleibt in der jeweiligen Zeile).
+ */
 export function activeEditRegion(state: EditorState): DocRange {
-  const line = state.doc.lineAt(state.selection.main.head)
+  const head = state.selection.main.head
+  const code = codeBlockAtCursor(state, head)
+  if (code) return code
+  const table = tableAtCursor(state, head)
+  if (table) return table
+  const line = state.doc.lineAt(head)
   return { from: line.from, to: line.to }
 }
 

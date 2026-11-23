@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { markdown } from '@codemirror/lang-markdown'
 import { EditorState } from '@codemirror/state'
 import {
   activeEditRegion,
@@ -25,13 +26,26 @@ describe('activeEditRegion', () => {
     expect(state.doc.sliceString(active.from, active.to)).toBe('Text')
   })
 
-  it('nutzt nur die Tabellenzeile unter dem Cursor', () => {
+  it('nutzt die ganze Tabelle unter dem Cursor', () => {
     const doc = '| H1 | H2 |\n| --- | --- |\n| a | b |\n'
     const head = doc.indexOf('| a |')
     const state = EditorState.create({ doc, selection: { anchor: head } })
     const active = activeEditRegion(state)
-    expect(state.doc.sliceString(active.from, active.to)).toBe('| a | b |')
+    expect(state.doc.sliceString(active.from, active.to)).toBe('| H1 | H2 |\n| --- | --- |\n| a | b |')
     expect(findTableRanges(state).length).toBe(1)
+  })
+
+  it('nutzt den ganzen Codeblock inkl. Einrückung', () => {
+    const doc = 'Text\n\n```js\nconst x = 1\n```\n'
+    const head = doc.indexOf('const')
+    const state = EditorState.create({
+      doc,
+      selection: { anchor: head },
+      extensions: markdown(),
+    })
+    const active = activeEditRegion(state)
+    expect(state.doc.sliceString(active.from, active.to)).toContain('```js')
+    expect(state.doc.sliceString(active.from, active.to)).toContain('const x = 1')
   })
 })
 

@@ -10,6 +10,7 @@ import {
   activeRegionKey,
   eachLineInRange,
   findFencedCodeRanges,
+  findIndentedCodeRanges,
   findParagraphRanges,
   findTableRanges,
   rangesOverlap,
@@ -50,26 +51,6 @@ function markRangeLines(
   eachLineInRange(state, { from, to }, (lineNo) => {
     hiddenLines.add(lineNo)
   })
-}
-
-function addLinePreview(
-  items: PendingDeco[],
-  hiddenLines: Set<number>,
-  state: EditorState,
-  lineNo: number,
-  ctx: MarkdownWidgetContext,
-) {
-  const line = state.doc.line(lineNo)
-  if (!line.text.trim()) return
-  addDeco(
-    items,
-    line.from,
-    line.to,
-    Decoration.replace({
-      widget: new MarkdownPreviewWidget(line.text, line.from, line.to, ctx, 'line'),
-    }),
-  )
-  hiddenLines.add(lineNo)
 }
 
 function addBlockPreview(
@@ -118,17 +99,14 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
 
   const tables = findTableRanges(state)
   const fences = findFencedCodeRanges(state)
-  const skipRanges = [...tables, ...fences]
+  const indented = findIndentedCodeRanges(state)
+  const skipRanges = [...tables, ...fences, ...indented]
 
   for (const nodeRange of fences) {
     if (rangesOverlap(nodeRange, active)) {
-      const first = state.doc.lineAt(nodeRange.from).number
-      const last = state.doc.lineAt(nodeRange.to).number
-      for (let lineNo = first; lineNo <= last; lineNo++) {
-        const line = state.doc.line(lineNo)
-        if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
-        addLinePreview(items, hiddenLines, state, lineNo, ctx)
-      }
+      eachLineInRange(state, nodeRange, (_lineNo, from) => {
+        addDeco(items, from, from, Decoration.line({ class: 'cm-md-fence-source-line' }))
+      })
       continue
     }
     const meta = fencedCodeMeta(state, nodeRange.from, nodeRange.to)
@@ -150,31 +128,32 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
     markRangeLines(state, nodeRange.from, nodeRange.to, hiddenLines)
   }
 
+  for (const nodeRange of indented) {
+    if (rangesOverlap(nodeRange, active)) {
+      eachLineInRange(state, nodeRange, (_lineNo, from) => {
+        addDeco(items, from, from, Decoration.line({ class: 'cm-md-fence-source-line' }))
+      })
+      continue
+    }
+    const code = state.sliceDoc(nodeRange.from, nodeRange.to).trimEnd()
+    if (!code.trim()) continue
+    addDeco(
+      items,
+      nodeRange.from,
+      nodeRange.to,
+      Decoration.replace({
+        widget: new FencedCodePreviewWidget(code, '', nodeRange.from, nodeRange.to),
+        block: true,
+      }),
+    )
+    markRangeLines(state, nodeRange.from, nodeRange.to, hiddenLines)
+  }
+
   for (const table of tables) {
     if (rangesOverlap(table, active)) {
-      const activeLineNo = state.doc.lineAt(active.from).number
-      const first = state.doc.lineAt(table.from).number
-      const last = state.doc.lineAt(table.to).number
-      if (activeLineNo > first) {
-        addBlockPreview(
-          items,
-          hiddenLines,
-          state,
-          table.from,
-          state.doc.line(activeLineNo - 1).to,
-          ctx,
-        )
-      }
-      if (activeLineNo < last) {
-        addBlockPreview(
-          items,
-          hiddenLines,
-          state,
-          state.doc.line(activeLineNo + 1).from,
-          table.to,
-          ctx,
-        )
-      }
+      eachLineInRange(state, table, (_lineNo, from) => {
+        addDeco(items, from, from, Decoration.line({ class: 'cm-md-table-source-line' }))
+      })
       continue
     }
     addBlockPreview(items, hiddenLines, state, table.from, table.to, ctx)

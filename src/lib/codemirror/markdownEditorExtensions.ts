@@ -1,3 +1,4 @@
+import { indentWithTab } from '@codemirror/commands'
 import { insertNewlineContinueMarkup, markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
@@ -25,6 +26,7 @@ export function buildFsidxMarkdownExtensions(
     fsidxDarkMarkdownEditorTheme,
     Prec.high(
       keymap.of([
+        indentWithTab,
         { key: 'Enter', run: insertNewlineContinueMarkup },
         { key: 'Mod-Enter', run: insertNewlineContinueMarkup },
       ]),

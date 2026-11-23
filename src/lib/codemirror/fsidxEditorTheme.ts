@@ -47,6 +47,15 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
     margin: '0.75rem 0',
     maxWidth: '100%',
   },
+  '.cm-md-fence-source-line, .cm-md-table-source-line': {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.875em',
+    lineHeight: '1.5',
+  },
+  '.cm-md-table-source-line': {
+    fontFamily: 'inherit',
+    fontSize: '0.95em',
+  },
   '.cm-md-mermaid img, .cm-md-image-wrap img': {
     maxWidth: '100%',
     height: 'auto',

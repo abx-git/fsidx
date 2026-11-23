@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { moveFileValidationError, resolveMoveFilePath } from './move-workspace'
+import {
+  moveFileValidationError,
+  renameFileValidationError,
+  resolveMoveFilePath,
+  resolveRenameFilePath,
+} from './move-workspace'
 
 describe('resolveMoveFilePath', () => {
   it('legt Datei im Zielordner an', () => {
@@ -17,5 +22,21 @@ describe('moveFileValidationError', () => {
 
   it('erlaubt Verschieben in leeren Zielordner', () => {
     expect(moveFileValidationError('src/a.md', 'dest', new Set())).toBeNull()
+  })
+})
+
+describe('resolveRenameFilePath', () => {
+  it('ändert nur den Dateinamen im gleichen Ordner', () => {
+    expect(resolveRenameFilePath('proj/Sprint.tsk.json', 'Backlog.tsk.json')).toBe(
+      'proj/Backlog.tsk.json',
+    )
+    expect(resolveRenameFilePath('root.tsk.json', 'neu.tsk.json')).toBe('neu.tsk.json')
+  })
+})
+
+describe('renameFileValidationError', () => {
+  it('meldet Namenskollision', () => {
+    const paths = new Set(['a/x.tsk.json'])
+    expect(renameFileValidationError('a/y.tsk.json', 'x.tsk.json', paths)).toMatch(/bereits/)
   })
 })

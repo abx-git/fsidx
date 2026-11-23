@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { findNodeByPath } from './lib/build-manifest'
+import { findNodeByPath, type RawFileRow } from './lib/build-manifest'
 import { defaultViewerForFile, type FileViewerKind } from './lib/file-viewers'
 import {
   DIRECTORY_README_NAME,
@@ -26,8 +26,8 @@ import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
-import { moveFileInStore, resolveMoveFilePath } from './lib/move-workspace'
-import { isTskJsonPath } from './lib/et2/tsk-paths'
+import { moveFileInStore, renameFileInStore, resolveMoveFilePath } from './lib/move-workspace'
+import { isTskJsonPath, normalizeTskJsonFileNameInput } from './lib/et2/tsk-paths'
 import {
   isBundledTaskRef,
   isTaskFilePath,
@@ -852,6 +852,46 @@ function App() {
     }
   }, [contextMenu, navigateToPath, setCurrentPath, setSelectedId])
 
+  const applyRelocatedFileInIndex = useCallback(
+    (from: string, row: RawFileRow, sidecarRow: RawFileRow | null, oldEntryId?: string) => {
+      const newId = moveIndexedFile(from, row, sidecarRow)
+      if (!newId) throw new Error('Index konnte nicht aktualisiert werden.')
+      if (selectedId === oldEntryId) setSelectedId(newId)
+      if (fileView?.path === from) {
+        setFileView((prev) =>
+          prev ? { ...prev, path: row.relativePath, name: row.name, id: newId } : prev,
+        )
+      }
+      if (metadataTarget?.path === from) {
+        setMetadataTarget({
+          ...metadataTarget,
+          path: row.relativePath,
+          name: row.name,
+        })
+      }
+      if (selectedTskTaskRef) {
+        const ref = taskRefFromPath(selectedTskTaskRef)
+        if (ref?.bundlePath === from) {
+          setSelectedTskTaskRef(makeBundledTaskRef(row.relativePath, ref.taskId))
+        }
+      }
+      void et2Tasks.reload()
+      if (aggregateTasksDir !== null) void aggregateEt2Tasks.reload()
+      return newId
+    },
+    [
+      moveIndexedFile,
+      selectedId,
+      fileView?.path,
+      metadataTarget,
+      selectedTskTaskRef,
+      et2Tasks,
+      aggregateTasksDir,
+      aggregateEt2Tasks,
+      setSelectedId,
+    ],
+  )
+
   const handleMoveFileToDirectory = useCallback(
     async (filePath: string, destDirPath: string) => {
       if (!fileSources || !canWrite || !manifest) return
@@ -866,51 +906,41 @@ function App() {
           destDirPath,
           indexedFilePaths,
         )
-        const newId = moveIndexedFile(from, row, sidecarRow)
-        if (!newId) throw new Error('Index konnte nicht aktualisiert werden.')
-        if (selectedId === oldEntry?.id) setSelectedId(newId)
-        if (fileView?.path === from) {
-          setFileView((prev) =>
-            prev ? { ...prev, path: row.relativePath, name: row.name, id: newId } : prev,
-          )
-        }
-        if (metadataTarget?.path === from) {
-          setMetadataTarget({
-            ...metadataTarget,
-            path: row.relativePath,
-            name: row.name,
-          })
-        }
-        if (selectedTskTaskRef) {
-          const ref = taskRefFromPath(selectedTskTaskRef)
-          if (ref?.bundlePath === from) {
-            setSelectedTskTaskRef(makeBundledTaskRef(row.relativePath, ref.taskId))
-          }
-        } else if (activeTskPath === from) {
-          setSelectedTskTaskRef(null)
-        }
-        void et2Tasks.reload()
-        if (aggregateTasksDir !== null) void aggregateEt2Tasks.reload()
+        applyRelocatedFileInIndex(from, row, sidecarRow, oldEntry?.id)
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
       }
     },
-    [
-      fileSources,
-      canWrite,
-      manifest,
-      indexedFilePaths,
-      moveIndexedFile,
-      selectedId,
-      fileView?.path,
-      metadataTarget,
-      selectedTskTaskRef,
-      activeTskPath,
-      et2Tasks,
-      aggregateTasksDir,
-      aggregateEt2Tasks,
-      setSelectedId,
-    ],
+    [fileSources, canWrite, manifest, indexedFilePaths, applyRelocatedFileInIndex],
+  )
+
+  const handleRenameTskFile = useCallback(
+    async (filePath: string, currentName: string) => {
+      if (!fileSources || !canWrite || !manifest) return
+      const from = filePath.replace(/\\/g, '/')
+      const input = window.prompt('Aufgaben-Datei umbenennen:', currentName)
+      if (input === null) return
+      let newName: string
+      try {
+        newName = normalizeTskJsonFileNameInput(input)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Ungültiger Dateiname')
+        return
+      }
+      const oldEntry = manifest.entries.find((e) => e.path === from)
+      try {
+        const { row, sidecarRow } = await renameFileInStore(
+          fileSources,
+          from,
+          newName,
+          indexedFilePaths,
+        )
+        applyRelocatedFileInIndex(from, row, sidecarRow, oldEntry?.id)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Umbenennen fehlgeschlagen')
+      }
+    },
+    [fileSources, canWrite, manifest, indexedFilePaths, applyRelocatedFileInIndex],
   )
 
   const handleDeleteContextTarget = useCallback(async () => {
@@ -1201,6 +1231,9 @@ function App() {
                   onSelectTask={setSelectedTskTaskRef}
                   onNewSubtask={(parentId) => void handleEt2Subtask(parentId)}
                   onNewSibling={(anchorId) => void handleEt2SiblingAfter(anchorId)}
+                  onRenameTskFile={() =>
+                    void handleRenameTskFile(activeTskPath, selectedNode.name)
+                  }
                   onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
                   onReparentTask={(taskId) => setReparentTaskId(taskId)}
                   onNestTask={(taskId, parentId) => void handleEt2NestTask(taskId, parentId)}
@@ -1326,6 +1359,11 @@ function App() {
             : undefined
         }
         onOpenInScope={() => handleOpenContextInScope()}
+        onRename={
+          contextMenu?.kind === 'file' && isTskJsonPath(contextMenu.path) && canWrite
+            ? () => void handleRenameTskFile(contextMenu.path, contextMenu.name)
+            : undefined
+        }
         onDelete={
           contextMenu && (contextMenu.kind === 'file' || contextMenu.path !== '')
             ? () => void handleDeleteContextTarget()

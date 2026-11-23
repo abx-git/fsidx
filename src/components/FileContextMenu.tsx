@@ -52,6 +52,7 @@ interface FileContextMenuProps {
   onNewSubfolder?: () => void
   onNewMarkdown?: () => void
   onDelete?: () => void
+  onRename?: () => void
   onOpenInScope?: () => void
   onAggregateTasks?: () => void
 }
@@ -69,6 +70,7 @@ export function FileContextMenu({
   onNewSubfolder,
   onNewMarkdown,
   onDelete,
+  onRename,
   onOpenInScope,
   onAggregateTasks,
 }: FileContextMenuProps) {
@@ -274,6 +276,21 @@ export function FileContextMenu({
             <FileJson className="h-4 w-4 text-violet-500" />
           )}
           {hasSidecar ? 'Metadaten bearbeiten' : 'Metadaten-JSON erstellen'}
+        </button>
+      )}
+      {isTsk && onRename && (
+        <button
+          type="button"
+          role="menuitem"
+          disabled={!canWrite}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-800"
+          onClick={() => {
+            onRename()
+            onClose()
+          }}
+        >
+          <Pencil className="h-4 w-4 shrink-0 text-violet-500" />
+          <span>Datei umbenennen…</span>
         </button>
       )}
       {onDelete && (

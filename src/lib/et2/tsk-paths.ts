@@ -15,3 +15,12 @@ export function defaultNewTskPath(dirPath: string, attempt = 0): string {
   const name = tskFileName('Aufgaben', attempt)
   return dirPath ? `${dirPath}/${name}` : name
 }
+
+/** Nur Dateiname (ohne Pfad), Endung `.tsk.json`. */
+export function normalizeTskJsonFileNameInput(input: string): string {
+  const raw = input.trim().replace(/[/\\]+/g, '')
+  if (!raw) throw new Error('Dateiname fehlt.')
+  if (isTskJsonPath(raw)) return raw
+  const stem = raw.replace(/\.tsk\.json$/i, '').replace(/\.json$/i, '').replace(/\.tsk$/i, '')
+  return tskFileName(stem || 'Aufgaben')
+}

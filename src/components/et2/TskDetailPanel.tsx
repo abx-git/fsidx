@@ -16,6 +16,7 @@ interface TskDetailPanelProps {
   selectedTaskRef: string | null
   onSelectTask: (taskRef: string) => void
   onNewSubtask: (parentTaskId?: string) => void
+  onNewSibling: (anchorTaskId: string) => void
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
   onNestTask?: (taskId: string, newParentId: string | null) => void
@@ -62,6 +63,7 @@ export function TskDetailPanel({
   selectedTaskRef,
   onSelectTask,
   onNewSubtask,
+  onNewSibling,
   onDeleteTask,
   onReparentTask,
   onNestTask,
@@ -125,8 +127,8 @@ export function TskDetailPanel({
         </p>
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
-            Alt+↑↓ Reihenfolge · Alt+←/→ ein-/ausrücken · Ziehen = unter Ziel einordnen · Aktionen im ⋯
-            -Menü
+            Enter = neue Aufgabe (gleiche Ebene) · Alt+↑↓ Reihenfolge · Alt+←/→ ein-/ausrücken · ⋯
+            für Unteraufgabe
           </p>
         )}
       </div>
@@ -151,6 +153,7 @@ export function TskDetailPanel({
             selectedTaskRef={selectedTaskRef}
             onSelectTask={onSelectTask}
             onAddSubtask={(parentId) => onNewSubtask(parentId)}
+            onAddSibling={onNewSibling}
             onDeleteTask={onDeleteTask}
             onReparentTask={onReparentTask}
             onNestTask={onNestTask}

@@ -537,6 +537,45 @@ function App() {
     [tskFile.tasks, selectedTskTaskRef],
   )
 
+  const handleEt2SiblingAfter = useCallback(
+    async (anchorTaskId: string) => {
+      if (!activeTskPath || !fileSources || !canWrite) {
+        window.alert('Neue Aufgabe: .tsk.json mit Schreibzugriff öffnen.')
+        return
+      }
+      const parentDir = activeTskPath.includes('/')
+        ? activeTskPath.slice(0, activeTskPath.lastIndexOf('/'))
+        : ''
+      try {
+        const result = await createEt2TaskOnDisk(fileSources, {
+          dirPath: parentDir,
+          tskPath: activeTskPath,
+          title: '',
+          body: '',
+          insertAfterTaskId: anchorTaskId,
+          indexedPaths: indexedPathList,
+        })
+        registerSidecarFile(result.row)
+        clearMarkdownDrafts()
+        et2Tasks.reload()
+        await tskFile.reload()
+        setSelectedTskTaskRef(result.relativePath)
+        setTitleFocusTick((t) => t + 1)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
+      }
+    },
+    [
+      activeTskPath,
+      fileSources,
+      canWrite,
+      registerSidecarFile,
+      et2Tasks,
+      indexedPathList,
+      tskFile,
+    ],
+  )
+
   const handleEt2Subtask = useCallback(
     async (parentTaskId?: string) => {
       if (!activeTskPath || !fileSources || !canWrite) {
@@ -1161,6 +1200,7 @@ function App() {
                   selectedTaskRef={selectedTskTaskRef}
                   onSelectTask={setSelectedTskTaskRef}
                   onNewSubtask={(parentId) => void handleEt2Subtask(parentId)}
+                  onNewSibling={(anchorId) => void handleEt2SiblingAfter(anchorId)}
                   onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
                   onReparentTask={(taskId) => setReparentTaskId(taskId)}
                   onNestTask={(taskId, parentId) => void handleEt2NestTask(taskId, parentId)}

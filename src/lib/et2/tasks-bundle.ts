@@ -12,6 +12,7 @@ import {
   deleteTaskSubtree,
   idsToRemoveForTaskSubtree,
   indentTaskInTree,
+  insertTaskSiblingAfter,
   moveTaskAmongSiblings,
   outdentTaskInTree,
   reparentTaskInList,
@@ -110,6 +111,8 @@ export interface CreateEt2TaskOptions {
   body?: string
   taskId?: string
   parentId?: string | null
+  /** Nach dieser Aufgabe einfügen (gleiche Ebene, order direkt danach). */
+  insertAfterTaskId?: string
   status?: Et2TaskStatus
   /** Dateiname nur bei neuer Datei (z. B. `Projekt.tsk.json`). */
   tskFileName?: string
@@ -184,16 +187,22 @@ export async function createEt2TaskOnDisk(
     (isTskJsonPath(bundlePath) ? emptyTasksBundle() : null)
   if (!bundle) throw new Error('Aufgaben-Datei konnte nicht gelesen werden.')
 
+  const insertAfter = options.insertAfterTaskId
+  const anchor = insertAfter ? bundle.tasks.find((t) => t.id === insertAfter) : undefined
+  const parentId = insertAfter && anchor ? (anchor.parentId ?? null) : (options.parentId ?? null)
+
   const record: Et2TaskRecord = {
     id: taskId,
-    parentId: options.parentId ?? null,
+    parentId,
     title: options.title.trim() || DEFAULT_NEW_TASK_TITLE,
     body: options.body ?? '',
     status: options.status ?? 'open',
     kind: options.kind ?? 'card',
     order: bundle.tasks.length,
   }
-  bundle.tasks.push(record)
+  bundle.tasks = insertAfter
+    ? insertTaskSiblingAfter(bundle.tasks, insertAfter, record)
+    : [...bundle.tasks, record]
   const { row } = await writeTasksBundleFile(store, bundlePath, bundle)
   const relativePath = makeBundledTaskRef(bundlePath, taskId)
   return { relativePath, row, taskId, bundlePath }

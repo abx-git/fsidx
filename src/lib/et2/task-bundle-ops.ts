@@ -110,6 +110,28 @@ export function indentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2Tas
   return reparentTaskInList(tasks, taskId, newParentId)
 }
 
+/** Neue Aufgabe direkt unter dem Anker (gleiche Ebene, sortiert danach). */
+export function insertTaskSiblingAfter(
+  tasks: Et2TaskRecord[],
+  anchorTaskId: string,
+  newTask: Et2TaskRecord,
+): Et2TaskRecord[] {
+  const anchor = tasks.find((t) => t.id === anchorTaskId)
+  if (!anchor) return [...tasks, newTask]
+  const parentId = anchor.parentId ?? null
+  const sibs = siblingsOf(tasks, parentId)
+  const idx = sibs.findIndex((s) => s.id === anchorTaskId)
+  const anchorOrder = anchor.order ?? idx
+  const insertOrder = anchorOrder + 1
+  const bumped = tasks.map((t) => {
+    if ((t.parentId ?? null) !== parentId) return t
+    const o = t.order ?? 0
+    if (o >= insertOrder) return { ...t, order: o + 1 }
+    return t
+  })
+  return [...bumped, { ...newTask, parentId, order: insertOrder }]
+}
+
 /** Eine Ebene ausrücken. */
 export function outdentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2TaskRecord[] {
   const task = tasks.find((t) => t.id === taskId)

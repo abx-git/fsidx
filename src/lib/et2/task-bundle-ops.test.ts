@@ -3,6 +3,7 @@ import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 import {
   collectDescendantTaskIds,
   deleteTaskSubtree,
+  insertTaskSiblingAfter,
   reparentTaskInList,
   wouldCreateTaskCycle,
 } from './task-bundle-ops'
@@ -35,5 +36,20 @@ describe('task-bundle-ops', () => {
   it('reparents to root', () => {
     const next = reparentTaskInList(sample, 'c', null)
     expect(next.find((t) => t.id === 'c')?.parentId ?? null).toBe(null)
+  })
+
+  it('fügt Geschwister nach Anker ein', () => {
+    const withOrder: Et2TaskRecord[] = [
+      { id: 'a', parentId: null, title: 'A', status: 'open', order: 0 },
+      { id: 'b', parentId: null, title: 'B', status: 'open', order: 1 },
+    ]
+    const next = insertTaskSiblingAfter(withOrder, 'a', {
+      id: 'n',
+      parentId: null,
+      title: 'Neu',
+      status: 'open',
+    })
+    expect(next.find((t) => t.id === 'n')?.order).toBe(1)
+    expect(next.find((t) => t.id === 'b')?.order).toBe(2)
   })
 })

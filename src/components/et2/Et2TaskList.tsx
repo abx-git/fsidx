@@ -17,6 +17,7 @@ import { getTaskCommand } from '../../lib/et2/task-command'
 import { isTaskMarkedDone, tagChipClass, tagsWithoutCompletedTag } from '../../lib/et2/task-tags'
 import { taskLinkHref } from '../../lib/et2/task-link'
 import { collectDescendantTaskIds, taskHasChildren } from '../../lib/et2/task-bundle-ops'
+import { isArrowKey, shouldHandleEt2TaskListShortcuts } from '../../lib/et2/task-list-keyboard'
 import { taskRefFromPath } from '../../lib/et2/paths'
 import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
@@ -55,6 +56,8 @@ interface Et2TaskListProps {
   selectedTaskRef: string | null
   onSelectTask: (taskRef: string) => void
   onAddSubtask: (parentTaskId: string) => void
+  /** Neue Aufgabe als Geschwister direkt unter `anchorTaskId`. */
+  onAddSibling?: (anchorTaskId: string) => void
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
   onNestTask?: (taskId: string, newParentId: string | null) => void
@@ -73,6 +76,7 @@ export function Et2TaskList({
   selectedTaskRef,
   onSelectTask,
   onAddSubtask,
+  onAddSibling,
   onDeleteTask,
   onReparentTask,
   onNestTask,
@@ -135,29 +139,47 @@ export function Et2TaskList({
   }, [selectedTaskRef])
 
   useEffect(() => {
-    if (!canWrite || !selectedTaskId) return
+    if (!canWrite) return
     const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey) return
-      const panel = document.querySelector('[data-tsk-panel]')
-      const active = document.activeElement
-      if (!panel?.contains(active)) return
-      if (e.key === 'ArrowUp') {
+      if (!shouldHandleEt2TaskListShortcuts(e)) return
+
+      if (
+        e.key === 'Enter' &&
+        !e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.shiftKey &&
+        selectedTaskId &&
+        onAddSibling
+      ) {
         e.preventDefault()
-        onMoveSibling?.(selectedTaskId, 'up')
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        onMoveSibling?.(selectedTaskId, 'down')
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        onOutdentTask?.(selectedTaskId)
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        onIndentTask?.(selectedTaskId)
+        onAddSibling(selectedTaskId)
+        return
       }
+
+      if (!selectedTaskId || !e.altKey || e.ctrlKey || e.metaKey || !isArrowKey(e)) return
+
+      const dir =
+        e.key === 'ArrowUp' || e.code === 'ArrowUp'
+          ? 'up'
+          : e.key === 'ArrowDown' || e.code === 'ArrowDown'
+            ? 'down'
+            : e.key === 'ArrowLeft' || e.code === 'ArrowLeft'
+              ? 'left'
+              : e.key === 'ArrowRight' || e.code === 'ArrowRight'
+                ? 'right'
+                : null
+      if (!dir) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (dir === 'up') onMoveSibling?.(selectedTaskId, 'up')
+      else if (dir === 'down') onMoveSibling?.(selectedTaskId, 'down')
+      else if (dir === 'left') onOutdentTask?.(selectedTaskId)
+      else onIndentTask?.(selectedTaskId)
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [canWrite, selectedTaskId, onMoveSibling, onIndentTask, onOutdentTask])
+  }, [canWrite, selectedTaskId, onAddSibling, onMoveSibling, onIndentTask, onOutdentTask])
 
   const canDropOn = useCallback(
     (targetId: string) => {

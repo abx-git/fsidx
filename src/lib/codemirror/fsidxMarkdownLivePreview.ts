@@ -94,18 +94,6 @@ function addBlockPreview(
   markRangeLines(state, from, to, hiddenLines)
 }
 
-/** Pfeiltasten/Clicks: Cursor nicht in ersetzte Vorschau-Zeilen (aktive Zeile ausgenommen). */
-function replaceAtomicRanges(view: EditorView, decorations: DecorationSet): DecorationSet {
-  const active = activeEditRegion(view.state)
-  const items: PendingDeco[] = []
-  decorations.between(0, view.state.doc.length, (from, to, deco) => {
-    if ((deco.spec as { widget?: unknown }).widget == null) return
-    if (rangesOverlap({ from, to }, active)) return
-    items.push({ from, to, deco })
-  })
-  return finishDecorations(items)
-}
-
 function finishDecorations(items: PendingDeco[]): DecorationSet {
   const sorted = items.sort((a, b) => a.from - b.from || a.to - b.to)
   const builder = new RangeSetBuilder<Decoration>()
@@ -223,10 +211,7 @@ export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension
       }
       return decorations
     },
-    provide: (f) => [
-      EditorView.decorations.from(f),
-      EditorView.atomicRanges.of((view) => replaceAtomicRanges(view, view.state.field(f))),
-    ],
+    provide: (f) => EditorView.decorations.from(f),
   })
   return field
 }

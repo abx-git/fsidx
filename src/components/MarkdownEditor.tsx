@@ -4,10 +4,9 @@ import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { CollapsibleSection } from './ui/CollapsibleSection'
-const ObsidianLiveMarkdownEditor = lazy(() =>
-  import('./markdown/ObsidianLiveMarkdownEditor').then((m) => ({
-    default: m.ObsidianLiveMarkdownEditor,
-  })),
+
+const FsidxMarkdownEditor = lazy(() =>
+  import('./markdown/FsidxMarkdownEditor').then((m) => ({ default: m.FsidxMarkdownEditor })),
 )
 
 interface MarkdownEditorProps {
@@ -52,6 +51,8 @@ export function MarkdownEditor({
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  const editorMode = viewMode === 'reading' ? 'live' : 'source'
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
@@ -121,8 +122,8 @@ export function MarkdownEditor({
             </div>
             {canWrite && (
               <p className="mt-1 text-[10px] text-zinc-400">
-                Wie Obsidian Live Preview: nur die aktuelle Zeile (ganze Tabelle im Tabellenmodus)
-                als Markdown · Rest gerendert · Quelltext unter „Quelltext“
+                CodeMirror: aktive Zeile als Markdown, übrige Zeilen gerendert. Quelltext-Modus ohne
+                Vorschau.
               </p>
             )}
           </CollapsibleSection>
@@ -146,34 +147,25 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
-        {!loading && !error && viewMode === 'reading' && (
+        {!loading && !error && (
           <Suspense
             fallback={
               <p className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Live-Editor wird geladen…
+                Editor wird geladen…
               </p>
             }
           >
-            <ObsidianLiveMarkdownEditor
+            <FsidxMarkdownEditor
               content={content}
               onChange={onChange}
               canWrite={canWrite}
+              mode={editorMode}
               docPath={filePath}
               fileSources={fileSources}
-              editorKey={filePath}
+              editorKey={`${filePath}:${editorMode}`}
             />
           </Suspense>
-        )}
-        {!loading && !error && viewMode === 'source' && (
-          <textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            spellCheck={false}
-            readOnly={!canWrite}
-            className="h-full min-h-[60vh] w-full resize-none border-0 bg-zinc-50 p-4 font-mono text-sm leading-relaxed text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
-            aria-label="Markdown-Quelltext"
-          />
         )}
       </div>
     </section>

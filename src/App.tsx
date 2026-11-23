@@ -120,8 +120,6 @@ function App() {
   const { visible: detailMetadataVisible, setVisible: setDetailMetadataVisible } =
     useDetailMetadataVisible()
   const {
-    expanded: viewerExpanded,
-    setExpanded: setViewerExpanded,
     widthPx: sidebarWidthPx,
     setWidthPx: setSidebarWidthPx,
     minWidth: sidebarMinWidth,
@@ -1224,8 +1222,6 @@ function App() {
                 ? indexedFilePaths.has(directoryReadmePath(inspectNode.path))
                 : false
             }
-            viewerExpanded={viewerExpanded}
-            onViewerExpandedChange={viewerPinned ? setViewerExpanded : undefined}
             onSidebarWidthChange={setSidebarWidthPx}
             sidebarWidthPx={sidebarWidthPx}
             sidebarMinWidth={sidebarMinWidth}

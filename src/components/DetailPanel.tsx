@@ -1,4 +1,4 @@
-import { FileText, Maximize2, Minimize2 } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SidebarResizeHandle } from './SidebarResizeHandle'
 import type { FileIndexManifest, IndexNode } from '../types'
@@ -18,8 +18,6 @@ interface DetailPanelProps {
   viewerSlot?: ReactNode
   onDirectoryReadme?: (dirPath: string, dirId: string) => void
   hasDirectoryReadme?: boolean
-  viewerExpanded?: boolean
-  onViewerExpandedChange?: (expanded: boolean) => void
   onSidebarWidthChange?: (widthPx: number) => void
   sidebarWidthPx?: number
   sidebarMinWidth?: number
@@ -40,8 +38,6 @@ export function DetailPanel({
   viewerSlot,
   onDirectoryReadme,
   hasDirectoryReadme,
-  viewerExpanded = false,
-  onViewerExpandedChange,
   onSidebarWidthChange,
   sidebarWidthPx = 380,
   sidebarMinWidth = 280,
@@ -50,11 +46,11 @@ export function DetailPanel({
   onMetadataVisibleChange,
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
-  const detailsVisible = !showViewer || !viewerExpanded
   const showAggregateTasks = Boolean(aggregateTaskSlot)
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLegacyNotice = Boolean(legacyNoticeSlot)
-  const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail && !showLegacyNotice
+  const showFileMetadata =
+    metadataVisible && !showViewer && !showTskDetail && !showLegacyNotice
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
@@ -94,25 +90,7 @@ export function DetailPanel({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showViewer && (
-        <div
-          className={`flex min-h-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
-            viewerExpanded || !showTskDetail
-              ? 'min-h-0 flex-1'
-              : 'h-[min(32vh,320px)] shrink-0'
-          }`}
-        >
-          {onViewerExpandedChange && (
-            <div className="flex shrink-0 justify-end border-b border-zinc-100 px-2 py-0.5 dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={() => onViewerExpandedChange(!viewerExpanded)}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {viewerExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                {viewerExpanded ? 'Kleiner' : 'Größer'}
-              </button>
-            </div>
-          )}
+        <div className="flex min-h-0 flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800">
           <div className="min-h-0 flex-1 overflow-hidden">{viewerSlot}</div>
         </div>
       )}

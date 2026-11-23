@@ -1,19 +1,10 @@
 import { useCallback, useState } from 'react'
 
-const KEY_EXPANDED = 'fsidx.viewerSidebarExpanded'
 const KEY_WIDTH = 'fsidx.sidebarWidthPx'
 
 const MIN_WIDTH = 280
 const MAX_WIDTH = 960
 const DEFAULT_WIDTH = 380
-
-function readExpanded(): boolean {
-  try {
-    return localStorage.getItem(KEY_EXPANDED) === '1'
-  } catch {
-    return false
-  }
-}
 
 function readWidth(): number {
   try {
@@ -27,17 +18,7 @@ function readWidth(): number {
 }
 
 export function useViewerSidebarLayout() {
-  const [expanded, setExpandedState] = useState(readExpanded)
   const [widthPx, setWidthPxState] = useState(readWidth)
-
-  const setExpanded = useCallback((value: boolean) => {
-    setExpandedState(value)
-    try {
-      localStorage.setItem(KEY_EXPANDED, value ? '1' : '0')
-    } catch {
-      /* ignore */
-    }
-  }, [])
 
   const setWidthPx = useCallback((value: number) => {
     const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value))
@@ -50,9 +31,6 @@ export function useViewerSidebarLayout() {
   }, [])
 
   return {
-    expanded,
-    setExpanded,
-    toggleExpanded: () => setExpanded(!expanded),
     widthPx,
     setWidthPx,
     minWidth: MIN_WIDTH,

@@ -12,6 +12,8 @@ interface LivePreviewMarkdownProps {
   content: string
   onChange: (value: string) => void
   canWrite: boolean
+  /** Weniger Hilfetexte (z. B. eingebettet in Aufgaben). */
+  compactHints?: boolean
 }
 
 function AutoTextarea({
@@ -142,7 +144,12 @@ function BlockView({
   )
 }
 
-export function LivePreviewMarkdown({ content, onChange, canWrite }: LivePreviewMarkdownProps) {
+export function LivePreviewMarkdown({
+  content,
+  onChange,
+  canWrite,
+  compactHints = false,
+}: LivePreviewMarkdownProps) {
   const blocks = useMemo(() => splitMarkdownBlocks(content), [content])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
@@ -211,7 +218,7 @@ export function LivePreviewMarkdown({ content, onChange, canWrite }: LivePreview
           + Absatz hinzufügen
         </button>
       )}
-      {canWrite && (
+      {canWrite && !compactHints && (
         <p className="mt-4 text-[11px] text-zinc-400">
           Klick auf Absatz, Liste oder Tabelle zum Bearbeiten · Esc abbrichen · Strg+Enter übernehmen
         </p>

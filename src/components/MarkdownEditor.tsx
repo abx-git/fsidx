@@ -84,7 +84,12 @@ export function MarkdownEditor({
           )}
           <div className="min-w-0 text-left">
             <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{fileName}</p>
-            <p className="truncate font-mono text-[11px] text-zinc-500">{filePath}</p>
+            <details className="text-[11px] text-zinc-500">
+              <summary className="cursor-pointer select-none hover:text-zinc-700 dark:hover:text-zinc-300">
+                Speicherort anzeigen
+              </summary>
+              <p className="mt-0.5 max-w-md break-all font-mono leading-snug">{filePath}</p>
+            </details>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

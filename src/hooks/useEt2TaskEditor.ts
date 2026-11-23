@@ -4,6 +4,7 @@ import { ensureWritePermission, readTextFromStore, writeTextToStore } from '../l
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { taskIdFromPath } from '../lib/et2/paths'
+import { humanTaskTitle } from '../lib/et2/display-title'
 
 export function useEt2TaskEditor(
   taskPath: string | null,
@@ -43,7 +44,7 @@ export function useEt2TaskEditor(
         const id = taskIdFromPath(taskPath) ?? taskPath
         const doc = parseTaskMd(text, id)
         setTaskId(doc.frontmatter.id)
-        setTitle(doc.frontmatter.title)
+        setTitle(humanTaskTitle(doc.frontmatter.title, doc.body, id))
         setBody(doc.body)
       })
       .catch((err) => {

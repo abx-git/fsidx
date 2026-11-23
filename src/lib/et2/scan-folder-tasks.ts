@@ -27,7 +27,7 @@ export function scanFolderTasks(
     summaries.push({
       relativePath: norm,
       taskId,
-      title: titleByPath?.get(norm) ?? taskId,
+      title: titleByPath?.get(norm) ?? 'Unbenannte Aufgabe',
     })
   }
 
@@ -52,7 +52,7 @@ export function scanSubtreeTasks(
     summaries.push({
       relativePath: norm,
       taskId,
-      title: titleByPath?.get(norm) ?? taskId,
+      title: titleByPath?.get(norm) ?? 'Unbenannte Aufgabe',
       folderWithinScope: relativeFolderWithinScope(norm, scopePath),
     })
   }

@@ -5,6 +5,7 @@ import { readTextFromStore } from '../lib/file-sources'
 import { scanSubtreeTasks } from '../lib/et2/scan-folder-tasks'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { taskIdFromPath } from '../lib/et2/paths'
+import { humanTaskTitle } from '../lib/et2/display-title'
 
 export function useEt2TaskSummaries(
   indexedPaths: string[],
@@ -34,7 +35,7 @@ export function useEt2TaskSummaries(
             const doc = parseTaskMd(text, id)
             return {
               ...summary,
-              title: doc.frontmatter.title,
+              title: humanTaskTitle(doc.frontmatter.title, doc.body, id),
               kind: doc.frontmatter.kind,
               dueDate: doc.frontmatter.dueDate,
               tags: doc.frontmatter.tags,

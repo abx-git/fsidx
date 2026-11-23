@@ -3,12 +3,21 @@ import type { ReactNode } from 'react'
 import { SidebarResizeHandle } from './SidebarResizeHandle'
 import type { FileIndexManifest, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
-import { DIRECTORY_README_NAME, directoryReadmePath } from '../lib/directory-readme'
+import { DIRECTORY_README_NAME } from '../lib/directory-readme'
+
+export interface Et2TaskFocusInfo {
+  title: string
+  folderLabel?: string | null
+  dueDate?: string | null
+  tags?: string[]
+}
 
 interface DetailPanelProps {
   manifest: FileIndexManifest
   node: IndexNode | null
   jsonPreview: string
+  tasksMode?: boolean
+  taskFocus?: Et2TaskFocusInfo | null
   viewerPinned: boolean
   onViewerPinnedChange: (value: boolean) => void
   viewerSlot?: ReactNode
@@ -28,6 +37,8 @@ export function DetailPanel({
   manifest,
   node,
   jsonPreview,
+  tasksMode = false,
+  taskFocus,
   viewerPinned,
   onViewerPinnedChange,
   viewerSlot,
@@ -61,7 +72,9 @@ export function DetailPanel({
         <div className="flex items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Seitenleiste</h2>
-            <p className="text-xs text-zinc-500">Metadaten und optional Vorschau</p>
+            <p className="text-xs text-zinc-500">
+              {tasksMode ? 'Infos zur Aufgabe · optional Dateivorschau' : 'Details und optionale Vorschau'}
+            </p>
           </div>
         </div>
         <div className="mt-2 space-y-1.5">
@@ -143,7 +156,39 @@ export function DetailPanel({
 
       {showMetadataBlock && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-          {node?.kind === 'directory' && onDirectoryReadme && (
+          {tasksMode && taskFocus && (
+            <div className="shrink-0 border-b border-violet-100 bg-violet-50/50 px-3 py-3 dark:border-violet-900/40 dark:bg-violet-950/20">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{taskFocus.title}</h3>
+              {taskFocus.folderLabel && (
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Ordner: {taskFocus.folderLabel}</p>
+              )}
+              {taskFocus.dueDate && (
+                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                  Fällig:{' '}
+                  {Number.isNaN(Date.parse(taskFocus.dueDate))
+                    ? taskFocus.dueDate
+                    : new Date(taskFocus.dueDate).toLocaleDateString('de-DE')}
+                </p>
+              )}
+              {taskFocus.tags && taskFocus.tags.length > 0 && (
+                <ul className="mt-2 flex flex-wrap gap-1">
+                  {taskFocus.tags.map((tag) => (
+                    <li
+                      key={tag}
+                      className="rounded bg-white px-1.5 py-0.5 text-[11px] text-violet-800 dark:bg-zinc-900 dark:text-violet-200"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+                Bearbeiten erfolgt in der Mitte — keine Datei-IDs nötig.
+              </p>
+            </div>
+          )}
+
+          {node?.kind === 'directory' && onDirectoryReadme && !tasksMode && (
             <div className="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
               <button
                 type="button"
@@ -155,71 +200,57 @@ export function DetailPanel({
                   ? `${DIRECTORY_README_NAME} bearbeiten`
                   : `${DIRECTORY_README_NAME} anlegen`}
               </button>
-              <p className="mt-1 text-[10px] text-zinc-500">
-                Beschreibt den Inhalt dieses Ordners ({directoryReadmePath(node.path)}).
-              </p>
+              <p className="mt-1 text-[10px] text-zinc-500">Kurzbeschreibung für diesen Ordner.</p>
             </div>
           )}
 
-          {node ? (
+          {!tasksMode && node ? (
             <dl className="shrink-0 space-y-2 border-b border-zinc-200 px-3 py-3 text-sm dark:border-zinc-800">
               <div>
                 <dt className="text-xs text-zinc-500">Name</dt>
                 <dd className="font-medium text-zinc-900 dark:text-zinc-100">{node.name}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-zinc-500">Path</dt>
-                <dd className="break-all font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                  {node.path || manifest.rootName}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-zinc-500">Kind</dt>
-                <dd>{node.kind}</dd>
-              </div>
-              {node.extension && (
-                <div>
-                  <dt className="text-xs text-zinc-500">Extension</dt>
-                  <dd>.{node.extension}</dd>
-                </div>
-              )}
-              {node.mimeHint && (
-                <div>
-                  <dt className="text-xs text-zinc-500">MIME hint</dt>
-                  <dd className="font-mono text-xs">{node.mimeHint}</dd>
-                </div>
-              )}
               {node.kind === 'file' && (
                 <div>
-                  <dt className="text-xs text-zinc-500">Size</dt>
+                  <dt className="text-xs text-zinc-500">Größe</dt>
                   <dd>{formatBytes(node.size ?? 0)}</dd>
                 </div>
               )}
               <div>
-                <dt className="text-xs text-zinc-500">Modified</dt>
+                <dt className="text-xs text-zinc-500">Geändert</dt>
                 <dd>{formatDate(node.lastModified)}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-zinc-500">Node id</dt>
-                <dd className="font-mono text-xs">{node.id}</dd>
-              </div>
             </dl>
-          ) : (
+          ) : !tasksMode ? (
             <p className="shrink-0 px-3 py-4 text-sm text-zinc-500">
               {viewerPinned
                 ? 'Datei wählen — die Vorschau erscheint oben.'
-                : 'Datei oder Ordner wählen, um Metadaten anzuzeigen.'}
+                : 'Datei oder Ordner wählen für Details.'}
             </p>
-          )}
+          ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-zinc-200 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-              JSON
-            </div>
-            <pre className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-3 font-mono text-[11px] leading-relaxed text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+          <details className="shrink-0 border-b border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800">
+            <summary className="cursor-pointer font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+              Technische Details (Index)
+            </summary>
+            {node ? (
+              <dl className="mt-2 space-y-1.5 pb-2 font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
+                <div>
+                  <dt className="inline text-zinc-500">Pfad: </dt>
+                  <dd className="inline break-all">{node.path || manifest.rootName}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-zinc-500">Typ: </dt>
+                  <dd className="inline">{node.kind}</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-2 pb-2 text-zinc-500">Kein Eintrag gewählt.</p>
+            )}
+            <pre className="max-h-48 overflow-auto rounded bg-zinc-50 p-2 font-mono text-[10px] leading-relaxed text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
               {jsonPreview}
             </pre>
-          </div>
+          </details>
         </div>
       )}
     </aside>

@@ -59,7 +59,7 @@ export function Header({
             LocalDir Index
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Browser-only folder indexer — metadata lives in JSON, no server.
+            Ordner durchsuchen, Metadaten und Aufgaben — alles lokal im Browser.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -71,7 +71,7 @@ export function Header({
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
             >
               <FolderOpen className="h-4 w-4" />
-              Open folder
+              Ordner öffnen
             </button>
           ) : (
             <button
@@ -81,7 +81,7 @@ export function Header({
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
             >
               <FolderOpen className="h-4 w-4" />
-              Choose folder
+              Ordner wählen
             </button>
           )}
           <button
@@ -90,7 +90,7 @@ export function Header({
             className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
           >
             <Upload className="h-4 w-4" />
-            Import JSON
+            Index importieren
           </button>
           {manifest && (
             <>
@@ -100,7 +100,7 @@ export function Header({
                 className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
               >
                 <Download className="h-4 w-4" />
-                Export JSON
+                Index exportieren
               </button>
               <button
                 type="button"
@@ -108,7 +108,7 @@ export function Header({
                 className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"
               >
                 <Trash2 className="h-4 w-4" />
-                Clear
+                Zurücksetzen
               </button>
             </>
           )}
@@ -185,11 +185,11 @@ export function Header({
         <div className="flex flex-wrap gap-4 text-xs text-zinc-500 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1">
             <FileJson className="h-3.5 w-3.5" />
-            Root: <strong className="font-medium text-zinc-700 dark:text-zinc-200">{manifest.rootName}</strong>
+            Arbeitsbereich:{' '}
+            <strong className="font-medium text-zinc-700 dark:text-zinc-200">{manifest.rootName}</strong>
           </span>
-          <span>{manifest.stats.files} files</span>
-          <span>{manifest.stats.directories} folders</span>
-          <span>{manifest.entries.length} indexed nodes</span>
+          <span>{manifest.stats.files} Dateien</span>
+          <span>{manifest.stats.directories} Ordner</span>
         </div>
       )}
     </header>

@@ -19,6 +19,7 @@ import {
   createMarkdownInScope,
 } from './lib/create-workspace'
 import { taskContainerDir } from './lib/workspace-scope'
+import { formatTaskFolderLabel, looksLikeOpaqueId } from './lib/et2/display-title'
 import { folderMetaRelative } from './lib/et2/paths'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
@@ -150,19 +151,54 @@ function App() {
     [manifest],
   )
 
-  const taskPathToEntryId = useMemo(() => {
-    const map = new Map<string, string>()
-    if (!manifest) return map
-    for (const e of manifest.entries) {
-      if (e.kind === 'file' && e.path.includes('/.et2/tasks/')) {
-        map.set(e.path, e.id)
-      }
-    }
-    return map
-  }, [manifest])
-
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
   const et2TaskEditor = useEt2TaskEditor(selectedEt2TaskPath, fileSources)
+
+  const selectedTaskSummary = useMemo(
+    () => et2Tasks.tasks.find((t) => t.relativePath === selectedEt2TaskPath) ?? null,
+    [et2Tasks.tasks, selectedEt2TaskPath],
+  )
+
+  const et2TaskFocus = useMemo(() => {
+    if (!selectedTaskSummary) return null
+    return {
+      title: selectedTaskSummary.title,
+      folderLabel: formatTaskFolderLabel(selectedTaskSummary.folderWithinScope),
+      dueDate: selectedTaskSummary.dueDate,
+      tags: selectedTaskSummary.tags,
+    }
+  }, [selectedTaskSummary])
+
+  const fileViewTarget = useMemo(() => {
+    if (!fileView) return null
+    if (fileView.viewer === 'markdown' && fileView.path.includes('/.et2/tasks/')) {
+      const fromList = et2Tasks.tasks.find((t) => t.relativePath === fileView.path)
+      if (fromList) return { ...fileView, name: fromList.title }
+      if (looksLikeOpaqueId(fileView.name)) {
+        return { ...fileView, name: 'Aufgabe' }
+      }
+    }
+    if (fileView.viewer === 'markdown' && looksLikeOpaqueId(fileView.name)) {
+      return { ...fileView, name: markdown.content.slice(0, 40) || 'Markdown' }
+    }
+    return fileView
+  }, [fileView, et2Tasks.tasks, markdown.content])
+
+  useEffect(() => {
+    if (centerMode === 'tasks' && fileView?.path.includes('/.et2/tasks/')) {
+      setFileView(null)
+    }
+  }, [centerMode, fileView?.path])
+
+  const handleCenterModeChange = useCallback(
+    (mode: CenterPaneMode) => {
+      setCenterMode(mode)
+      if (mode === 'tasks' && fileView?.path.includes('/.et2/tasks/')) {
+        setFileView(null)
+      }
+    },
+    [fileView?.path],
+  )
 
   const scopeNode = useMemo(() => {
     if (!manifest) return null
@@ -425,7 +461,9 @@ function App() {
       navigateToPath(result.childDirPath, taskEntryId)
       setSelectedEt2TaskPath(result.taskRelativePath)
       if (taskEntryId) {
-        openViewer('markdown', result.taskRelativePath, result.taskRow.name, taskEntryId, result.taskRow.size)
+        const subTitle =
+          et2Tasks.tasks.find((t) => t.relativePath === result.taskRelativePath)?.title ?? 'Unteraufgabe'
+        openViewer('markdown', result.taskRelativePath, subTitle, taskEntryId, result.taskRow.size)
       }
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
@@ -598,7 +636,7 @@ function App() {
     />
   ) : fileView && !viewerPinned ? (
     <FileViewerRouter
-      target={fileView}
+      target={fileViewTarget ?? fileView}
       fileSources={fileSources}
       onClose={() => setFileView(null)}
       variant="center"
@@ -614,15 +652,9 @@ function App() {
       loading={et2Tasks.loading}
       canWrite={canWrite}
       selectedTaskPath={selectedEt2TaskPath}
-      onSelectTask={(relativePath, entryId) => {
+      onSelectTask={(relativePath) => {
         setSelectedEt2TaskPath(relativePath)
-        if (entryId) setSelectedId(entryId)
-      }}
-      onOpenTask={(relativePath, _title, entryId) => {
-        const name = relativePath.split('/').pop() ?? relativePath
-        const id = entryId ?? taskPathToEntryId.get(relativePath) ?? relativePath
-        openViewer('markdown', relativePath, name, id)
-        setSelectedEt2TaskPath(relativePath)
+        if (fileView?.path.includes('/.et2/tasks/')) setFileView(null)
       }}
       onNewTask={() => openNewEt2TaskDialog(currentPath)}
       taskEditor={{
@@ -639,7 +671,6 @@ function App() {
       onNewSubtask={() => void handleEt2Subtask()}
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
-      taskPathToEntryId={taskPathToEntryId}
     />
   ) : (
     <FileBrowser
@@ -695,7 +726,7 @@ function App() {
         supportsFsPicker={supportsFsPicker}
         indexing={indexing}
         centerMode={centerMode}
-        onCenterModeChange={setCenterMode}
+        onCenterModeChange={handleCenterModeChange}
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
@@ -760,12 +791,14 @@ function App() {
             manifest={manifest}
             node={inspectNode}
             jsonPreview={jsonPreview}
+            tasksMode={centerMode === 'tasks'}
+            taskFocus={et2TaskFocus}
             viewerPinned={viewerPinned}
             onViewerPinnedChange={setViewerPinned}
             viewerSlot={
               viewerPinned && fileView ? (
                 <FileViewerRouter
-                  target={fileView}
+                  target={fileViewTarget ?? fileView}
                   fileSources={fileSources}
                   onClose={() => setFileView(null)}
                   variant="sidebar"

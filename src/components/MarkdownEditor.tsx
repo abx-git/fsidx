@@ -116,7 +116,8 @@ export function MarkdownEditor({
             </div>
             {canWrite && (
               <p className="mt-1 text-[10px] text-zinc-400">
-                Klick auf einen Absatz zum Bearbeiten · Änderungen werden automatisch gespeichert
+                Wie in Obsidian: formatierte Ansicht, Klick in den Absatz zum Bearbeiten · Enter am
+                Zeilenende neuer Absatz · Escape beendet den Fokus · automatisch gespeichert
               </p>
             )}
           </CollapsibleSection>

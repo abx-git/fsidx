@@ -57,3 +57,23 @@ export function replaceMarkdownBlock(blocks: string[], index: number, next: stri
   copy[index] = next
   return joinMarkdownBlocks(copy)
 }
+
+export function insertEmptyBlockAfter(blocks: string[], index: number): string[] {
+  const copy = [...blocks]
+  copy.splice(index + 1, 0, '')
+  return copy
+}
+
+export function removeBlockAt(blocks: string[], index: number): string[] {
+  if (blocks.length <= 1) return ['']
+  const copy = blocks.filter((_, i) => i !== index)
+  return copy.length > 0 ? copy : ['']
+}
+
+export function mergeBlockWithPrevious(blocks: string[], index: number): string[] {
+  if (index <= 0 || index >= blocks.length) return blocks
+  const copy = [...blocks]
+  const merged = `${copy[index - 1]}\n${copy[index]}`
+  copy.splice(index - 1, 2, merged)
+  return copy
+}

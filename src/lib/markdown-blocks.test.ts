@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { joinMarkdownBlocks, replaceMarkdownBlock, splitMarkdownBlocks } from './markdown-blocks'
+import {
+  insertEmptyBlockAfter,
+  joinMarkdownBlocks,
+  mergeBlockWithPrevious,
+  removeBlockAt,
+  replaceMarkdownBlock,
+  splitMarkdownBlocks,
+} from './markdown-blocks'
 
 describe('splitMarkdownBlocks', () => {
   it('trennt Absätze an Leerzeilen', () => {
@@ -17,5 +24,22 @@ describe('replaceMarkdownBlock', () => {
     const blocks = splitMarkdownBlocks('A\n\nB')
     expect(replaceMarkdownBlock(blocks, 1, 'C')).toBe('A\n\nC')
     expect(joinMarkdownBlocks(blocks)).toBe('A\n\nB')
+  })
+})
+
+describe('block edits', () => {
+  it('fügt einen Block ein', () => {
+    const blocks = splitMarkdownBlocks('A\n\nB')
+    expect(joinMarkdownBlocks(insertEmptyBlockAfter(blocks, 0))).toBe('A\n\n\n\nB')
+  })
+
+  it('entfernt einen Block', () => {
+    const blocks = splitMarkdownBlocks('A\n\nB')
+    expect(joinMarkdownBlocks(removeBlockAt(blocks, 1))).toBe('A')
+  })
+
+  it('führt benachbarte Blöcke zusammen', () => {
+    const blocks = splitMarkdownBlocks('A\n\nB')
+    expect(joinMarkdownBlocks(mergeBlockWithPrevious(blocks, 1))).toBe('A\nB')
   })
 })

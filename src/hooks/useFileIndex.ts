@@ -11,6 +11,7 @@ import type { FileSourceStore } from '../lib/file-sources'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
 import { listEt2TaskPathsFromEntries, searchEt2Tasks } from '../lib/et2/et2-search'
+import { isEntryInScope } from '../lib/workspace-scope'
 import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
 import { appendFileToManifest } from '../lib/manifest-append'
@@ -78,8 +79,10 @@ export function useFileIndex() {
 
   const searchResults = useMemo(() => {
     if (!manifest || !searchQuery.trim()) return []
-    const fileResults = searchEntries(manifest.entries, { query: searchQuery })
-    const et2Hits = searchEt2Tasks(et2TaskHits, searchQuery)
+    const scopedEntries = manifest.entries.filter((e) => isEntryInScope(e.path, currentPath))
+    const fileResults = searchEntries(scopedEntries, { query: searchQuery })
+    const scopedEt2Hits = et2TaskHits.filter((h) => isEntryInScope(h.relativePath, currentPath))
+    const et2Hits = searchEt2Tasks(scopedEt2Hits, searchQuery)
     const seen = new Set(fileResults.map((e) => e.path))
     const fromTasks = et2Hits
       .filter((h) => !seen.has(h.relativePath))
@@ -98,7 +101,7 @@ export function useFileIndex() {
         }
       })
     return [...fileResults, ...fromTasks]
-  }, [manifest, searchQuery, et2TaskHits])
+  }, [manifest, searchQuery, et2TaskHits, currentPath])
 
   const indexedFilePaths = useMemo(() => {
     if (!manifest) return new Set<string>()

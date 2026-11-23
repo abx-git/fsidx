@@ -151,6 +151,11 @@ function App() {
 
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
 
+  const scopeNode = useMemo(() => {
+    if (!manifest) return null
+    return findNodeByPath(manifest.tree, currentPath) ?? manifest.tree
+  }, [manifest, currentPath])
+
   const inspectNode = useMemo(() => {
     if (!manifest) return null
     return selectedNode ?? currentNode ?? manifest.tree
@@ -468,8 +473,8 @@ function App() {
   ) : centerMode === 'tasks' ? (
     <Et2TaskPanel
       rootName={manifest.rootName}
-      currentPath={currentPath}
-      onNavigate={(path) => navigateToPath(path, null)}
+      scopePath={currentPath}
+      onSelectScope={(path) => navigateToPath(path, null)}
       tasks={et2Tasks.tasks}
       loading={et2Tasks.loading}
       canWrite={canWrite}
@@ -491,7 +496,6 @@ function App() {
     <FileBrowser
       rootName={manifest.rootName}
       currentNode={currentNode}
-      currentPath={currentPath}
       onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={setSelectedId}
       selectedId={selectedId}
@@ -502,6 +506,7 @@ function App() {
       onOpenViewer={openViewer}
       onFileContextMenu={setContextMenu}
       showEt2DotFiles={showEt2DotFiles}
+      scopePath={currentPath}
     />
   )
 
@@ -583,10 +588,11 @@ function App() {
           style={{ ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px` }}
         >
           <TreeNav
-            root={manifest.tree}
+            root={scopeNode ?? manifest.tree}
             currentPath={currentPath}
             onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
             indexedFilePaths={indexedPathList}
+            scopeDepth={scopeNode?.depth ?? 0}
           />
           {centerPane}
           <DetailPanel

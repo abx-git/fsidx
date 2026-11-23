@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Et2TaskSummary } from '../types/et2-task'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readTextFromStore } from '../lib/file-sources'
-import { scanFolderTasks } from '../lib/et2/scan-folder-tasks'
+import { scanSubtreeTasks } from '../lib/et2/scan-folder-tasks'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { taskIdFromPath } from '../lib/et2/paths'
 
@@ -19,7 +19,7 @@ export function useEt2TaskSummaries(
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
-    const base = scanFolderTasks(indexedPaths, dirPath)
+    const base = scanSubtreeTasks(indexedPaths, dirPath)
     if (!fileSources) {
       setTasks(base)
       return

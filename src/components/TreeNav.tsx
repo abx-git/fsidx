@@ -1,13 +1,16 @@
 import { ChevronDown, ChevronRight, CheckSquare, File, Folder } from 'lucide-react'
-import { scanFolderTasks } from '../lib/et2/scan-folder-tasks'
+import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { useState } from 'react'
 import type { IndexNode } from '../types'
 
 interface TreeNavProps {
+  /** Wurzel des sichtbaren Teilbaums (= aktueller Scope). */
   root: IndexNode
   currentPath: string
   onSelectPath: (path: string, nodeId: string) => void
   indexedFilePaths?: string[]
+  /** `root.depth` im Gesamtbaum — für Einrückung ab Scope-Ebene 0. */
+  scopeDepth?: number
 }
 
 function TreeNode({
@@ -16,16 +19,18 @@ function TreeNode({
   onSelectPath,
   defaultOpen,
   indexedFilePaths,
+  scopeDepth,
 }: {
   node: IndexNode
   currentPath: string
   onSelectPath: (path: string, nodeId: string) => void
   defaultOpen?: boolean
   indexedFilePaths?: string[]
+  scopeDepth: number
 }) {
   const taskCount =
     indexedFilePaths && node.path !== undefined
-      ? scanFolderTasks(indexedFilePaths, node.path).length
+      ? countEt2TasksInSubtree(indexedFilePaths, node.path)
       : 0
   const isDir = node.kind === 'directory'
   const [open, setOpen] = useState(defaultOpen ?? node.depth < 2)
@@ -40,7 +45,7 @@ function TreeNode({
         className={`flex w-full items-center gap-0.5 rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
           isActive ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100' : 'text-zinc-700 dark:text-zinc-300'
         }`}
-        style={{ paddingLeft: `${node.depth * 12 + 4}px` }}
+        style={{ paddingLeft: `${Math.max(0, node.depth - scopeDepth) * 12 + 4}px` }}
       >
         {hasChildren ? (
           <button
@@ -88,6 +93,7 @@ function TreeNode({
               currentPath={currentPath}
               onSelectPath={onSelectPath}
               indexedFilePaths={indexedFilePaths}
+              scopeDepth={scopeDepth}
             />
           ) : null,
         )}
@@ -95,15 +101,25 @@ function TreeNode({
   )
 }
 
-export function TreeNav({ root, currentPath, onSelectPath, indexedFilePaths }: TreeNavProps) {
+export function TreeNav({
+  root,
+  currentPath,
+  onSelectPath,
+  indexedFilePaths,
+  scopeDepth = 0,
+}: TreeNavProps) {
   return (
-    <nav className="h-full overflow-auto border-r border-zinc-200 p-2 dark:border-zinc-800" aria-label="Folder tree">
+    <nav className="h-full overflow-auto border-r border-zinc-200 p-2 dark:border-zinc-800" aria-label="Scope tree">
+      <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        Teilbaum
+      </p>
       <TreeNode
         node={root}
         currentPath={currentPath}
         onSelectPath={onSelectPath}
         defaultOpen
         indexedFilePaths={indexedFilePaths}
+        scopeDepth={scopeDepth}
       />
     </nav>
   )

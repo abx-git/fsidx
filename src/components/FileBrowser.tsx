@@ -5,13 +5,12 @@ import { defaultViewerForFile } from '../lib/file-viewers'
 import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
-import { pathBreadcrumbs } from './TreeNav'
+import { ScopeBar } from './ScopeBar'
 import type { ContextMenuTarget } from './FileContextMenu'
 
 interface FileBrowserProps {
   rootName: string
   currentNode: IndexNode | null
-  currentPath: string
   onNavigate: (path: string) => void
   onSelectEntry: (id: string) => void
   selectedId: string | null
@@ -28,6 +27,7 @@ interface FileBrowserProps {
   ) => void
   onFileContextMenu: (target: ContextMenuTarget) => void
   showEt2DotFiles?: boolean
+  scopePath: string
 }
 
 type Row = {
@@ -43,7 +43,6 @@ type Row = {
 export function FileBrowser({
   rootName,
   currentNode,
-  currentPath,
   onNavigate,
   onSelectEntry,
   selectedId,
@@ -54,9 +53,9 @@ export function FileBrowser({
   onOpenViewer,
   onFileContextMenu,
   showEt2DotFiles = false,
+  scopePath,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
-  const crumbs = pathBreadcrumbs(currentPath, rootName)
 
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
@@ -87,25 +86,24 @@ export function FileBrowser({
   return (
     <section className="flex h-full min-h-0 flex-col">
       {!inSearch && (
-        <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
-          {crumbs.map((crumb, i) => (
-            <span key={crumb.path} className="flex items-center gap-1">
-              {i > 0 && <span className="text-zinc-400">/</span>}
-              <button
-                type="button"
-                onClick={() => onNavigate(crumb.path)}
-                className="rounded px-1 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {crumb.label}
-              </button>
-            </span>
-          ))}
-        </div>
+        <ScopeBar
+          workspaceRootName={rootName}
+          scopePath={scopePath}
+          onSelectScope={onNavigate}
+        />
       )}
       {inSearch && (
-        <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-          {searchResults.length} Treffer für &quot;{searchQuery}&quot;
-        </p>
+        <>
+          <ScopeBar
+            workspaceRootName={rootName}
+            scopePath={scopePath}
+            onSelectScope={onNavigate}
+            variant="compact"
+          />
+          <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            {searchResults.length} Treffer für &quot;{searchQuery}&quot; (nur im aktuellen Scope)
+          </p>
+        </>
       )}
       <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
         Rechtsklick: Datei-Viewer / Metadaten · Ordner: <code className="text-[10px]">README.md</code>

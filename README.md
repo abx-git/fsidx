@@ -35,6 +35,10 @@ projekt/phase/
 - Mapping Monolith → Dateien: [`docs/et2-mapping.md`](docs/et2-mapping.md)
 - Im Datei-Modus sind `.et2/`-Pfade standardmäßig ausgeblendet („**.et2 anzeigen**“ im Header).
 
+### Scope (Teilbaum)
+
+Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
+
 ## Sidecar-Metadaten (JSON Schema)
 
 - Schema: [`public/schemas/file-metadata.v1.schema.json`](public/schemas/file-metadata.v1.schema.json) (auch live unter `/fsidx/schemas/...` auf GitHub Pages)

@@ -1,4 +1,5 @@
 import type { Et2TaskSummary } from '../../types/et2-task'
+import { isEntryInScope, relativeFolderWithinScope } from '../workspace-scope'
 import { et2TasksDirRelative, isTaskFilePath, taskIdFromPath } from './paths'
 
 function normalizeDir(dirPath: string): string {
@@ -34,18 +35,38 @@ export function scanFolderTasks(
   return summaries
 }
 
-export function countEt2TasksInSubtree(indexedRelativePaths: string[], dirPath: string): number {
-  const dir = normalizeDir(dirPath)
-  const et2Segment = `/${et2TasksDirRelative()}/`
-  let count = 0
+/** Alle Tasks im Teilbaum unter `scopePath` (Scope-Ordner inkl. Nachkommen). */
+export function scanSubtreeTasks(
+  indexedRelativePaths: string[],
+  scopePath: string,
+  titleByPath?: Map<string, string>,
+): Et2TaskSummary[] {
+  const summaries: Et2TaskSummary[] = []
+
   for (const rel of indexedRelativePaths) {
     const norm = rel.replace(/\\/g, '/')
     if (!isTaskFilePath(norm)) continue
-    if (dir === '') {
-      if (norm.includes(et2Segment)) count++
-    } else if (norm.startsWith(`${dir}${et2Segment}`) || norm.startsWith(`${dir}/${et2TasksDirRelative().replace('.et2', '.et2')}`)) {
-      if (norm.startsWith(`${dir}/`) && norm.includes(et2Segment)) count++
-    }
+    if (!isEntryInScope(norm, scopePath)) continue
+    const taskId = taskIdFromPath(norm)
+    if (!taskId) continue
+    summaries.push({
+      relativePath: norm,
+      taskId,
+      title: titleByPath?.get(norm) ?? taskId,
+      folderWithinScope: relativeFolderWithinScope(norm, scopePath),
+    })
   }
-  return count
+
+  summaries.sort((a, b) => {
+    const folder = (a.folderWithinScope ?? '').localeCompare(b.folderWithinScope ?? '', undefined, {
+      sensitivity: 'base',
+    })
+    if (folder !== 0) return folder
+    return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+  })
+  return summaries
+}
+
+export function countEt2TasksInSubtree(indexedRelativePaths: string[], scopePath: string): number {
+  return scanSubtreeTasks(indexedRelativePaths, scopePath).length
 }

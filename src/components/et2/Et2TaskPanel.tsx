@@ -1,11 +1,12 @@
 import { CheckSquare, Loader2, Plus } from 'lucide-react'
-import { pathBreadcrumbs } from '../TreeNav'
+import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
+import { normalizeScopePath } from '../../lib/workspace-scope'
 
 interface Et2TaskPanelProps {
   rootName: string
-  currentPath: string
-  onNavigate: (path: string) => void
+  scopePath: string
+  onSelectScope: (path: string) => void
   tasks: Et2TaskSummary[]
   loading: boolean
   canWrite: boolean
@@ -18,8 +19,8 @@ interface Et2TaskPanelProps {
 
 export function Et2TaskPanel({
   rootName,
-  currentPath,
-  onNavigate,
+  scopePath,
+  onSelectScope,
   tasks,
   loading,
   canWrite,
@@ -29,25 +30,16 @@ export function Et2TaskPanel({
   onNewTask,
   taskPathToEntryId,
 }: Et2TaskPanelProps) {
-  const crumbs = pathBreadcrumbs(currentPath, rootName)
+  const scope = normalizeScopePath(scopePath)
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
-        <div className="flex flex-wrap items-center gap-1 text-sm">
-          {crumbs.map((crumb, i) => (
-            <span key={crumb.path} className="flex items-center gap-1">
-              {i > 0 && <span className="text-zinc-400">/</span>}
-              <button
-                type="button"
-                onClick={() => onNavigate(crumb.path)}
-                className="rounded px-1 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {crumb.label}
-              </button>
-            </span>
-          ))}
-        </div>
+      <ScopeBar
+        workspaceRootName={rootName}
+        scopePath={scopePath}
+        onSelectScope={onSelectScope}
+      />
+      <div className="flex justify-end border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <button
           type="button"
           disabled={!canWrite}
@@ -55,14 +47,14 @@ export function Et2TaskPanel({
           className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" />
-          Neue Aufgabe
+          Neue Aufgabe (Scope)
         </button>
       </div>
 
       <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
         <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
         <span>
-          ET2-Aufgaben in <strong className="font-medium text-zinc-700 dark:text-zinc-200">.et2/tasks/</strong>
+          Alle Aufgaben im Teilbaum unter dem Scope (<strong className="font-medium">.et2/tasks</strong>)
         </span>
         {loading && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
       </div>
@@ -76,13 +68,18 @@ export function Et2TaskPanel({
       <div className="min-h-0 flex-1 overflow-auto">
         {tasks.length === 0 && !loading ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-500">
-            Keine Aufgaben in diesem Ordner. Leg eine neue an oder migriere ein ET2-Board.
+            Keine Aufgaben im aktuellen Teilbaum. Leg eine Aufgabe im Scope-Ordner an oder wechsle den Scope.
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {tasks.map((task) => {
               const entryId = taskPathToEntryId.get(task.relativePath) ?? null
               const selected = selectedTaskPath === task.relativePath
+              const folder = task.folderWithinScope
+              const folderScopePath =
+                folder && folder !== '.'
+                  ? scope ? `${scope}/${folder}` : folder
+                  : scope
               return (
                 <li key={task.relativePath}>
                   <button
@@ -95,6 +92,20 @@ export function Et2TaskPanel({
                   >
                     <span className="font-medium text-zinc-900 dark:text-zinc-100">{task.title}</span>
                     <span className="flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                      {folder && (
+                        <span
+                          className="rounded bg-zinc-100 px-1 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                          title="Ordner im Scope — Klick springt dorthin"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelectScope(folderScopePath)
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          role="link"
+                        >
+                          📁 {folder === '.' ? '(Scope)' : folder}
+                        </span>
+                      )}
                       {task.kind && <span>{task.kind}</span>}
                       {task.dueDate && (
                         <span>

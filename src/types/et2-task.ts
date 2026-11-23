@@ -40,4 +40,6 @@ export interface Et2TaskSummary {
   kind?: Et2TaskKind
   dueDate?: string | null
   tags?: string[]
+  /** Pfad des Ordners relativ zum aktuellen Scope (z. B. `B` oder `.`). */
+  folderWithinScope?: string
 }

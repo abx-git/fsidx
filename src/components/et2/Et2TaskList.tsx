@@ -348,18 +348,6 @@ export function Et2TaskList({
               role="menuitem"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
               onClick={() => {
-                const row = tasks.find((t) => t.taskId === menuTaskId)
-                setMenuTaskId(null)
-                if (row) onSelectTask(row.relativePath)
-              }}
-            >
-              Details bearbeiten
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              onClick={() => {
                 setMenuTaskId(null)
                 onReparentTask(menuTaskId)
               }}

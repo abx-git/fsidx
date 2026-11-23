@@ -215,20 +215,6 @@ export function FileContextMenu({
       <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={target.path}>
         {target.name}
       </p>
-      {isTsk && onOpenInScope && (
-        <button
-          type="button"
-          role="menuitem"
-          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          onClick={() => {
-            onOpenInScope()
-            onClose()
-          }}
-        >
-          <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
-          <span>Aufgaben bearbeiten</span>
-        </button>
-      )}
       {!isTsk && (
         <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Öffnen mit</p>
       )}

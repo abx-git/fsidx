@@ -32,7 +32,7 @@ export function ScopeCreateActions({
           disabled={!canWrite}
           onClick={onNewTskFile}
           className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
-          title="Neue Aufgaben-Datei — Dateiname aus dem Titel"
+          title="Neue Aufgaben-Datei (Aufgaben.tsk.json, ggf. nummeriert)"
         >
           <CheckSquare className="h-3.5 w-3.5" />
           Aufgaben-Datei

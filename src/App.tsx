@@ -22,7 +22,6 @@ import {
   reparentEt2Task,
 } from './lib/et2/tasks-bundle'
 import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
-import { tskFileName } from './lib/et2/tsk-paths'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
@@ -580,14 +579,11 @@ function App() {
       if (!fileSources) {
         throw new Error('Ordner nicht verbunden. Bitte oben „Ordner verbinden“.')
       }
-      const trimmedTitle = title.trim()
-      const effectiveTitle = trimmedTitle || DEFAULT_NEW_TASK_TITLE
-      const fileStem = trimmedTitle || 'Aufgaben'
+      const effectiveTitle = title.trim() || DEFAULT_NEW_TASK_TITLE
       const { row, bundlePath, taskId } = await createEt2TaskOnDisk(fileSources, {
         dirPath,
         title: effectiveTitle,
         body,
-        tskFileName: tskFileName(fileStem),
         indexedPaths: indexedPathList,
       })
       const entryId = registerSidecarFile(row)

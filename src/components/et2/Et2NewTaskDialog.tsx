@@ -58,7 +58,8 @@ export function Et2NewTaskDialog({
               Neue Aufgaben-Datei
             </h2>
             <p className="text-xs text-zinc-500">
-              Ordner: {scopeLabel} · Dateiname aus dem Titel (<code className="text-[10px]">*.tsk.json</code>)
+              Ordner: {scopeLabel} · Datei heißt{' '}
+              <code className="text-[10px]">Aufgaben.tsk.json</code> (oder nummeriert)
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">

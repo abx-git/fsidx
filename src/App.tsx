@@ -14,9 +14,9 @@ import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
-import { makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
-import { folderMetaRelative } from './lib/et2/paths'
+import { deletePathFromStore } from './lib/delete-workspace'
 import { isTskJsonPath } from './lib/et2/tsk-paths'
+import { folderMetaRelative, makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
 import { looksLikeOpaqueId } from './lib/et2/display-title'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
@@ -86,6 +86,7 @@ function App() {
     indexedFilePaths,
     hasSidecar,
     registerSidecarFile,
+    removeIndexedPath,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,
@@ -548,6 +549,79 @@ function App() {
     createEt2TaskQuick(currentPath)
   }, [createEt2TaskQuick, currentPath])
 
+  const handleOpenContextInScope = useCallback(() => {
+    if (!contextMenu) return
+    if (contextMenu.kind === 'directory') {
+      navigateToPath(contextMenu.path, contextMenu.id)
+      return
+    }
+    const parent = contextMenu.path.includes('/')
+      ? contextMenu.path.slice(0, contextMenu.path.lastIndexOf('/'))
+      : ''
+    setCurrentPath(parent)
+    setSelectedId(contextMenu.id)
+    setFileView(null)
+    setMetadataTarget(null)
+    if (isTskJsonPath(contextMenu.path)) {
+      setSelectedTskTaskRef(null)
+    }
+  }, [contextMenu, navigateToPath, setCurrentPath, setSelectedId])
+
+  const handleDeleteContextTarget = useCallback(async () => {
+    if (!contextMenu || !fileSources || !manifest) return
+    const { path, kind, name } = contextMenu
+    if (kind === 'directory' && path === '') return
+    const label = kind === 'directory' ? `Ordner „${name}“` : `Datei „${name}“`
+    const detail =
+      kind === 'directory'
+        ? 'Inklusive aller Dateien und Unterordner auf der Festplatte.'
+        : 'Die Datei wird von der Festplatte entfernt.'
+    if (!window.confirm(`${label} endgültig löschen?\n\n${detail}`)) return
+    try {
+      await deletePathFromStore(fileSources, path, kind)
+      if (!removeIndexedPath(path, kind)) {
+        throw new Error('Eintrag fehlt im Index.')
+      }
+      if (selectedId === contextMenu.id) {
+        setSelectedId(null)
+        setSelectedTskTaskRef(null)
+      }
+      if (kind === 'directory' && (currentPath === path || currentPath.startsWith(`${path}/`))) {
+        const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+        setCurrentPath(parent)
+      }
+      const victim = fileView?.path
+      if (
+        victim &&
+        (victim === path || (kind === 'directory' && victim.startsWith(`${path}/`)))
+      ) {
+        setFileView(null)
+      }
+      if (
+        metadataTarget &&
+        (metadataTarget.path === path ||
+          (kind === 'directory' && metadataTarget.path.startsWith(`${path}/`)))
+      ) {
+        setMetadataTarget(null)
+      }
+      et2Tasks.reload()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
+    }
+  }, [
+    contextMenu,
+    fileSources,
+    manifest,
+    removeIndexedPath,
+    selectedId,
+    currentPath,
+    fileView?.path,
+    metadataTarget,
+    et2Tasks,
+    setCurrentPath,
+    setSelectedId,
+  ])
+
   const handleEt2FolderMeta = useCallback(
     async (dirPath: string) => {
       if (!manifest || !fileSources || !canWrite) {
@@ -762,6 +836,7 @@ function App() {
               }}
               indexedFilePaths={indexedPathList}
               taskTitleByPath={taskTitleByPath}
+              onContextMenu={setContextMenu}
             />
           </div>
           <div className="fsidx-pane min-h-0">{centerPane}</div>
@@ -876,6 +951,12 @@ function App() {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           void handleNewMarkdown(contextMenu.path)
         }}
+        onOpenInScope={() => handleOpenContextInScope()}
+        onDelete={
+          contextMenu && (contextMenu.kind === 'file' || contextMenu.path !== '')
+            ? () => void handleDeleteContextTarget()
+            : undefined
+        }
       />
     </div>
   )

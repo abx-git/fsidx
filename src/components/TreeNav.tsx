@@ -6,6 +6,7 @@ import { shouldShowFileInTree, type TreeDisplayFilterState } from '../lib/tree-d
 import { dirHasVisibleDescendants, flattenVisibleTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
+import type { ContextMenuTarget } from './FileContextMenu'
 
 const TREE_EXPANDED_KEY = 'fsidx.treeExpanded'
 
@@ -43,6 +44,7 @@ interface TreeNavProps {
   onSelectFile: (path: string, nodeId: string) => void
   indexedFilePaths?: string[]
   taskTitleByPath?: Map<string, string>
+  onContextMenu?: (target: ContextMenuTarget) => void
 }
 
 interface TreeNodeProps {
@@ -62,6 +64,7 @@ interface TreeNodeProps {
   expandedPaths: Set<string>
   onToggleExpanded: (path: string) => void
   depthOffset: number
+  onContextMenu?: (target: ContextMenuTarget) => void
 }
 
 function TreeNode({
@@ -81,7 +84,22 @@ function TreeNode({
   expandedPaths,
   onToggleExpanded,
   depthOffset,
+  onContextMenu,
 }: TreeNodeProps) {
+  const emitContext = (e: React.MouseEvent) => {
+    if (!onContextMenu) return
+    e.preventDefault()
+    e.stopPropagation()
+    onContextMenu({
+      id: node.id,
+      path: node.path,
+      name: node.kind === 'directory' && !node.name ? '(root)' : node.name,
+      kind: node.kind,
+      extension: node.extension,
+      x: e.clientX,
+      y: e.clientY,
+    })
+  }
   const indent = Math.max(0, node.depth - depthOffset) * 12 + 4
   const isFocused = focusedId === node.id
   const focusClass = isFocused ? 'ring-2 ring-emerald-500/50 ring-inset' : ''
@@ -104,6 +122,7 @@ function TreeNode({
         onFocus={() => onFocusItem(node.id)}
         onKeyDown={(e) => onTreeKeyDown(e, node.id)}
         onClick={() => onSelectFile(node.path, node.id)}
+        onContextMenu={emitContext}
         className={`flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
           selected
             ? 'bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
@@ -180,6 +199,7 @@ function TreeNode({
           onFocus={() => onFocusItem(node.id)}
           onKeyDown={(e) => onTreeKeyDown(e, node.id)}
           onClick={() => onSelectPath(node.path, node.id)}
+          onContextMenu={emitContext}
           className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
         >
           <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
@@ -215,6 +235,7 @@ function TreeNode({
             expandedPaths={expandedPaths}
             onToggleExpanded={onToggleExpanded}
             depthOffset={depthOffset}
+            onContextMenu={onContextMenu}
           />
         ))}
     </div>
@@ -234,6 +255,7 @@ export function TreeNav({
   onSelectFile,
   indexedFilePaths,
   taskTitleByPath,
+  onContextMenu,
 }: TreeNavProps) {
   const [expandedPaths, setExpandedPaths] = useState(() => readExpandedPaths(rootName))
   const [focusedId, setFocusedId] = useState<string | null>(null)
@@ -392,10 +414,10 @@ export function TreeNav({
               ? 'Nur Dateien und Aufgaben im Baum.'
               : filter.showFiles
                 ? 'Nur normale Dateien (keine Aufgaben).'
-                : 'Nur Aufgaben (.task.md).'}
+                : 'Nur Aufgaben (.tsk.json / .task.md).'}
         </p>
         <p className="px-1 text-[10px] text-zinc-400">
-          Tastatur: ↑↓ navigieren · → aufklappen · ← zuklappen · Eingabe wählen
+          Rechtsklick: Kontextmenü · Tastatur: ↑↓ · →/← · Eingabe
         </p>
       </div>
       <div
@@ -423,6 +445,7 @@ export function TreeNav({
           expandedPaths={expandedPaths}
           onToggleExpanded={onToggleExpanded}
           depthOffset={root.depth}
+          onContextMenu={onContextMenu}
         />
       </div>
     </nav>

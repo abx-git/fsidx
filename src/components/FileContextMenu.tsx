@@ -2,10 +2,14 @@ import {
   Eye,
   FileJson,
   FileText,
+  FolderOpen,
   FolderPlus,
+  ListTodo,
   Pencil,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react'
+import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { useEffect, useRef } from 'react'
 import {
   viewerOptionsForFile,
@@ -47,6 +51,8 @@ interface FileContextMenuProps {
   onEt2FolderMeta?: () => void
   onNewSubfolder?: () => void
   onNewMarkdown?: () => void
+  onDelete?: () => void
+  onOpenInScope?: () => void
 }
 
 export function FileContextMenu({
@@ -62,6 +68,8 @@ export function FileContextMenu({
   onEt2FolderMeta,
   onNewSubfolder,
   onNewMarkdown,
+  onDelete,
+  onOpenInScope,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -91,9 +99,24 @@ export function FileContextMenu({
         style={{ left: target.x, top: target.y }}
         role="menu"
       >
-        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-          Verzeichnis
+        <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={target.path}>
+          {target.name || target.path}
         </p>
+        <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Ordner</p>
+        {onOpenInScope && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onOpenInScope()
+              onClose()
+            }}
+          >
+            <FolderOpen className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span>In Dateiliste öffnen</span>
+          </button>
+        )}
         {onNewSubfolder && (
           <button
             type="button"
@@ -148,8 +171,8 @@ export function FileContextMenu({
               onClose()
             }}
           >
-            <Pencil className="h-4 w-4 shrink-0 text-violet-500" />
-            <span>ET2-Aufgabe anlegen</span>
+            <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
+            <span>Neue .tsk.json</span>
           </button>
         )}
         {onEt2FolderMeta && (
@@ -166,6 +189,24 @@ export function FileContextMenu({
             <span>Ordner-Metadaten (.et2/folder.json)</span>
           </button>
         )}
+        {onDelete && (
+          <>
+            <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!canWrite}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-700 hover:bg-red-50 disabled:opacity-40 dark:text-red-300 dark:hover:bg-red-950/40"
+              onClick={() => {
+                onDelete()
+                onClose()
+              }}
+            >
+              <Trash2 className="h-4 w-4 shrink-0" />
+              <span>Ordner löschen…</span>
+            </button>
+          </>
+        )}
         {!canWrite && (
           <p className="border-t border-zinc-100 px-3 py-2 text-[11px] text-amber-700 dark:border-zinc-800 dark:text-amber-300">
             Anlegen/Speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.
@@ -175,7 +216,10 @@ export function FileContextMenu({
     )
   }
 
-  const viewerOptions = viewerOptionsForFile(target.path, target.extension)
+  const isTsk = isTskJsonPath(target.path)
+  const viewerOptions = isTsk
+    ? []
+    : viewerOptionsForFile(target.path, target.extension)
 
   return (
     <div
@@ -184,9 +228,26 @@ export function FileContextMenu({
       style={{ left: target.x, top: target.y }}
       role="menu"
     >
-      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-        Öffnen mit
+      <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={target.path}>
+        {target.name}
       </p>
+      {isTsk && onOpenInScope && (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          onClick={() => {
+            onOpenInScope()
+            onClose()
+          }}
+        >
+          <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
+          <span>Aufgaben bearbeiten</span>
+        </button>
+      )}
+      {!isTsk && (
+        <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Öffnen mit</p>
+      )}
       {viewerOptions.map((opt) => {
         const Icon = VIEWER_ICONS[opt.kind] ?? Eye
         return (
@@ -206,24 +267,46 @@ export function FileContextMenu({
         )
       })}
 
-      <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+      {!isTsk && viewerOptions.length > 0 && (
+        <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+      )}
 
-      <button
-        type="button"
-        role="menuitem"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        onClick={() => {
-          onCreateOrEditMetadata()
-          onClose()
-        }}
-      >
-        {hasSidecar ? (
-          <Pencil className="h-4 w-4 text-violet-500" />
-        ) : (
-          <FileJson className="h-4 w-4 text-violet-500" />
-        )}
-        {hasSidecar ? 'Metadaten bearbeiten' : 'Metadaten-JSON erstellen'}
-      </button>
+      {!isTsk && (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          onClick={() => {
+            onCreateOrEditMetadata()
+            onClose()
+          }}
+        >
+          {hasSidecar ? (
+            <Pencil className="h-4 w-4 text-violet-500" />
+          ) : (
+            <FileJson className="h-4 w-4 text-violet-500" />
+          )}
+          {hasSidecar ? 'Metadaten bearbeiten' : 'Metadaten-JSON erstellen'}
+        </button>
+      )}
+      {onDelete && (
+        <>
+          <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canWrite}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-700 hover:bg-red-50 disabled:opacity-40 dark:text-red-300 dark:hover:bg-red-950/40"
+            onClick={() => {
+              onDelete()
+              onClose()
+            }}
+          >
+            <Trash2 className="h-4 w-4 shrink-0" />
+            <span>Datei löschen…</span>
+          </button>
+        </>
+      )}
       {!canWrite && (
         <p className="border-t border-zinc-100 px-3 py-2 text-[11px] text-amber-700 dark:border-zinc-800 dark:text-amber-300">
           Sidecar speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.

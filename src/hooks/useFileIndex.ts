@@ -15,6 +15,7 @@ import { isEntryInScope } from '../lib/workspace-scope'
 import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
 import { appendFileToManifest } from '../lib/manifest-append'
+import { removePathFromManifest } from '../lib/manifest-remove'
 import { sidecarPathForFile } from '../lib/sidecar'
 import {
   clearWorkspaceStorage,
@@ -134,6 +135,21 @@ export function useFileIndex() {
     })
     return newId
   }, [])
+
+  const removeIndexedPath = useCallback(
+    (path: string, kind: 'file' | 'directory'): boolean => {
+      let ok = false
+      setManifest((m) => {
+        if (!m) return m
+        const updated = removePathFromManifest(m, path, kind)
+        if (!updated) return m
+        ok = true
+        return updated
+      })
+      return ok
+    },
+    [],
+  )
 
   const selectedNode = useMemo((): IndexNode | null => {
     if (!manifest || !selectedId) return null
@@ -359,6 +375,7 @@ export function useFileIndex() {
     indexedFilePaths,
     hasSidecar,
     registerSidecarFile,
+    removeIndexedPath,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,

@@ -1,3 +1,4 @@
+import { fileExtension } from '../../lib/file-viewers'
 import { ViewerShell } from './ViewerShell'
 
 interface ImageViewerProps {
@@ -19,6 +20,8 @@ export function ImageViewer({
   onClose,
   showBackButton,
 }: ImageViewerProps) {
+  const isSvg = fileExtension(filePath) === 'svg'
+
   return (
     <ViewerShell
       title={fileName}
@@ -30,11 +33,26 @@ export function ImageViewer({
     >
       {objectUrl && (
         <div className="flex min-h-[50vh] items-center justify-center bg-zinc-100 p-4 dark:bg-zinc-900">
-          <img
-            src={objectUrl}
-            alt={fileName}
-            className="max-h-[min(70vh,800px)] max-w-full rounded-lg object-contain shadow-md"
-          />
+          {isSvg ? (
+            <object
+              data={objectUrl}
+              type="image/svg+xml"
+              aria-label={fileName}
+              className="diagram-svg-object max-h-[min(70vh,800px)] max-w-full rounded-lg shadow-md"
+            >
+              <img
+                src={objectUrl}
+                alt={fileName}
+                className="max-h-[min(70vh,800px)] max-w-full rounded-lg object-contain shadow-md"
+              />
+            </object>
+          ) : (
+            <img
+              src={objectUrl}
+              alt={fileName}
+              className="max-h-[min(70vh,800px)] max-w-full rounded-lg object-contain shadow-md"
+            />
+          )}
         </div>
       )}
     </ViewerShell>

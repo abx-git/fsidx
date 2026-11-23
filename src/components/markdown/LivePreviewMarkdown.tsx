@@ -1,6 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { MarkdownContent } from './MarkdownContent'
 import { Loader2 } from 'lucide-react'
 
 const WysiwygMarkdownEditor = lazy(() =>
@@ -57,7 +56,7 @@ function SimpleMarkdownBody({
       />
       {content.trim() ? (
         <div className="markdown-preview max-h-[40vh] overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/50">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <MarkdownContent content={content} />
         </div>
       ) : null}
     </div>

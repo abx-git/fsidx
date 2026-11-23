@@ -1,6 +1,5 @@
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Pencil } from 'lucide-react'
+import { MarkdownContent } from './MarkdownContent'
 
 interface MarkdownReadingViewProps {
   content: string
@@ -50,7 +49,7 @@ export function MarkdownReadingView({ content, canWrite, onStartEdit }: Markdown
           {canWrite ? 'Noch kein Inhalt — klicken zum Schreiben.' : '—'}
         </p>
       ) : (
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        <MarkdownContent content={content} />
       )}
     </article>
   )

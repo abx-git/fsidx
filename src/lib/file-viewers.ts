@@ -4,6 +4,7 @@ import { isMarkdownPath } from './file-sources'
 export type FileViewerKind =
   | 'markdown'
   | 'image'
+  | 'diagram'
   | 'text'
   | 'json'
   | 'pdf'
@@ -17,6 +18,7 @@ export interface ViewerMenuOption {
 }
 
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'])
+const DIAGRAM = new Set(['puml', 'plantuml', 'iuml', 'wsd', 'mmd', 'mermaid'])
 const TEXT = new Set([
   'txt',
   'log',
@@ -61,6 +63,7 @@ const VIDEO = new Set(['mp4', 'webm', 'ogv', 'mov', 'mkv'])
 const MENU_LABELS: Record<FileViewerKind, string> = {
   markdown: 'Markdown (Lesen / Bearbeiten)',
   image: 'Bildvorschau',
+  diagram: 'Diagramm (Mermaid / PlantUML)',
   text: 'Text / Quellcode',
   json: 'JSON (formatiert)',
   pdf: 'PDF',
@@ -79,6 +82,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   if (isMarkdownPath(path)) kinds.add('markdown')
   if (IMAGE.has(e)) kinds.add('image')
+  if (DIAGRAM.has(e)) kinds.add('diagram')
   if (PDF.has(e)) kinds.add('pdf')
   if (AUDIO.has(e)) kinds.add('audio')
   if (VIDEO.has(e)) kinds.add('video')
@@ -92,6 +96,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   const order: FileViewerKind[] = [
     'markdown',
+    'diagram',
     'image',
     'pdf',
     'video',
@@ -109,6 +114,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 export function defaultViewerForFile(path: string, ext?: string): FileViewerKind {
   const e = fileExtension(path, ext)
   if (isMarkdownPath(path)) return 'markdown'
+  if (DIAGRAM.has(e)) return 'diagram'
   if (IMAGE.has(e)) return 'image'
   if (PDF.has(e)) return 'pdf'
   if (VIDEO.has(e)) return 'video'

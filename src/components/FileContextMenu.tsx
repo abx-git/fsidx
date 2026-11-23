@@ -29,6 +29,7 @@ export interface ContextMenuTarget {
 
 const VIEWER_ICONS: Partial<Record<FileViewerKind, LucideIcon>> = {
   markdown: Eye,
+  diagram: Eye,
   image: Eye,
   text: Eye,
   json: Eye,

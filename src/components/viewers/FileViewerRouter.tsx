@@ -8,6 +8,7 @@ import { TextViewer } from './TextViewer'
 import { MediaViewer } from './MediaViewer'
 import { PdfViewer } from './PdfViewer'
 import { BinaryViewer } from './BinaryViewer'
+import { DiagramViewer } from './DiagramViewer'
 
 export interface FileViewTarget {
   viewer: FileViewerKind
@@ -52,7 +53,9 @@ export function FileViewerRouter({
   const needsBlob = ['image', 'pdf', 'audio', 'video', 'binary'].includes(target.viewer)
   const blobState = useFileBlob(needsBlob ? target.path : null, fileSources)
   const textState = useFileText(
-    target.viewer === 'text' || target.viewer === 'json' ? target.path : null,
+    target.viewer === 'text' || target.viewer === 'json' || target.viewer === 'diagram'
+      ? target.path
+      : null,
     fileSources,
   )
 
@@ -80,6 +83,18 @@ export function FileViewerRouter({
   }
 
   switch (target.viewer) {
+    case 'diagram':
+      return (
+        <DiagramViewer
+          fileName={target.name}
+          filePath={target.path}
+          text={textState.text}
+          loading={textState.loading}
+          error={textState.error}
+          onClose={onClose}
+          showBackButton={showBackButton}
+        />
+      )
     case 'image':
       return (
         <ImageViewer

@@ -20,7 +20,7 @@ import {
 } from './lib/create-workspace'
 import { taskContainerDir } from './lib/workspace-scope'
 import { formatTaskFolderLabel, looksLikeOpaqueId } from './lib/et2/display-title'
-import { folderMetaRelative } from './lib/et2/paths'
+import { folderMetaRelative, isTaskFilePath } from './lib/et2/paths'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
 import { TreeNav } from './components/TreeNav'
@@ -37,6 +37,7 @@ import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
+import { useTreeDisplayFilters } from './hooks/useTreeDisplayFilters'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
@@ -96,6 +97,8 @@ function App() {
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
   const { visible: detailMetadataVisible, setVisible: setDetailMetadataVisible } =
     useDetailMetadataVisible()
+  const { filter: treeFilter, setShowFiles: setTreeShowFiles, setShowTasks: setTreeShowTasks } =
+    useTreeDisplayFilters()
   const {
     expanded: viewerExpanded,
     setExpanded: setViewerExpanded,
@@ -155,6 +158,15 @@ function App() {
   )
 
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
+  const et2TasksForTree = useEt2TaskSummaries(indexedPathList, '', fileSources)
+
+  const taskTitleByPath = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of et2TasksForTree.tasks) {
+      map.set(t.relativePath, t.title)
+    }
+    return map
+  }, [et2TasksForTree.tasks])
   const et2TaskEditor = useEt2TaskEditor(selectedEt2TaskPath, fileSources)
 
   const selectedTaskSummary = useMemo(
@@ -782,8 +794,23 @@ function App() {
               root={manifest.tree}
               rootName={manifest.rootName}
               currentPath={currentPath}
+              selectedId={selectedId}
+              filter={treeFilter}
+              onFilterShowFiles={setTreeShowFiles}
+              onFilterShowTasks={setTreeShowTasks}
+              showEt2DotFiles={showEt2DotFiles}
               onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
+              onSelectFile={(path, id) => {
+                const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+                setCurrentPath(parent)
+                setSelectedId(id)
+                if (isTaskFilePath(path)) {
+                  setCenterMode('tasks')
+                  setSelectedEt2TaskPath(path)
+                }
+              }}
               indexedFilePaths={indexedPathList}
+              taskTitleByPath={taskTitleByPath}
             />
           </div>
           <div className="fsidx-pane min-h-0">{centerPane}</div>

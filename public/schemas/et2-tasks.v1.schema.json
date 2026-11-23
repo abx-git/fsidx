@@ -24,7 +24,12 @@
           "kind": { "type": "string", "enum": ["card", "note", "symbol"] },
           "order": { "type": "number" },
           "tags": { "type": "array", "items": { "type": "string" } },
-          "dueDate": { "type": ["string", "null"] }
+          "dueDate": { "type": ["string", "null"] },
+          "reminderDate": { "type": ["string", "null"] },
+          "link": { "type": "string" },
+          "command": { "type": "string" },
+          "effort": { "type": "number", "minimum": 0 },
+          "effortUnit": { "type": "string", "enum": ["hours", "minutes", "workdays"] }
         },
         "additionalProperties": true
       }

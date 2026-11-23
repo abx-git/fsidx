@@ -1,35 +1,55 @@
 import { GitBranch, Loader2, ListTodo, Save } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import type { Et2TaskSummary } from '../../types/et2-task'
-import type { Et2TaskStatus } from '../../types/et2-tasks-bundle'
-import { et2TaskStatusLabel } from '../../lib/et2/task-status-labels'
+import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
 import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
-import { ET2_TASK_STATUS_OPTIONS } from '../../lib/et2/task-status-labels'
-import { LivePreviewMarkdown } from '../markdown/LivePreviewMarkdown'
-import { taskRefFromPath } from '../../lib/et2/paths'
+import { Et2TaskList } from './Et2TaskList'
+import { Et2TaskDetailForm } from './Et2TaskDetailForm'
 
 interface TskDetailPanelProps {
+  tskPath: string
   fileName: string
   tasks: Et2TaskSummary[]
   loading: boolean
   loadError: string | null
   selectedTaskRef: string | null
   onSelectTask: (taskRef: string) => void
-  onNewSubtask: () => void
+  onNewSubtask: (parentTaskId?: string) => void
+  onDeleteTask: (taskId: string) => void
+  onReparentTask: (taskId: string) => void
   canWrite: boolean
   title: string
   body: string
   status: Et2TaskStatus
+  tags: string[]
+  dueDate: string | null
+  reminderDate: string | null
+  link: string
+  command: string
+  effort: number
+  effortUnit: Et2EffortUnit
   onTitleChange: (v: string) => void
   onBodyChange: (v: string) => void
   onStatusChange: (v: Et2TaskStatus) => void
+  onTagsChange: (v: string[]) => void
+  onDueDateChange: (v: string | null) => void
+  onReminderDateChange: (v: string | null) => void
+  onLinkChange: (v: string) => void
+  onCommandChange: (v: string) => void
+  onEffortChange: (v: number) => void
+  onEffortUnitChange: (v: Et2EffortUnit) => void
   onSave: () => Promise<void>
+  onDeleteFromDetail: () => void
   editorLoading: boolean
   editorSaving: boolean
   editorDirty: boolean
   editorError: string | null
+  editorTaskId: string | null
+  titleFocusTick?: number
 }
 
 export function TskDetailPanel({
+  tskPath,
   fileName,
   tasks,
   loading,
@@ -37,19 +57,50 @@ export function TskDetailPanel({
   selectedTaskRef,
   onSelectTask,
   onNewSubtask,
+  onDeleteTask,
+  onReparentTask,
   canWrite,
   title,
   body,
   status,
+  tags,
+  dueDate,
+  reminderDate,
+  link,
+  command,
+  effort,
+  effortUnit,
   onTitleChange,
   onBodyChange,
   onStatusChange,
+  onTagsChange,
+  onDueDateChange,
+  onReminderDateChange,
+  onLinkChange,
+  onCommandChange,
+  onEffortChange,
+  onEffortUnitChange,
   onSave,
+  onDeleteFromDetail,
   editorLoading,
   editorSaving,
   editorDirty,
   editorError,
+  editorTaskId,
+  titleFocusTick = 0,
 }: TskDetailPanelProps) {
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!titleFocusTick) return
+    window.setTimeout(() => {
+      const el = titleInputRef.current
+      if (!el) return
+      el.focus()
+      if (!el.value.trim() || el.value === DEFAULT_NEW_TASK_TITLE) onTitleChange('')
+    }, 50)
+  }, [titleFocusTick, onTitleChange])
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-violet-50/20 dark:bg-violet-950/10">
       <div className="shrink-0 border-b border-violet-200 px-3 py-2 dark:border-violet-900/50">
@@ -61,7 +112,10 @@ export function TskDetailPanel({
           <button
             type="button"
             disabled={!canWrite || !selectedTaskRef}
-            onClick={onNewSubtask}
+            onClick={() => {
+              const parentId = editorTaskId ?? undefined
+              onNewSubtask(parentId)
+            }}
             className="inline-flex items-center gap-1 rounded border border-violet-300 px-2 py-0.5 text-[10px] font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-40 dark:border-violet-700 dark:text-violet-100"
           >
             <GitBranch className="h-3 w-3" />
@@ -85,7 +139,7 @@ export function TskDetailPanel({
         </p>
       )}
 
-      <div className="max-h-[32%] shrink-0 overflow-y-auto border-b border-zinc-200 dark:border-zinc-800">
+      <div className="max-h-[38%] shrink-0 overflow-y-auto border-b border-zinc-200 dark:border-zinc-800">
         {loading ? (
           <p className="flex items-center gap-2 px-3 py-4 text-xs text-zinc-500">
             <Loader2 className="h-3 w-3 animate-spin" /> Laden…
@@ -93,93 +147,64 @@ export function TskDetailPanel({
         ) : tasks.length === 0 ? (
           <p className="px-3 py-4 text-xs text-zinc-500">Keine Einträge in dieser Datei.</p>
         ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {tasks.map((task) => {
-              const selected = selectedTaskRef === task.relativePath
-              const depth = task.depth ?? 0
-              return (
-                <li key={task.relativePath}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectTask(task.relativePath)}
-                    className={`flex w-full flex-col gap-0.5 py-2 text-left text-xs hover:bg-violet-50 dark:hover:bg-violet-950/30 ${
-                      selected ? 'bg-violet-100/80 dark:bg-violet-950/40' : ''
-                    }`}
-                    style={{ paddingLeft: `${0.75 + depth * 0.6}rem`, paddingRight: '0.75rem' }}
-                  >
-                    <span className="flex flex-wrap items-center gap-1.5 font-medium text-zinc-900 dark:text-zinc-100">
-                      {task.title}
-                      {task.status && (
-                        <span className="rounded-full bg-white/80 px-1 py-0.5 text-[9px] font-normal text-violet-800 dark:bg-zinc-900">
-                          {et2TaskStatusLabel(task.status)}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+          <Et2TaskList
+            tskPath={tskPath}
+            tasks={tasks}
+            selectedTaskRef={selectedTaskRef}
+            onSelectTask={onSelectTask}
+            onAddSubtask={(parentId) => onNewSubtask(parentId)}
+            onDeleteTask={onDeleteTask}
+            onReparentTask={onReparentTask}
+            canWrite={canWrite}
+          />
         )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {!selectedTaskRef ? (
-          <p className="px-3 py-6 text-center text-xs text-zinc-500">Aufgabe in der Liste wählen.</p>
-        ) : editorLoading ? (
+        {editorLoading ? (
           <p className="flex items-center justify-center gap-2 py-8 text-xs text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Aufgabe laden…
           </p>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {taskRefFromPath(selectedTaskRef) && (
-              <label className="shrink-0 border-b border-violet-100 px-3 py-2 text-xs dark:border-violet-900/40">
-                <span className="font-medium text-zinc-500">Status</span>
-                <select
-                  value={status}
-                  onChange={(e) => onStatusChange(e.target.value as Et2TaskStatus)}
-                  disabled={!canWrite}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950"
-                >
-                  {ET2_TASK_STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="shrink-0 border-b border-violet-100 px-3 py-2 text-xs dark:border-violet-900/40">
-              <span className="font-medium text-zinc-500">Titel</span>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => onTitleChange(e.target.value)}
-                onFocus={(e) => {
-                  if (e.target.value === DEFAULT_NEW_TASK_TITLE) onTitleChange('')
-                }}
-                disabled={!canWrite}
-                placeholder={DEFAULT_NEW_TASK_TITLE}
-                className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950"
-              />
-            </label>
-            <div className="min-h-0 flex-1 [&_.markdown-preview]:max-w-none [&_.markdown-preview]:px-3 [&_.markdown-preview]:py-2">
-              <LivePreviewMarkdown
-                content={body}
-                onChange={onBodyChange}
-                canWrite={canWrite}
-                compactHints
-              />
-            </div>
+          <>
             {editorDirty && (
-              <p className="shrink-0 px-3 py-1 text-[10px] text-amber-700 dark:text-amber-300">Nicht gespeichert</p>
+              <p className="shrink-0 px-3 py-1 text-[10px] text-amber-700 dark:text-amber-300">
+                Nicht gespeichert
+              </p>
             )}
             {editorError && (
-              <p className="mx-3 mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">
+              <p className="mx-3 mb-2 shrink-0 rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">
                 {editorError}
               </p>
             )}
-          </div>
+            <Et2TaskDetailForm
+              taskId={editorTaskId}
+              allTasks={tasks}
+              canWrite={canWrite}
+              title={title}
+              body={body}
+              status={status}
+              tags={tags}
+              dueDate={dueDate}
+              reminderDate={reminderDate}
+              link={link}
+              command={command}
+              effort={effort}
+              effortUnit={effortUnit}
+              onTitleChange={onTitleChange}
+              onBodyChange={onBodyChange}
+              onStatusChange={onStatusChange}
+              onTagsChange={onTagsChange}
+              onDueDateChange={onDueDateChange}
+              onReminderDateChange={onReminderDateChange}
+              onLinkChange={onLinkChange}
+              onCommandChange={onCommandChange}
+              onEffortChange={onEffortChange}
+              onEffortUnitChange={onEffortUnitChange}
+              onDelete={onDeleteFromDetail}
+              titleInputRef={titleInputRef}
+            />
+          </>
         )}
       </div>
     </div>

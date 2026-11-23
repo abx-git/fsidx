@@ -5,8 +5,10 @@ import {
   ET2_TASKS_BUNDLE_FORMAT,
   type Et2TaskRecord,
   type Et2TasksBundle,
+  type Et2TaskEditableFields,
   type Et2TaskStatus,
 } from '../../types/et2-tasks-bundle'
+import { deleteTaskSubtree, idsToRemoveForTaskSubtree, reparentTaskInList } from './task-bundle-ops'
 import type { Et2TaskKind } from '../../types/et2-task'
 import { DEFAULT_NEW_TASK_TITLE } from './constants'
 import {
@@ -194,7 +196,7 @@ export async function updateEt2TaskInBundle(
   store: FileSourceStore,
   bundleFilePath: string,
   taskId: string,
-  patch: Partial<Pick<Et2TaskRecord, 'title' | 'body' | 'status' | 'parentId' | 'kind'>>,
+  patch: Partial<Et2TaskEditableFields>,
 ): Promise<{ row: RawFileRow }> {
   const bundle = await readTasksBundleFile(store, bundleFilePath)
   if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
@@ -203,6 +205,42 @@ export async function updateEt2TaskInBundle(
   bundle.tasks[idx] = { ...bundle.tasks[idx], ...patch }
   const { row } = await writeTasksBundleFile(store, bundleFilePath, bundle)
   return { row }
+}
+
+export async function deleteEt2TaskFromBundle(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+): Promise<{ row: RawFileRow; removedIds: string[] }> {
+  const bundle = await readTasksBundleFile(store, bundleFilePath)
+  if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
+  const removed = idsToRemoveForTaskSubtree(bundle.tasks, taskId)
+  if (!removed.has(taskId)) throw new Error('Aufgabe nicht gefunden.')
+  bundle.tasks = deleteTaskSubtree(bundle.tasks, taskId)
+  const { row } = await writeTasksBundleFile(store, bundleFilePath, bundle)
+  return { row, removedIds: [...removed] }
+}
+
+export async function reparentEt2Task(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+  newParentId: string | null,
+): Promise<{ row: RawFileRow }> {
+  const bundle = await readTasksBundleFile(store, bundleFilePath)
+  if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
+  bundle.tasks = reparentTaskInList(bundle.tasks, taskId, newParentId)
+  const { row } = await writeTasksBundleFile(store, bundleFilePath, bundle)
+  return { row }
+}
+
+export async function setEt2TaskOrder(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+  order: number,
+): Promise<{ row: RawFileRow }> {
+  return updateEt2TaskInBundle(store, bundleFilePath, taskId, { order })
 }
 
 export async function loadEt2TaskRecord(

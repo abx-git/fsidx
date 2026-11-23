@@ -13,6 +13,11 @@ import { TskDetailPanel } from './components/et2/TskDetailPanel'
 import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
+import {
+  deleteEt2TaskFromBundle,
+  reparentEt2Task,
+} from './lib/et2/tasks-bundle'
+import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
 import { isTskJsonPath } from './lib/et2/tsk-paths'
@@ -66,6 +71,8 @@ function App() {
   const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
   const [selectedTskTaskRef, setSelectedTskTaskRef] = useState<string | null>(null)
   const [newEt2TaskRequest, setNewEt2TaskRequest] = useState<{ dirPath: string } | null>(null)
+  const [reparentTaskId, setReparentTaskId] = useState<string | null>(null)
+  const [titleFocusTick, setTitleFocusTick] = useState(0)
 
   const {
     manifest,
@@ -438,43 +445,128 @@ function App() {
     [fileSources, canWrite, registerSidecarFile, openViewer],
   )
 
-  const handleEt2Subtask = useCallback(async () => {
-    if (!activeTskPath || !selectedTskTaskRef || !fileSources || !canWrite) {
-      window.alert('Unteraufgabe: .tsk.json und eine Aufgabe wählen.')
-      return
-    }
-    const ref = taskRefFromPath(selectedTskTaskRef)
-    if (!ref) return
-    const parentDir = activeTskPath.includes('/')
-      ? activeTskPath.slice(0, activeTskPath.lastIndexOf('/'))
-      : ''
-    try {
-      const result = await createEt2TaskOnDisk(fileSources, {
-        dirPath: parentDir,
-        tskPath: activeTskPath,
-        title: '',
-        body: '',
-        parentId: ref.taskId,
-        indexedPaths: indexedPathList,
-      })
-      registerSidecarFile(result.row)
-      clearMarkdownDrafts()
-      et2Tasks.reload()
-      await tskFile.reload()
-      setSelectedTskTaskRef(result.relativePath)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
-    }
-  }, [
-    activeTskPath,
-    selectedTskTaskRef,
-    fileSources,
-    canWrite,
-    registerSidecarFile,
-    et2Tasks,
-    indexedPathList,
-    tskFile,
-  ])
+  const pickNextTaskRefAfterDelete = useCallback(
+    (removedIds: string[]) => {
+      const remaining = tskFile.tasks.filter((t) => !removedIds.includes(t.taskId))
+      if (remaining.length === 0) {
+        setSelectedTskTaskRef(null)
+        return
+      }
+      const current = selectedTskTaskRef ? taskRefFromPath(selectedTskTaskRef) : null
+      if (current && removedIds.includes(current.taskId)) {
+        const deleted = tskFile.tasks.find((t) => t.taskId === current.taskId)
+        const sibling = remaining.find(
+          (t) => (t.parentId ?? null) === (deleted?.parentId ?? null) && t.taskId !== current.taskId,
+        )
+        const parent = deleted?.parentId
+          ? remaining.find((t) => t.taskId === deleted.parentId)
+          : null
+        setSelectedTskTaskRef((sibling ?? parent ?? remaining[0]).relativePath)
+      }
+    },
+    [tskFile.tasks, selectedTskTaskRef],
+  )
+
+  const handleEt2Subtask = useCallback(
+    async (parentTaskId?: string) => {
+      if (!activeTskPath || !fileSources || !canWrite) {
+        window.alert('Unteraufgabe: .tsk.json mit Schreibzugriff öffnen.')
+        return
+      }
+      let parentId: string | null = parentTaskId ?? null
+      if (!parentId && selectedTskTaskRef) {
+        const ref = taskRefFromPath(selectedTskTaskRef)
+        parentId = ref?.taskId ?? null
+      }
+      if (!parentId) {
+        window.alert('Zuerst eine übergeordnete Aufgabe wählen.')
+        return
+      }
+      const parentDir = activeTskPath.includes('/')
+        ? activeTskPath.slice(0, activeTskPath.lastIndexOf('/'))
+        : ''
+      try {
+        const result = await createEt2TaskOnDisk(fileSources, {
+          dirPath: parentDir,
+          tskPath: activeTskPath,
+          title: '',
+          body: '',
+          parentId,
+          indexedPaths: indexedPathList,
+        })
+        registerSidecarFile(result.row)
+        clearMarkdownDrafts()
+        et2Tasks.reload()
+        await tskFile.reload()
+        setSelectedTskTaskRef(result.relativePath)
+        setTitleFocusTick((t) => t + 1)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
+      }
+    },
+    [
+      activeTskPath,
+      selectedTskTaskRef,
+      fileSources,
+      canWrite,
+      registerSidecarFile,
+      et2Tasks,
+      indexedPathList,
+      tskFile,
+    ],
+  )
+
+  const handleEt2DeleteTask = useCallback(
+    async (taskId: string) => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row, removedIds } = await deleteEt2TaskFromBundle(fileSources, activeTskPath, taskId)
+        registerSidecarFile({
+          relativePath: activeTskPath,
+          name: activeTskPath.split('/').pop() ?? activeTskPath,
+          kind: 'file',
+          size: row.size,
+          lastModified: row.lastModified ?? Date.now(),
+        })
+        pickNextTaskRefAfterDelete(removedIds)
+        et2Tasks.reload()
+        await tskFile.reload()
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
+      }
+    },
+    [
+      activeTskPath,
+      fileSources,
+      canWrite,
+      registerSidecarFile,
+      pickNextTaskRefAfterDelete,
+      et2Tasks,
+      tskFile,
+    ],
+  )
+
+  const handleEt2ReparentConfirm = useCallback(
+    async (newParentId: string | null) => {
+      if (!activeTskPath || !fileSources || !canWrite || !reparentTaskId) return
+      try {
+        const { row } = await reparentEt2Task(fileSources, activeTskPath, reparentTaskId, newParentId)
+        registerSidecarFile({
+          relativePath: activeTskPath,
+          name: activeTskPath.split('/').pop() ?? activeTskPath,
+          kind: 'file',
+          size: row.size,
+          lastModified: row.lastModified ?? Date.now(),
+        })
+        setReparentTaskId(null)
+        et2Tasks.reload()
+        await tskFile.reload()
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reparentTaskId, registerSidecarFile, et2Tasks, tskFile],
+  )
 
   const finalizeNewEt2Task = useCallback(
     async (dirPath: string, title: string, body: string) => {
@@ -760,6 +852,14 @@ function App() {
         onApplied={() => et2Tasks.reload()}
       />
 
+      <Et2ReparentDialog
+        open={Boolean(reparentTaskId) && Boolean(activeTskPath)}
+        taskId={reparentTaskId ?? ''}
+        tasks={tskFile.tasks}
+        onCancel={() => setReparentTaskId(null)}
+        onConfirm={(parentId) => void handleEt2ReparentConfirm(parentId)}
+      />
+
       {manifest && (
         <WorkspaceConnectionBanner
           state={connectionState}
@@ -824,25 +924,48 @@ function App() {
             tskDetailSlot={
               activeTskPath && selectedNode ? (
                 <TskDetailPanel
+                  tskPath={activeTskPath}
                   fileName={selectedNode.name}
                   tasks={tskFile.tasks}
                   loading={tskFile.loading}
                   loadError={tskFile.error}
                   selectedTaskRef={selectedTskTaskRef}
                   onSelectTask={setSelectedTskTaskRef}
-                  onNewSubtask={() => void handleEt2Subtask()}
+                  onNewSubtask={(parentId) => void handleEt2Subtask(parentId)}
+                  onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
+                  onReparentTask={(taskId) => setReparentTaskId(taskId)}
                   canWrite={canWrite}
                   title={et2TaskEditor.title}
                   body={et2TaskEditor.body}
                   status={et2TaskEditor.status}
+                  tags={et2TaskEditor.tags}
+                  dueDate={et2TaskEditor.dueDate}
+                  reminderDate={et2TaskEditor.reminderDate}
+                  link={et2TaskEditor.link}
+                  command={et2TaskEditor.command}
+                  effort={et2TaskEditor.effort}
+                  effortUnit={et2TaskEditor.effortUnit}
                   onTitleChange={et2TaskEditor.updateTitle}
                   onBodyChange={et2TaskEditor.updateBody}
                   onStatusChange={et2TaskEditor.updateStatus}
+                  onTagsChange={et2TaskEditor.updateTags}
+                  onDueDateChange={et2TaskEditor.updateDueDate}
+                  onReminderDateChange={et2TaskEditor.updateReminderDate}
+                  onLinkChange={et2TaskEditor.updateLink}
+                  onCommandChange={et2TaskEditor.updateCommand}
+                  onEffortChange={et2TaskEditor.updateEffort}
+                  onEffortUnitChange={et2TaskEditor.updateEffortUnit}
                   onSave={handleSaveEt2TaskContent}
+                  onDeleteFromDetail={() => {
+                    const ref = selectedTskTaskRef ? taskRefFromPath(selectedTskTaskRef) : null
+                    if (ref) void handleEt2DeleteTask(ref.taskId)
+                  }}
                   editorLoading={et2TaskEditor.loading}
                   editorSaving={et2TaskEditor.saving}
                   editorDirty={et2TaskEditor.dirty}
                   editorError={et2TaskEditor.error}
+                  editorTaskId={et2TaskEditor.taskId}
+                  titleFocusTick={titleFocusTick}
                 />
               ) : undefined
             }

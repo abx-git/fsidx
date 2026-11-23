@@ -40,7 +40,13 @@ export interface Et2TaskSummary {
   taskId: string
   title: string
   kind?: Et2TaskKind
+  body?: string
   dueDate?: string | null
+  reminderDate?: string | null
+  link?: string
+  command?: string
+  effort?: number
+  effortUnit?: 'hours' | 'minutes' | 'workdays'
   tags?: string[]
   status?: Et2TaskStatus
   parentId?: string | null

@@ -13,7 +13,7 @@ A **browser-only** single-page app that indexes every file in a folder you choos
 4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
 5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, Datei-Info. Doppelklick öffnet den Standard-Viewer für den Typ.
 6. **Metadaten-JSON** weiterhin im Kontextmenü: Sidecar `datei.json` mit Schema-Editor (`file-metadata.v1`).
-7. **Aufgaben als Dateien** (`*.tsk.json`, Format `et2-tasks-v1`): beliebig viele Dateien pro Ordner, **ohne** `.et2/`. Links Baum, Mitte Dateiliste, rechts **Detail/Bearbeitung** für die gewählte `.tsk.json` (Status, Unteraufgaben, Markdown). Legacy `.et2/` bleibt lesbar.
+7. **Aufgaben als Dateien** (`*.tsk.json`, Format `et2-tasks-v1`): beliebig viele Dateien pro Ordner, **ohne** `.et2/`. Links Baum, Mitte Dateiliste, rechts ET2-ähnliche Aufgabenliste + Detailfelder. Legacy `.et2/` bleibt lesbar.
 
 Nothing is uploaded; metadata stays in memory unless you export it.
 
@@ -36,7 +36,7 @@ projekt/phase/
 
 Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
-Mit **Schreibzugriff** legst du **Ordner**, **Markdown** und **`.tsk.json`** an (Toolbar „Anlegen“ / „Neue Aufgaben-Datei“). Eine `.tsk.json` in der Mitte auswählen → rechts bearbeiten; **Unteraufgabe** hängt Einträge per `parentId` in derselben Datei.
+Mit **Schreibzugriff** legst du **Ordner**, **Markdown** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 
 ## Sidecar-Metadaten (JSON Schema)
 

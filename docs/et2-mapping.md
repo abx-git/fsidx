@@ -29,6 +29,19 @@ Die **Hierarchie** aus der Monolith-JSON wird zu **Unterordnern**; jeder Knoten 
 
 `children` werden **nicht** in der Datei gespeichert — nur als Unterverzeichnisse.
 
+## ET2-Kartenfelder ↔ `*.tsk.json` (`et2-tasks-v1`)
+
+| ET2 Karte (`TaskNode`) | `Et2TaskRecord` in `.tsk.json` |
+|------------------------|------------------------------|
+| `title` | `title` |
+| `description` | `body` (Markdown) |
+| `tags` | `tags[]` |
+| `link`, `command` | `link`, `command` |
+| `dueDate`, `reminderDate` | ISO-Strings |
+| `effort`, `effortUnit` | `effort`, `effortUnit` |
+| `children[]` | `parentId` (flacher Wald, mehrere Ebenen in einer Datei) |
+| Status (Tag „Erledigt“ / Filter) | `status` + optional Tag `Erledigt` |
+
 ## Migration `et2-board.json`
 
 1. Jeder Root in `roots[]` → Top-Level-Ordner unter gewähltem Ziel.

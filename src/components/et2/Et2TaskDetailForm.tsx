@@ -316,8 +316,8 @@ export function Et2TaskDetailForm({
 
       <div>
         <label className={labelClass}>Beschreibung</label>
-        <div className="mt-1 min-h-[8rem] rounded-lg border border-zinc-200 dark:border-zinc-700 [&_.markdown-preview]:max-w-none">
-          <LivePreviewMarkdown content={body} onChange={onBodyChange} canWrite={canWrite} compactHints />
+        <div className="mt-1 [&_.markdown-preview]:max-w-none">
+          <LivePreviewMarkdown content={body} onChange={onBodyChange} canWrite={canWrite} simple />
         </div>
       </div>
 

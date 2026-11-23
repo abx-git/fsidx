@@ -99,12 +99,7 @@ export function Et2TaskContentEditor({
             </label>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto [&_.markdown-preview]:max-w-none [&_.markdown-preview]:px-4 [&_.markdown-preview]:py-3">
-            <LivePreviewMarkdown
-              content={body}
-              onChange={onBodyChange}
-              canWrite={canWrite}
-              compactHints
-            />
+            <LivePreviewMarkdown content={body} onChange={onBodyChange} canWrite={canWrite} simple />
           </div>
           {dirty && (
             <p className="px-3 pb-2 text-[11px] text-amber-700 dark:text-amber-300">Änderungen noch nicht gespeichert</p>

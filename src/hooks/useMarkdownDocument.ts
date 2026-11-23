@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readTextFromStore, writeTextToStore } from '../lib/file-sources'
 
-export type MarkdownViewMode = 'preview' | 'source'
+export type MarkdownViewMode = 'live' | 'source'
 
 const draftCache = new Map<string, string>()
 
@@ -11,7 +11,7 @@ export function useMarkdownDocument(
   fileSources: FileSourceStore | null,
 ) {
   const [content, setContent] = useState('')
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>('preview')
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>('live')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -21,7 +21,7 @@ export function useMarkdownDocument(
       setContent('')
       setError(null)
       setDirty(false)
-      setViewMode('preview')
+      setViewMode('live')
       return
     }
 
@@ -29,7 +29,7 @@ export function useMarkdownDocument(
     if (cached != null) {
       setContent(cached)
       setDirty(true)
-      setViewMode('preview')
+      setViewMode('live')
       setError(null)
       return
     }
@@ -38,14 +38,14 @@ export function useMarkdownDocument(
       setContent('')
       setError('Re-open the folder to read this file. Imported JSON indexes do not include file contents.')
       setDirty(false)
-      setViewMode('preview')
+      setViewMode('live')
       return
     }
 
     let cancelled = false
     setLoading(true)
     setError(null)
-    setViewMode('preview')
+    setViewMode('live')
     setDirty(false)
 
     readTextFromStore(fileSources, path)
@@ -78,7 +78,7 @@ export function useMarkdownDocument(
   )
 
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => (m === 'preview' ? 'source' : 'preview'))
+    setViewMode((m) => (m === 'live' ? 'source' : 'live'))
   }, [])
 
   const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {

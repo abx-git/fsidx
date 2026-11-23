@@ -1,15 +1,14 @@
 import {
   ArrowLeft,
-  BookOpen,
-  Code2,
   Download,
+  Eye,
+  Code2,
   Loader2,
   Save,
 } from 'lucide-react'
 import { useEffect } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
+import { LivePreviewMarkdown } from './markdown/LivePreviewMarkdown'
 
 interface MarkdownEditorProps {
   fileName: string
@@ -80,7 +79,7 @@ export function MarkdownEditor({
               className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back
+              Zurück
             </button>
           )}
           <div className="min-w-0 text-left">
@@ -91,22 +90,22 @@ export function MarkdownEditor({
         <div className="flex flex-wrap items-center gap-2">
           {dirty && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              Edited in session
+              Ungespeichert
             </span>
           )}
           <div className="inline-flex rounded-lg border border-zinc-300 p-0.5 dark:border-zinc-700">
             <button
               type="button"
-              onClick={() => onViewModeChange('preview')}
+              onClick={() => onViewModeChange('live')}
               className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
-                viewMode === 'preview'
+                viewMode === 'live'
                   ? 'bg-emerald-600 text-white'
                   : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
               }`}
-              title="Reading view (default)"
+              title="Live-Vorschau wie Obsidian"
             >
-              <BookOpen className="h-3.5 w-3.5" />
-              Reading
+              <Eye className="h-3.5 w-3.5" />
+              Live
             </button>
             <button
               type="button"
@@ -116,10 +115,10 @@ export function MarkdownEditor({
                   ? 'bg-emerald-600 text-white'
                   : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
               }`}
-              title="Source mode"
+              title="Gesamte Quelle bearbeiten"
             >
               <Code2 className="h-3.5 w-3.5" />
-              Source
+              Quelle
             </button>
           </div>
           {canWrite && onSave && (
@@ -143,7 +142,7 @@ export function MarkdownEditor({
             Download
           </button>
           <span className="hidden text-[10px] text-zinc-400 sm:inline">
-            Ctrl+E toggle
+            Strg+E umschalten
           </span>
         </div>
       </header>
@@ -157,7 +156,7 @@ export function MarkdownEditor({
         {loading && (
           <p className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading markdown…
+            Markdown wird geladen…
           </p>
         )}
         {!loading && error && (
@@ -165,10 +164,8 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
-        {!loading && !error && viewMode === 'preview' && (
-          <article className="markdown-preview mx-auto max-w-3xl px-6 py-8 text-left text-zinc-800 dark:text-zinc-100">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '_Empty file_'}</ReactMarkdown>
-          </article>
+        {!loading && !error && viewMode === 'live' && (
+          <LivePreviewMarkdown content={content} onChange={onChange} canWrite={canWrite} />
         )}
         {!loading && !error && viewMode === 'source' && (
           <textarea
@@ -176,7 +173,7 @@ export function MarkdownEditor({
             onChange={(e) => onChange(e.target.value)}
             spellCheck={false}
             className="h-full min-h-[60vh] w-full resize-none border-0 bg-zinc-50 p-4 font-mono text-sm leading-relaxed text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
-            aria-label="Markdown source"
+            aria-label="Markdown-Quelltext"
           />
         )}
       </div>

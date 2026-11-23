@@ -1,7 +1,5 @@
 import { Loader2, Save } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { useState } from 'react'
+import { LivePreviewMarkdown } from '../markdown/LivePreviewMarkdown'
 
 interface Et2TaskContentEditorProps {
   title: string
@@ -32,8 +30,6 @@ export function Et2TaskContentEditor({
   taskPath,
   onOpenFullEditor,
 }: Et2TaskContentEditorProps) {
-  const [tab, setTab] = useState<'edit' | 'preview'>('edit')
-
   if (!taskPath) {
     return (
       <p className="border-t border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800">
@@ -49,22 +45,6 @@ export function Et2TaskContentEditor({
           Inhalt
         </span>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-zinc-200 p-0.5 text-[11px] dark:border-zinc-700">
-            <button
-              type="button"
-              onClick={() => setTab('edit')}
-              className={`rounded px-2 py-0.5 ${tab === 'edit' ? 'bg-white shadow dark:bg-zinc-800' : ''}`}
-            >
-              Bearbeiten
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('preview')}
-              className={`rounded px-2 py-0.5 ${tab === 'preview' ? 'bg-white shadow dark:bg-zinc-800' : ''}`}
-            >
-              Vorschau
-            </button>
-          </div>
           {onOpenFullEditor && (
             <button
               type="button"
@@ -91,37 +71,25 @@ export function Et2TaskContentEditor({
           Lade Aufgabe…
         </p>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            disabled={!canWrite}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium dark:border-zinc-600 dark:bg-zinc-950"
-            placeholder="Titel"
-          />
-          {tab === 'edit' ? (
-            <textarea
-              value={body}
-              onChange={(e) => onBodyChange(e.target.value)}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="shrink-0 border-b border-violet-100 px-3 py-3 dark:border-violet-900/40">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
               disabled={!canWrite}
-              placeholder="Markdown: Beschreibung, Listen, Links …"
-              className="min-h-[min(40vh,320px)] flex-1 resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-sm leading-relaxed dark:border-zinc-600 dark:bg-zinc-950"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium dark:border-zinc-600 dark:bg-zinc-950"
+              placeholder="Titel"
             />
-          ) : (
-            <div className="markdown-preview min-h-[120px] rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
-              {body.trim() ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
-              ) : (
-                <p className="text-zinc-400">Noch kein Inhalt.</p>
-              )}
-            </div>
-          )}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto [&_.markdown-preview]:max-w-none [&_.markdown-preview]:px-4 [&_.markdown-preview]:py-4">
+            <LivePreviewMarkdown content={body} onChange={onBodyChange} canWrite={canWrite} />
+          </div>
           {dirty && (
-            <p className="text-[11px] text-amber-700 dark:text-amber-300">Ungespeicherte Änderungen</p>
+            <p className="px-3 pb-2 text-[11px] text-amber-700 dark:text-amber-300">Ungespeicherte Änderungen</p>
           )}
           {error && (
-            <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">{error}</p>
+            <p className="mx-3 mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">{error}</p>
           )}
         </div>
       )}

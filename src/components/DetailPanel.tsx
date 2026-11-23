@@ -1,4 +1,4 @@
-import { FileText, Maximize2, Minimize2 } from 'lucide-react'
+import { FileText, Maximize2, Minimize2, PanelBottomClose, PanelBottomOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SidebarResizeHandle } from './SidebarResizeHandle'
 import type { FileIndexManifest, IndexNode } from '../types'
@@ -20,6 +20,8 @@ interface DetailPanelProps {
   sidebarWidthPx?: number
   sidebarMinWidth?: number
   sidebarMaxWidth?: number
+  metadataVisible: boolean
+  onMetadataVisibleChange: (value: boolean) => void
 }
 
 export function DetailPanel({
@@ -37,9 +39,12 @@ export function DetailPanel({
   sidebarWidthPx = 380,
   sidebarMinWidth = 280,
   sidebarMaxWidth = 960,
+  metadataVisible,
+  onMetadataVisibleChange,
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
   const detailsVisible = !showViewer || !viewerExpanded
+  const showMetadataBlock = metadataVisible && detailsVisible
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
@@ -59,17 +64,35 @@ export function DetailPanel({
             <p className="text-xs text-zinc-500">Metadaten und optional Vorschau</p>
           </div>
         </div>
-        <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900/80">
-          <input
-            type="checkbox"
-            className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-            checked={viewerPinned}
-            onChange={(e) => onViewerPinnedChange(e.target.checked)}
-          />
-          <span className="text-zinc-700 dark:text-zinc-200">
-            Viewer <strong className="font-medium">ständig aktiviert</strong>
-          </span>
-        </label>
+        <div className="mt-2 space-y-1.5">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900/80">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              checked={viewerPinned}
+              onChange={(e) => onViewerPinnedChange(e.target.checked)}
+            />
+            <span className="text-zinc-700 dark:text-zinc-200">
+              Viewer <strong className="font-medium">ständig aktiviert</strong>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900/80">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              checked={metadataVisible}
+              onChange={(e) => onMetadataVisibleChange(e.target.checked)}
+            />
+            <span className="inline-flex items-center gap-1 text-zinc-700 dark:text-zinc-200">
+              {metadataVisible ? (
+                <PanelBottomOpen className="h-3.5 w-3.5 text-zinc-500" />
+              ) : (
+                <PanelBottomClose className="h-3.5 w-3.5 text-zinc-500" />
+              )}
+              Metadaten <strong className="font-medium">anzeigen</strong>
+            </span>
+          </label>
+        </div>
         {viewerPinned && (
           <p className="mt-1 text-[11px] leading-snug text-zinc-500">
             Vorschau bei Dateiauswahl · <strong>Vergrößern</strong> nutzt die ganze Seitenleiste · am
@@ -80,8 +103,10 @@ export function DetailPanel({
 
       {showViewer && (
         <div
-          className={`flex min-h-0 shrink-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
-            viewerExpanded ? 'flex-1 min-h-[40%]' : 'h-[min(38vh,360px)]'
+          className={`flex min-h-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
+            viewerExpanded || !metadataVisible
+              ? 'min-h-0 flex-1'
+              : 'h-[min(38vh,360px)] shrink-0'
           }`}
         >
           {onViewerExpandedChange && (
@@ -110,7 +135,13 @@ export function DetailPanel({
         </div>
       )}
 
-      {detailsVisible && (
+      {!metadataVisible && detailsVisible && (
+        <p className="shrink-0 px-3 py-3 text-center text-xs text-zinc-500">
+          Metadaten ausgeblendet — Bedienteil oben wieder einschalten.
+        </p>
+      )}
+
+      {showMetadataBlock && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {node?.kind === 'directory' && onDirectoryReadme && (
             <div className="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">

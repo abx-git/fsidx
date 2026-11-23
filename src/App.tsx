@@ -32,6 +32,7 @@ import {
 } from './components/FileContextMenu'
 import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
+import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
@@ -87,6 +88,8 @@ function App() {
   } = useFileIndex()
 
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
+  const { visible: detailMetadataVisible, setVisible: setDetailMetadataVisible } =
+    useDetailMetadataVisible()
   const {
     expanded: viewerExpanded,
     setExpanded: setViewerExpanded,
@@ -723,6 +726,8 @@ function App() {
             sidebarWidthPx={sidebarWidthPx}
             sidebarMinWidth={sidebarMinWidth}
             sidebarMaxWidth={sidebarMaxWidth}
+            metadataVisible={detailMetadataVisible}
+            onMetadataVisibleChange={setDetailMetadataVisible}
           />
           </div>
         </div>

@@ -180,6 +180,23 @@ export function useFileIndex() {
     [],
   )
 
+  const moveIndexedFile = useCallback(
+    (fromPath: string, fileRow: RawFileRow, sidecarRow: RawFileRow | null): string | null => {
+      let newId: string | null = null
+      setManifest((m) => {
+        if (!m) return m
+        let updated = removePathFromManifest(m, fromPath, 'file')
+        if (!updated) return m
+        updated = appendFileToManifest(updated, fileRow)
+        newId = updated.entries.find((e) => e.path === fileRow.relativePath)?.id ?? null
+        if (sidecarRow) updated = appendFileToManifest(updated, sidecarRow)
+        return updated
+      })
+      return newId
+    },
+    [],
+  )
+
   const selectedNode = useMemo((): IndexNode | null => {
     if (!manifest || !selectedId) return null
     const entry = manifest.entries.find((e) => e.id === selectedId)
@@ -408,6 +425,7 @@ export function useFileIndex() {
     hasSidecar,
     registerSidecarFile,
     removeIndexedPath,
+    moveIndexedFile,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,

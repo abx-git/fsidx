@@ -9,6 +9,7 @@ import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
 import { isHiddenEt2Scope } from '../lib/scope-sanitize'
 import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
+import { fsidxFileDragMime } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
 
 interface FileBrowserProps {
@@ -146,6 +147,15 @@ export function FileBrowser({
             <li key={row.id}>
               <button
                 type="button"
+                draggable={canWrite && row.kind === 'file'}
+                onDragStart={(e) => {
+                  if (!canWrite || row.kind !== 'file') return
+                  e.dataTransfer.setData(
+                    fsidxFileDragMime(),
+                    JSON.stringify({ path: row.path, id: row.id, name: row.name }),
+                  )
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
                 onClick={() => {
                   onSelectEntry(row.id)
                   if (row.kind === 'directory' && !inSearch) onNavigate(row.path)

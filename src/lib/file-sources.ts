@@ -56,6 +56,29 @@ export async function ensureWritePermission(store: FileSourceStore): Promise<boo
   return next === 'granted'
 }
 
+export async function writeBlobToStore(
+  store: FileSourceStore,
+  relativePath: string,
+  data: Blob,
+): Promise<void> {
+  if (store.kind === 'files') {
+    throw new Error(
+      'Verschieben: Ordner erneut mit Chrome/Edge öffnen (Schreibzugriff). Legacy-Picker ist nur lesend.',
+    )
+  }
+
+  const parts = relativePath.split('/')
+  const fileName = parts.pop()
+  if (!fileName) throw new Error('Ungültiger Pfad')
+
+  const dir = await resolveDirectory(store.root, parts.join('/'), true)
+  const handle = await dir.getFileHandle(fileName, { create: true })
+  const writable = await handle.createWritable()
+  await writable.write(data)
+  await writable.close()
+  store.handles.set(relativePath, handle)
+}
+
 export async function writeTextToStore(
   store: FileSourceStore,
   relativePath: string,

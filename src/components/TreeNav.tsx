@@ -4,6 +4,7 @@ import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { directoryHasNavigableContent, flattenVisibleTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
+import { fsidxFileDragMime, parseFsidxFileDrag } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
 
 const TREE_EXPANDED_KEY = 'fsidx.treeExpanded'
@@ -38,6 +39,8 @@ interface TreeNavProps {
   onSelectPath: (path: string, nodeId: string) => void
   indexedFilePaths?: string[]
   onContextMenu?: (target: ContextMenuTarget) => void
+  canWrite?: boolean
+  onDropFileToDir?: (filePath: string, destDirPath: string) => void
 }
 
 interface TreeNodeProps {
@@ -54,6 +57,10 @@ interface TreeNodeProps {
   onToggleExpanded: (path: string) => void
   depthOffset: number
   onContextMenu?: (target: ContextMenuTarget) => void
+  canWrite?: boolean
+  dropTargetPath: string | null
+  onDropTargetPath: (path: string | null) => void
+  onDropFileToDir?: (filePath: string, destDirPath: string) => void
 }
 
 function TreeNode({
@@ -70,6 +77,10 @@ function TreeNode({
   onToggleExpanded,
   depthOffset,
   onContextMenu,
+  canWrite = false,
+  dropTargetPath,
+  onDropTargetPath,
+  onDropFileToDir,
 }: TreeNodeProps) {
   const emitContext = (e: React.MouseEvent) => {
     if (!onContextMenu) return
@@ -104,6 +115,12 @@ function TreeNode({
   )
   const hasChildren = visibleChildren.length > 0
   const isRoot = node.path === ''
+  const isDropTarget = canWrite && dropTargetPath === node.path
+
+  const acceptFileDrop = (e: React.DragEvent) => {
+    if (!canWrite || !onDropFileToDir) return false
+    return e.dataTransfer.types.includes(fsidxFileDragMime())
+  }
 
   if (!isRoot && !directoryHasNavigableContent(node, showEt2DotFiles)) return null
 
@@ -111,9 +128,11 @@ function TreeNode({
     <div className="select-none" role="group">
       <div
         className={`flex w-full items-center gap-0.5 rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-          isActive
-            ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
-            : 'text-zinc-700 dark:text-zinc-300'
+          isDropTarget
+            ? 'bg-sky-100 ring-2 ring-inset ring-sky-400 dark:bg-sky-950/40 dark:ring-sky-500'
+            : isActive
+              ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
+              : 'text-zinc-700 dark:text-zinc-300'
         }`}
         style={{ paddingLeft: `${indent}px` }}
       >
@@ -148,6 +167,26 @@ function TreeNode({
           onKeyDown={(e) => onTreeKeyDown(e, node.id)}
           onClick={() => onSelectPath(node.path, node.id)}
           onContextMenu={emitContext}
+          onDragOver={(e) => {
+            if (!acceptFileDrop(e)) return
+            e.preventDefault()
+            e.stopPropagation()
+            e.dataTransfer.dropEffect = 'move'
+            onDropTargetPath(node.path)
+          }}
+          onDragLeave={(e) => {
+            if (!acceptFileDrop(e)) return
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            if (dropTargetPath === node.path) onDropTargetPath(null)
+          }}
+          onDrop={(e) => {
+            if (!acceptFileDrop(e)) return
+            e.preventDefault()
+            e.stopPropagation()
+            onDropTargetPath(null)
+            const payload = parseFsidxFileDrag(e.dataTransfer.getData(fsidxFileDragMime()))
+            if (payload) onDropFileToDir?.(payload.path, node.path)
+          }}
           className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
         >
           <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
@@ -180,6 +219,10 @@ function TreeNode({
             onToggleExpanded={onToggleExpanded}
             depthOffset={depthOffset}
             onContextMenu={onContextMenu}
+            canWrite={canWrite}
+            dropTargetPath={dropTargetPath}
+            onDropTargetPath={onDropTargetPath}
+            onDropFileToDir={onDropFileToDir}
           />
         ))}
     </div>
@@ -195,8 +238,11 @@ export function TreeNav({
   onSelectPath,
   indexedFilePaths,
   onContextMenu,
+  canWrite = false,
+  onDropFileToDir,
 }: TreeNavProps) {
   const [expandedPaths, setExpandedPaths] = useState(() => readExpandedPaths(rootName))
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const itemRefs = useRef<Map<string, HTMLElement>>(new Map())
   const treeScrollRef = useRef<HTMLDivElement>(null)
@@ -316,6 +362,9 @@ export function TreeNav({
     >
       <div className="shrink-0 border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Ordnerbaum</p>
+        {canWrite && (
+          <p className="px-1 pt-0.5 text-[9px] text-zinc-400">Dateien aus der Liste hierher ziehen</p>
+        )}
       </div>
       <div
         ref={treeScrollRef}
@@ -323,6 +372,10 @@ export function TreeNav({
         tabIndex={0}
         aria-label="Ordner"
         onKeyDown={onTreeContainerKeyDown}
+        onDragLeave={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return
+          setDropTargetPath(null)
+        }}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 outline-none focus:ring-1 focus:ring-inset focus:ring-emerald-500/40"
       >
         <TreeNode
@@ -339,6 +392,10 @@ export function TreeNav({
           onToggleExpanded={onToggleExpanded}
           depthOffset={root.depth}
           onContextMenu={onContextMenu}
+          canWrite={canWrite}
+          dropTargetPath={dropTargetPath}
+          onDropTargetPath={setDropTargetPath}
+          onDropFileToDir={onDropFileToDir}
         />
       </div>
     </nav>

@@ -26,6 +26,7 @@ import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
+import { moveFileInStore, resolveMoveFilePath } from './lib/move-workspace'
 import { isTskJsonPath } from './lib/et2/tsk-paths'
 import {
   isBundledTaskRef,
@@ -111,6 +112,7 @@ function App() {
     hasSidecar,
     registerSidecarFile,
     removeIndexedPath,
+    moveIndexedFile,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,
@@ -816,6 +818,67 @@ function App() {
     }
   }, [contextMenu, navigateToPath, setCurrentPath, setSelectedId])
 
+  const handleMoveFileToDirectory = useCallback(
+    async (filePath: string, destDirPath: string) => {
+      if (!fileSources || !canWrite || !manifest) return
+      const from = filePath.replace(/\\/g, '/')
+      const newPath = resolveMoveFilePath(from, destDirPath.replace(/\\/g, '/'))
+      if (newPath === from) return
+      const oldEntry = manifest.entries.find((e) => e.path === from)
+      try {
+        const { row, sidecarRow } = await moveFileInStore(
+          fileSources,
+          from,
+          destDirPath,
+          indexedFilePaths,
+        )
+        const newId = moveIndexedFile(from, row, sidecarRow)
+        if (!newId) throw new Error('Index konnte nicht aktualisiert werden.')
+        if (selectedId === oldEntry?.id) setSelectedId(newId)
+        if (fileView?.path === from) {
+          setFileView((prev) =>
+            prev ? { ...prev, path: row.relativePath, name: row.name, id: newId } : prev,
+          )
+        }
+        if (metadataTarget?.path === from) {
+          setMetadataTarget({
+            ...metadataTarget,
+            path: row.relativePath,
+            name: row.name,
+          })
+        }
+        if (selectedTskTaskRef) {
+          const ref = taskRefFromPath(selectedTskTaskRef)
+          if (ref?.bundlePath === from) {
+            setSelectedTskTaskRef(makeBundledTaskRef(row.relativePath, ref.taskId))
+          }
+        } else if (activeTskPath === from) {
+          setSelectedTskTaskRef(null)
+        }
+        void et2Tasks.reload()
+        if (aggregateTasksDir !== null) void aggregateEt2Tasks.reload()
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
+      }
+    },
+    [
+      fileSources,
+      canWrite,
+      manifest,
+      indexedFilePaths,
+      moveIndexedFile,
+      selectedId,
+      fileView?.path,
+      metadataTarget,
+      selectedTskTaskRef,
+      activeTskPath,
+      et2Tasks,
+      aggregateTasksDir,
+      aggregateEt2Tasks,
+      setSelectedId,
+    ],
+  )
+
   const handleDeleteContextTarget = useCallback(async () => {
     if (!contextMenu || !fileSources || !manifest) return
     const { path, kind, name } = contextMenu
@@ -1050,6 +1113,8 @@ function App() {
               onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
               indexedFilePaths={indexedPathList}
               onContextMenu={setContextMenu}
+              canWrite={canWrite}
+              onDropFileToDir={(path, dir) => void handleMoveFileToDirectory(path, dir)}
             />
           </div>
           <div className="fsidx-pane min-h-0">{centerPane}</div>

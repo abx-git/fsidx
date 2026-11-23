@@ -12,6 +12,12 @@ import { Header, type CenterPaneMode } from './components/Header'
 import { Et2TaskPanel } from './components/et2/Et2TaskPanel'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
+import {
+  createDirectoryInScope,
+  createEt2SubtaskInFolder,
+  createMarkdownInScope,
+} from './lib/create-workspace'
+import { taskContainerDir } from './lib/workspace-scope'
 import { folderMetaRelative } from './lib/et2/paths'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { TreeNav } from './components/TreeNav'
@@ -347,6 +353,86 @@ function App() {
     await indexFromPicker()
   }, [indexFromPicker])
 
+  const handleNewFolder = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Ordner anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const name = window.prompt('Name des neuen Ordners:', 'Neuer Ordner')
+      if (name === null || !name.trim()) return
+      try {
+        const { relativePath, row } = await createDirectoryInScope(fileSources, parentPath, name)
+        registerSidecarFile(row)
+        navigateToPath(relativePath, null)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Ordner konnte nicht angelegt werden')
+      }
+    },
+    [fileSources, canWrite, registerSidecarFile, navigateToPath],
+  )
+
+  const handleNewMarkdown = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Datei anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const name = window.prompt('Dateiname:', 'notiz.md')
+      if (name === null || !name.trim()) return
+      try {
+        const { relativePath, row } = await createMarkdownInScope(fileSources, parentPath, name)
+        const id = registerSidecarFile(row)
+        clearMarkdownDrafts()
+        if (id) {
+          openViewer('markdown', relativePath, row.name, id, row.size)
+        }
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Markdown konnte nicht angelegt werden')
+      }
+    },
+    [fileSources, canWrite, registerSidecarFile, openViewer],
+  )
+
+  const handleEt2Subtask = useCallback(async () => {
+    if (!selectedEt2TaskPath || !fileSources || !canWrite) {
+      window.alert('Unteraufgabe: zuerst eine Aufgabe wählen und Schreibzugriff aktivieren.')
+      return
+    }
+    const parentDir = taskContainerDir(selectedEt2TaskPath)
+    const subName = window.prompt('Unterordner für die Unteraufgabe:', 'Teilaufgabe')
+    if (subName === null || !subName.trim()) return
+    const taskTitle = window.prompt('Titel der Unteraufgabe:', subName.trim())
+    if (taskTitle === null) return
+    try {
+      const result = await createEt2SubtaskInFolder(
+        fileSources,
+        parentDir,
+        subName.trim(),
+        taskTitle.trim() || subName.trim(),
+      )
+      registerSidecarFile(result.dirRow)
+      const taskEntryId = registerSidecarFile(result.taskRow)
+      clearMarkdownDrafts()
+      et2Tasks.reload()
+      navigateToPath(result.childDirPath, taskEntryId)
+      setSelectedEt2TaskPath(result.taskRelativePath)
+      if (taskEntryId) {
+        openViewer('markdown', result.taskRelativePath, result.taskRow.name, taskEntryId, result.taskRow.size)
+      }
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
+    }
+  }, [
+    selectedEt2TaskPath,
+    fileSources,
+    canWrite,
+    registerSidecarFile,
+    et2Tasks,
+    navigateToPath,
+    openViewer,
+  ])
+
   const handleEt2NewTask = useCallback(
     async (dirPath: string) => {
       if (!fileSources || !canWrite) {
@@ -490,6 +576,9 @@ function App() {
         setSelectedEt2TaskPath(relativePath)
       }}
       onNewTask={() => void handleEt2NewTask(currentPath)}
+      onNewSubtask={() => void handleEt2Subtask()}
+      onNewFolder={() => void handleNewFolder(currentPath)}
+      onNewMarkdown={() => void handleNewMarkdown(currentPath)}
       taskPathToEntryId={taskPathToEntryId}
     />
   ) : (
@@ -507,6 +596,9 @@ function App() {
       onFileContextMenu={setContextMenu}
       showEt2DotFiles={showEt2DotFiles}
       scopePath={currentPath}
+      canWrite={canWrite}
+      onNewFolder={() => void handleNewFolder(currentPath)}
+      onNewMarkdown={() => void handleNewMarkdown(currentPath)}
     />
   )
 
@@ -665,6 +757,14 @@ function App() {
         onEt2FolderMeta={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           void handleEt2FolderMeta(contextMenu.path)
+        }}
+        onNewSubfolder={() => {
+          if (!contextMenu || contextMenu.kind !== 'directory') return
+          void handleNewFolder(contextMenu.path)
+        }}
+        onNewMarkdown={() => {
+          if (!contextMenu || contextMenu.kind !== 'directory') return
+          void handleNewMarkdown(contextMenu.path)
         }}
       />
     </div>

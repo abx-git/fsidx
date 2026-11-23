@@ -6,6 +6,7 @@ import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
 import { ScopeBar } from './ScopeBar'
+import { ScopeCreateActions } from './ScopeCreateActions'
 import type { ContextMenuTarget } from './FileContextMenu'
 
 interface FileBrowserProps {
@@ -28,6 +29,9 @@ interface FileBrowserProps {
   onFileContextMenu: (target: ContextMenuTarget) => void
   showEt2DotFiles?: boolean
   scopePath: string
+  canWrite: boolean
+  onNewFolder: () => void
+  onNewMarkdown: () => void
 }
 
 type Row = {
@@ -54,6 +58,9 @@ export function FileBrowser({
   onFileContextMenu,
   showEt2DotFiles = false,
   scopePath,
+  canWrite,
+  onNewFolder,
+  onNewMarkdown,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
 
@@ -93,6 +100,13 @@ export function FileBrowser({
         />
       )}
       <div className="shrink-0">
+        {!inSearch && (
+          <ScopeCreateActions
+            canWrite={canWrite}
+            onNewFolder={onNewFolder}
+            onNewMarkdown={onNewMarkdown}
+          />
+        )}
         {inSearch && (
           <>
             <ScopeBar

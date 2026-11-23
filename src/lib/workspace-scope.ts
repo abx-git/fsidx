@@ -29,7 +29,7 @@ export function scopeAncestorCrumbs(scopePath: string, workspaceRootName: string
   return crumbs
 }
 
-function taskContainerDir(taskFilePath: string): string {
+export function taskContainerDir(taskFilePath: string): string {
   const norm = taskFilePath.replace(/\\/g, '/')
   const marker = '/.et2/tasks/'
   const idx = norm.indexOf(marker)

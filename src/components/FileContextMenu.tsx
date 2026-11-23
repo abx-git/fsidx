@@ -2,6 +2,7 @@ import {
   Eye,
   FileJson,
   FileText,
+  FolderPlus,
   Pencil,
   type LucideIcon,
 } from 'lucide-react'
@@ -44,6 +45,8 @@ interface FileContextMenuProps {
   onDirectoryReadme: () => void
   onEt2NewTask?: () => void
   onEt2FolderMeta?: () => void
+  onNewSubfolder?: () => void
+  onNewMarkdown?: () => void
 }
 
 export function FileContextMenu({
@@ -57,6 +60,8 @@ export function FileContextMenu({
   onDirectoryReadme,
   onEt2NewTask,
   onEt2FolderMeta,
+  onNewSubfolder,
+  onNewMarkdown,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -89,6 +94,34 @@ export function FileContextMenu({
         <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
           Verzeichnis
         </p>
+        {onNewSubfolder && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onNewSubfolder()
+              onClose()
+            }}
+          >
+            <FolderPlus className="h-4 w-4 shrink-0 text-amber-500" />
+            <span>Neuer Unterordner</span>
+          </button>
+        )}
+        {onNewMarkdown && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onNewMarkdown()
+              onClose()
+            }}
+          >
+            <FileText className="h-4 w-4 shrink-0 text-sky-500" />
+            <span>Neue Markdown-Datei</span>
+          </button>
+        )}
         <button
           type="button"
           role="menuitem"

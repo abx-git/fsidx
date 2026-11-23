@@ -1,4 +1,5 @@
-import { CheckSquare, Loader2, Plus } from 'lucide-react'
+import { CheckSquare, GitBranch, Loader2, Plus } from 'lucide-react'
+import { ScopeCreateActions } from '../ScopeCreateActions'
 import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import { normalizeScopePath } from '../../lib/workspace-scope'
@@ -14,6 +15,9 @@ interface Et2TaskPanelProps {
   onSelectTask: (relativePath: string, entryId: string | null) => void
   onOpenTask: (relativePath: string, title: string, entryId: string | null) => void
   onNewTask: () => void
+  onNewSubtask?: () => void
+  onNewFolder?: () => void
+  onNewMarkdown?: () => void
   taskPathToEntryId: Map<string, string>
 }
 
@@ -28,6 +32,9 @@ export function Et2TaskPanel({
   onSelectTask,
   onOpenTask,
   onNewTask,
+  onNewSubtask,
+  onNewFolder,
+  onNewMarkdown,
   taskPathToEntryId,
 }: Et2TaskPanelProps) {
   const scope = normalizeScopePath(scopePath)
@@ -40,16 +47,32 @@ export function Et2TaskPanel({
           scopePath={scopePath}
           onSelectScope={onSelectScope}
         />
-        <div className="flex justify-end border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
-        <button
-          type="button"
-          disabled={!canWrite}
-          onClick={onNewTask}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Neue Aufgabe (Scope)
-        </button>
+        <ScopeCreateActions
+          canWrite={canWrite}
+          onNewFolder={onNewFolder ?? (() => {})}
+          onNewMarkdown={onNewMarkdown ?? (() => {})}
+          compact
+        />
+        <div className="flex flex-wrap justify-end gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+          <button
+            type="button"
+            disabled={!canWrite || !onNewSubtask || !selectedTaskPath}
+            onClick={onNewSubtask}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 px-2.5 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40"
+            title="Unterordner + Aufgabe unter der gewählten Aufgabe"
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+            Unteraufgabe
+          </button>
+          <button
+            type="button"
+            disabled={!canWrite}
+            onClick={onNewTask}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Aufgabe (Scope)
+          </button>
         </div>
 
         <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">

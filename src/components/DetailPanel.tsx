@@ -42,7 +42,7 @@ export function DetailPanel({
   const detailsVisible = !showViewer || !viewerExpanded
 
   return (
-    <aside className="relative flex h-full min-h-0 flex-col border-l border-zinc-200 dark:border-zinc-800">
+    <aside className="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
       {onSidebarWidthChange && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}
@@ -51,7 +51,8 @@ export function DetailPanel({
           onResize={onSidebarWidthChange}
         />
       )}
-      <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      {/* Bedienteil — bleibt sichtbar */}
+      <div className="shrink-0 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Seitenleiste</h2>
@@ -71,20 +72,20 @@ export function DetailPanel({
         </label>
         {viewerPinned && (
           <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-            Vorschau bei Dateiauswahl · <strong>Vergrößern</strong> nutzt die ganze Seitenleiste ·
-            am linken Rand ziehen für die Breite.
+            Vorschau bei Dateiauswahl · <strong>Vergrößern</strong> nutzt die ganze Seitenleiste · am
+            linken Rand ziehen für die Breite.
           </p>
         )}
       </div>
 
       {showViewer && (
         <div
-          className={`flex min-h-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
-            viewerExpanded ? 'flex-1' : 'min-h-[min(38vh,360px)] flex-1'
+          className={`flex min-h-0 shrink-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
+            viewerExpanded ? 'flex-1 min-h-[40%]' : 'h-[min(38vh,360px)]'
           }`}
         >
           {onViewerExpandedChange && (
-            <div className="flex justify-end border-b border-zinc-100 px-2 py-1 dark:border-zinc-800">
+            <div className="flex shrink-0 justify-end border-b border-zinc-100 px-2 py-1 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => onViewerExpandedChange(!viewerExpanded)}
@@ -105,88 +106,90 @@ export function DetailPanel({
               </button>
             </div>
           )}
-          <div className="min-h-0 flex-1">{viewerSlot}</div>
+          <div className="min-h-0 flex-1 overflow-hidden">{viewerSlot}</div>
         </div>
       )}
-
-      {node?.kind === 'directory' && onDirectoryReadme && detailsVisible && (
-        <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => onDirectoryReadme(node.path, node.id)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-medium text-emerald-900 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/70"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            {hasDirectoryReadme
-              ? `${DIRECTORY_README_NAME} bearbeiten`
-              : `${DIRECTORY_README_NAME} anlegen`}
-          </button>
-          <p className="mt-1 text-[10px] text-zinc-500">
-            Beschreibt den Inhalt dieses Ordners ({directoryReadmePath(node.path)}).
-          </p>
-        </div>
-      )}
-
-      {detailsVisible && node ? (
-        <dl className="space-y-2 border-b border-zinc-200 px-3 py-3 text-sm dark:border-zinc-800">
-          <div>
-            <dt className="text-xs text-zinc-500">Name</dt>
-            <dd className="font-medium text-zinc-900 dark:text-zinc-100">{node.name}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Path</dt>
-            <dd className="break-all font-mono text-xs text-zinc-700 dark:text-zinc-300">
-              {node.path || manifest.rootName}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Kind</dt>
-            <dd>{node.kind}</dd>
-          </div>
-          {node.extension && (
-            <div>
-              <dt className="text-xs text-zinc-500">Extension</dt>
-              <dd>.{node.extension}</dd>
-            </div>
-          )}
-          {node.mimeHint && (
-            <div>
-              <dt className="text-xs text-zinc-500">MIME hint</dt>
-              <dd className="font-mono text-xs">{node.mimeHint}</dd>
-            </div>
-          )}
-          {node.kind === 'file' && (
-            <div>
-              <dt className="text-xs text-zinc-500">Size</dt>
-              <dd>{formatBytes(node.size ?? 0)}</dd>
-            </div>
-          )}
-          <div>
-            <dt className="text-xs text-zinc-500">Modified</dt>
-            <dd>{formatDate(node.lastModified)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Node id</dt>
-            <dd className="font-mono text-xs">{node.id}</dd>
-          </div>
-        </dl>
-      ) : detailsVisible ? (
-        <p className="px-3 py-4 text-sm text-zinc-500">
-          {viewerPinned
-            ? 'Datei wählen — die Vorschau erscheint oben.'
-            : 'Datei oder Ordner wählen, um Metadaten anzuzeigen.'}
-        </p>
-      ) : null}
 
       {detailsVisible && (
-      <div className={`flex min-h-0 flex-col ${showViewer && !viewerExpanded ? 'max-h-40' : 'flex-1'}`}>
-        <div className="border-b border-zinc-200 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-          JSON
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+          {node?.kind === 'directory' && onDirectoryReadme && (
+            <div className="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => onDirectoryReadme(node.path, node.id)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-medium text-emerald-900 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/70"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {hasDirectoryReadme
+                  ? `${DIRECTORY_README_NAME} bearbeiten`
+                  : `${DIRECTORY_README_NAME} anlegen`}
+              </button>
+              <p className="mt-1 text-[10px] text-zinc-500">
+                Beschreibt den Inhalt dieses Ordners ({directoryReadmePath(node.path)}).
+              </p>
+            </div>
+          )}
+
+          {node ? (
+            <dl className="shrink-0 space-y-2 border-b border-zinc-200 px-3 py-3 text-sm dark:border-zinc-800">
+              <div>
+                <dt className="text-xs text-zinc-500">Name</dt>
+                <dd className="font-medium text-zinc-900 dark:text-zinc-100">{node.name}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-zinc-500">Path</dt>
+                <dd className="break-all font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                  {node.path || manifest.rootName}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-zinc-500">Kind</dt>
+                <dd>{node.kind}</dd>
+              </div>
+              {node.extension && (
+                <div>
+                  <dt className="text-xs text-zinc-500">Extension</dt>
+                  <dd>.{node.extension}</dd>
+                </div>
+              )}
+              {node.mimeHint && (
+                <div>
+                  <dt className="text-xs text-zinc-500">MIME hint</dt>
+                  <dd className="font-mono text-xs">{node.mimeHint}</dd>
+                </div>
+              )}
+              {node.kind === 'file' && (
+                <div>
+                  <dt className="text-xs text-zinc-500">Size</dt>
+                  <dd>{formatBytes(node.size ?? 0)}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-xs text-zinc-500">Modified</dt>
+                <dd>{formatDate(node.lastModified)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-zinc-500">Node id</dt>
+                <dd className="font-mono text-xs">{node.id}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="shrink-0 px-3 py-4 text-sm text-zinc-500">
+              {viewerPinned
+                ? 'Datei wählen — die Vorschau erscheint oben.'
+                : 'Datei oder Ordner wählen, um Metadaten anzuzeigen.'}
+            </p>
+          )}
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-zinc-200 px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+              JSON
+            </div>
+            <pre className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-3 font-mono text-[11px] leading-relaxed text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+              {jsonPreview}
+            </pre>
+          </div>
         </div>
-        <pre className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-3 font-mono text-[11px] leading-relaxed text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-          {jsonPreview}
-        </pre>
-      </div>
       )}
     </aside>
   )

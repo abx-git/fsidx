@@ -23,8 +23,8 @@ export function ViewerShell({
   children,
 }: ViewerShellProps) {
   return (
-    <section className="flex h-full min-h-0 flex-col bg-white dark:bg-zinc-950">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <div className="flex min-w-0 items-center gap-2">
           {showBackButton && (
             <button

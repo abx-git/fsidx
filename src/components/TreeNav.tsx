@@ -109,18 +109,23 @@ export function TreeNav({
   scopeDepth = 0,
 }: TreeNavProps) {
   return (
-    <nav className="h-full overflow-auto border-r border-zinc-200 p-2 dark:border-zinc-800" aria-label="Scope tree">
-      <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+    <nav
+      className="flex h-full min-h-0 w-full flex-col border-r border-zinc-200 dark:border-zinc-800"
+      aria-label="Scope tree"
+    >
+      <p className="shrink-0 border-b border-zinc-100 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
         Teilbaum
       </p>
-      <TreeNode
-        node={root}
-        currentPath={currentPath}
-        onSelectPath={onSelectPath}
-        defaultOpen
-        indexedFilePaths={indexedFilePaths}
-        scopeDepth={scopeDepth}
-      />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+        <TreeNode
+          node={root}
+          currentPath={currentPath}
+          onSelectPath={onSelectPath}
+          defaultOpen
+          indexedFilePaths={indexedFilePaths}
+          scopeDepth={scopeDepth}
+        />
+      </div>
     </nav>
   )
 }

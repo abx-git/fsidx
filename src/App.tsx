@@ -511,7 +511,7 @@ function App() {
   )
 
   return (
-    <div className="flex min-h-svh flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="fsidx-app-shell flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <input
         ref={fallbackInputRef}
         type="file"
@@ -530,6 +530,7 @@ function App() {
         onChange={onImportJson}
       />
 
+      <div className="shrink-0">
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -546,6 +547,7 @@ function App() {
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
       />
+      </div>
 
       <Et2MigrateDialog
         open={et2MigrateOpen && Boolean(manifest)}
@@ -556,7 +558,7 @@ function App() {
       />
 
       {needsFolderReconnect && manifest && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
           <span>
             Ordner <strong className="font-medium">{manifest.rootName}</strong> ist im Index, aber
             nach dem Reload sind die Datei-Inhalte noch nicht angebunden.
@@ -581,20 +583,24 @@ function App() {
           supportsFsPicker={supportsFsPicker}
           loading={indexing || !sessionReady}
           error={progress.phase === 'error' ? progress.message : undefined}
+          className="min-h-0 flex-1 overflow-auto"
         />
       ) : (
         <div
           className="fsidx-main-grid min-h-0 flex-1"
           style={{ ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px` }}
         >
-          <TreeNav
-            root={scopeNode ?? manifest.tree}
-            currentPath={currentPath}
-            onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
-            indexedFilePaths={indexedPathList}
-            scopeDepth={scopeNode?.depth ?? 0}
-          />
-          {centerPane}
+          <div className="fsidx-pane hidden lg:flex">
+            <TreeNav
+              root={scopeNode ?? manifest.tree}
+              currentPath={currentPath}
+              onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
+              indexedFilePaths={indexedPathList}
+              scopeDepth={scopeNode?.depth ?? 0}
+            />
+          </div>
+          <div className="fsidx-pane min-h-0">{centerPane}</div>
+          <div className="fsidx-pane hidden lg:flex">
           <DetailPanel
             manifest={manifest}
             node={inspectNode}
@@ -626,6 +632,7 @@ function App() {
             sidebarMinWidth={sidebarMinWidth}
             sidebarMaxWidth={sidebarMaxWidth}
           />
+          </div>
         </div>
       )}
 

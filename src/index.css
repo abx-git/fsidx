@@ -4,17 +4,34 @@ html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
 }
 
+.fsidx-app-shell {
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
 .fsidx-main-grid {
   display: grid;
   min-height: 0;
   flex: 1;
+  overflow: hidden;
   grid-template-columns: 1fr;
+}
+
+.fsidx-pane {
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 1024px) {

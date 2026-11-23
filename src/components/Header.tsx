@@ -48,7 +48,7 @@ export function Header({
   onEt2Migrate,
 }: HeaderProps) {
   return (
-    <header className="flex flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <header className="flex shrink-0 flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

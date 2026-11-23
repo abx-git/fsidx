@@ -84,7 +84,7 @@ export function FileBrowser({
   })
 
   return (
-    <section className="flex h-full min-h-0 flex-col">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
       {!inSearch && (
         <ScopeBar
           workspaceRootName={rootName}
@@ -92,23 +92,26 @@ export function FileBrowser({
           onSelectScope={onNavigate}
         />
       )}
-      {inSearch && (
-        <>
-          <ScopeBar
-            workspaceRootName={rootName}
-            scopePath={scopePath}
-            onSelectScope={onNavigate}
-            variant="compact"
-          />
-          <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            {searchResults.length} Treffer für &quot;{searchQuery}&quot; (nur im aktuellen Scope)
-          </p>
-        </>
-      )}
-      <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
-        Rechtsklick: Datei-Viewer / Metadaten · Ordner: <code className="text-[10px]">README.md</code>
-      </p>
-      <ul className="min-h-0 flex-1 overflow-auto">
+      <div className="shrink-0">
+        {inSearch && (
+          <>
+            <ScopeBar
+              workspaceRootName={rootName}
+              scopePath={scopePath}
+              onSelectScope={onNavigate}
+              variant="compact"
+            />
+            <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              {searchResults.length} Treffer für &quot;{searchQuery}&quot; (nur im aktuellen Scope)
+            </p>
+          </>
+        )}
+        <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
+          Rechtsklick: Datei-Viewer / Metadaten · Ordner:{' '}
+          <code className="text-[10px]">README.md</code>
+        </p>
+      </div>
+      <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {listing.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-zinc-500">
             {inSearch ? 'Keine Treffer.' : 'Dieser Ordner ist leer.'}

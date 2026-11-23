@@ -6,6 +6,7 @@ interface WelcomeProps {
   supportsFsPicker: boolean
   error?: string
   loading?: boolean
+  className?: string
 }
 
 export function Welcome({
@@ -14,9 +15,12 @@ export function Welcome({
   supportsFsPicker,
   error,
   loading,
+  className,
 }: WelcomeProps) {
   return (
-    <main className="mx-auto flex max-w-xl flex-1 flex-col justify-center gap-8 px-6 py-16 text-left">
+    <main
+      className={`mx-auto flex max-w-xl flex-1 flex-col justify-center gap-8 px-6 py-16 text-left ${className ?? ''}`}
+    >
       <div>
         <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Index a folder entirely in your browser

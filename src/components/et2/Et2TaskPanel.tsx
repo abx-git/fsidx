@@ -33,13 +33,14 @@ export function Et2TaskPanel({
   const scope = normalizeScopePath(scopePath)
 
   return (
-    <section className="flex h-full min-h-0 flex-col">
-      <ScopeBar
-        workspaceRootName={rootName}
-        scopePath={scopePath}
-        onSelectScope={onSelectScope}
-      />
-      <div className="flex justify-end border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+      <div className="shrink-0">
+        <ScopeBar
+          workspaceRootName={rootName}
+          scopePath={scopePath}
+          onSelectScope={onSelectScope}
+        />
+        <div className="flex justify-end border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <button
           type="button"
           disabled={!canWrite}
@@ -49,14 +50,15 @@ export function Et2TaskPanel({
           <Plus className="h-3.5 w-3.5" />
           Neue Aufgabe (Scope)
         </button>
-      </div>
+        </div>
 
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
         <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
         <span>
           Alle Aufgaben im Teilbaum unter dem Scope (<strong className="font-medium">.et2/tasks</strong>)
         </span>
         {loading && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
+        </div>
       </div>
 
       {!canWrite && (
@@ -65,7 +67,7 @@ export function Et2TaskPanel({
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {tasks.length === 0 && !loading ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-500">
             Keine Aufgaben im aktuellen Teilbaum. Leg eine Aufgabe im Scope-Ordner an oder wechsle den Scope.

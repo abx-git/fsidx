@@ -1,31 +1,41 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readTextFromStore, writeTextToStore } from '../lib/file-sources'
 import { isTaskFilePath, taskIdFromPath } from '../lib/et2/paths'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
+import { useEt2Autosave } from './useEt2Autosave'
 
-/** Lesen (Standard), WYSIWYG-Bearbeitung, Roh-Markdown. */
-export type MarkdownViewMode = 'preview' | 'edit' | 'source'
+/** Lesen mit Blockbearbeitung (Standard) oder Roh-Quelltext. */
+export type MarkdownViewMode = 'reading' | 'source'
 
 const draftCache = new Map<string, string>()
 
 export function useMarkdownDocument(
   path: string | null,
   fileSources: FileSourceStore | null,
+  options?: {
+    autosave?: boolean
+    onPersisted?: (stats: { size: number; lastModified: number }) => void
+  },
 ) {
+  const onPersistedRef = useRef(options?.onPersisted)
+  onPersistedRef.current = options?.onPersisted
   const [content, setContent] = useState('')
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>('preview')
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>('reading')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!path) {
       setContent('')
       setError(null)
       setDirty(false)
-      setViewMode('preview')
+      setViewMode('reading')
+      setSaveError(null)
       return
     }
 
@@ -33,7 +43,7 @@ export function useMarkdownDocument(
     if (cached != null) {
       setContent(cached)
       setDirty(true)
-      setViewMode('preview')
+      setViewMode('reading')
       setError(null)
       return
     }
@@ -42,15 +52,16 @@ export function useMarkdownDocument(
       setContent('')
       setError('Re-open the folder to read this file. Imported JSON indexes do not include file contents.')
       setDirty(false)
-      setViewMode('preview')
+      setViewMode('reading')
       return
     }
 
     let cancelled = false
     setLoading(true)
     setError(null)
-    setViewMode('preview')
+    setViewMode('reading')
     setDirty(false)
+    setSaveError(null)
 
     readTextFromStore(fileSources, path)
       .then((text) => {
@@ -87,14 +98,6 @@ export function useMarkdownDocument(
     [path],
   )
 
-  const toggleViewMode = useCallback(() => {
-    setViewMode((m) => {
-      if (m === 'source') return 'preview'
-      if (m === 'preview') return 'edit'
-      return 'preview'
-    })
-  }, [])
-
   const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {
     if (!path || !fileSources) return null
     if (isTaskFilePath(path)) {
@@ -109,8 +112,36 @@ export function useMarkdownDocument(
     draftCache.delete(path)
     setDirty(false)
     const lastModified = Date.now()
-    return { size: new Blob([content]).size, lastModified }
+    const stats = { size: new Blob([content]).size, lastModified }
+    onPersistedRef.current?.(stats)
+    return stats
   }, [path, fileSources, content])
+
+  const autosave = useCallback(async () => {
+    setSaveError(null)
+    setSaving(true)
+    try {
+      await save()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
+      throw err
+    } finally {
+      setSaving(false)
+    }
+  }, [save])
+
+  useEt2Autosave({
+    enabled: Boolean(options?.autosave && path && fileSources),
+    dirty,
+    loading,
+    save: autosave,
+    debounceMs: 450,
+    watch: [content],
+  })
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((m) => (m === 'reading' ? 'source' : 'reading'))
+  }, [])
 
   return {
     content,
@@ -121,6 +152,8 @@ export function useMarkdownDocument(
     loading,
     error,
     dirty,
+    saving,
+    saveError,
     save,
   }
 }

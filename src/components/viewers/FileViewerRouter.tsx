@@ -21,12 +21,9 @@ interface MarkdownSlice {
   updateContent: (v: string) => void
   viewMode: MarkdownViewMode
   setViewMode: (m: MarkdownViewMode) => void
-  toggleViewMode: () => void
   loading: boolean
   error: string | null
-  dirty: boolean
   canWrite?: boolean
-  onSave?: () => void | Promise<void>
   saving?: boolean
   saveError?: string | null
 }
@@ -68,16 +65,14 @@ export function FileViewerRouter({
         onChange={markdown.updateContent}
         viewMode={markdown.viewMode}
         onViewModeChange={markdown.setViewMode}
-        onToggleViewMode={markdown.toggleViewMode}
         loading={markdown.loading}
         error={markdown.error}
-        dirty={markdown.dirty}
         onClose={onClose}
         showBackButton={showBackButton}
         canWrite={markdown.canWrite}
-        onSave={markdown.onSave}
         saving={markdown.saving}
         saveError={markdown.saveError}
+        fileSources={fileSources}
       />
     )
   }

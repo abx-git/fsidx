@@ -1,16 +1,7 @@
-import {
-  ArrowLeft,
-  Download,
-  Eye,
-  Code2,
-  Loader2,
-  Pencil,
-  Save,
-} from 'lucide-react'
-import { useEffect } from 'react'
+import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
-import { LivePreviewMarkdown } from './markdown/LivePreviewMarkdown'
-import { MarkdownReadingView } from './markdown/MarkdownReadingView'
+import { BlockMarkdownView } from './markdown/BlockMarkdownView'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
@@ -21,16 +12,14 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   viewMode: MarkdownViewMode
   onViewModeChange: (mode: MarkdownViewMode) => void
-  onToggleViewMode: () => void
   loading: boolean
   error: string | null
-  dirty: boolean
   onClose: () => void
   showBackButton?: boolean
   canWrite?: boolean
-  onSave?: () => void | Promise<void>
   saving?: boolean
   saveError?: string | null
+  fileSources: FileSourceStore | null
 }
 
 export function MarkdownEditor({
@@ -40,32 +29,15 @@ export function MarkdownEditor({
   onChange,
   viewMode,
   onViewModeChange,
-  onToggleViewMode,
   loading,
   error,
-  dirty,
   onClose,
   showBackButton = true,
   canWrite = false,
-  onSave,
   saving = false,
   saveError,
+  fileSources,
 }: MarkdownEditorProps) {
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
-        e.preventDefault()
-        if (!canWrite) return
-        onToggleViewMode()
-      }
-      if (e.key === 'Escape' && viewMode === 'edit') {
-        onViewModeChange('preview')
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onToggleViewMode, canWrite, viewMode, onViewModeChange])
-
   const downloadEdited = () => {
     const blob = new Blob([content], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
@@ -75,24 +47,6 @@ export function MarkdownEditor({
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  const modeBadge =
-    viewMode === 'preview' ? (
-      <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-        <Eye className="h-3.5 w-3.5" />
-        Lesen
-      </span>
-    ) : viewMode === 'edit' ? (
-      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-        <Pencil className="h-3.5 w-3.5" />
-        Bearbeiten
-      </span>
-    ) : (
-      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-        <Code2 className="h-3.5 w-3.5" />
-        Quelltext
-      </span>
-    )
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
@@ -122,30 +76,19 @@ export function MarkdownEditor({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {dirty && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-              Ungespeichert
+          {canWrite && saving && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Speichern…
             </span>
-          )}
-          {modeBadge}
-          {canWrite && onSave && (
-            <button
-              type="button"
-              onClick={() => void onSave()}
-              disabled={saving || !dirty}
-              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {saving ? 'Speichern…' : 'Speichern'}
-            </button>
           )}
           <CollapsibleSection summary="Mehr" className="py-0.5">
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => onViewModeChange('preview')}
+                onClick={() => onViewModeChange('reading')}
                 className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
-                  viewMode === 'preview' ? 'bg-sky-100 dark:bg-sky-950/50' : ''
+                  viewMode === 'reading' ? 'bg-sky-100 dark:bg-sky-950/50' : ''
                 }`}
               >
                 Lesen
@@ -153,23 +96,14 @@ export function MarkdownEditor({
               {canWrite && (
                 <button
                   type="button"
-                  onClick={() => onViewModeChange('edit')}
+                  onClick={() => onViewModeChange('source')}
                   className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
-                    viewMode === 'edit' ? 'bg-emerald-100 dark:bg-emerald-950/50' : ''
+                    viewMode === 'source' ? 'bg-zinc-200 dark:bg-zinc-700' : ''
                   }`}
                 >
-                  Bearbeiten
+                  Quelltext
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => onViewModeChange('source')}
-                className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
-                  viewMode === 'source' ? 'bg-zinc-200 dark:bg-zinc-700' : ''
-                }`}
-              >
-                Quelltext
-              </button>
               <button
                 type="button"
                 onClick={downloadEdited}
@@ -180,9 +114,11 @@ export function MarkdownEditor({
                 Download
               </button>
             </div>
-            <p className="mt-1 text-[10px] text-zinc-400">
-              Strg+E: Lesen ↔ Bearbeiten · Esc: zurück zur Lesen-Ansicht
-            </p>
+            {canWrite && (
+              <p className="mt-1 text-[10px] text-zinc-400">
+                Klick auf einen Absatz zum Bearbeiten · Änderungen werden automatisch gespeichert
+              </p>
+            )}
           </CollapsibleSection>
         </div>
       </header>
@@ -204,19 +140,13 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
-        {!loading && !error && viewMode === 'preview' && (
-          <MarkdownReadingView
-            content={content}
-            canWrite={canWrite}
-            onStartEdit={canWrite ? () => onViewModeChange('edit') : undefined}
-          />
-        )}
-        {!loading && !error && viewMode === 'edit' && (
-          <LivePreviewMarkdown
+        {!loading && !error && viewMode === 'reading' && (
+          <BlockMarkdownView
             content={content}
             onChange={onChange}
             canWrite={canWrite}
-            editorKey={filePath}
+            docPath={filePath}
+            fileSources={fileSources}
           />
         )}
         {!loading && !error && viewMode === 'source' && (

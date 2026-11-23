@@ -126,11 +126,17 @@ body {
   margin: 0.75rem 0;
 }
 
+.markdown-preview img,
 .markdown-preview .diagram-svg-img,
 .diagram-svg-object {
   display: block;
   margin: 0.75rem auto;
   max-width: 100%;
+  height: auto;
+}
+
+.markdown-block + .markdown-block {
+  margin-top: 0.25rem;
 }
 
 .metadata-form .rjsf > .form-group {

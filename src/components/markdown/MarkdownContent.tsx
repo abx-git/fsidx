@@ -1,11 +1,19 @@
+import { useMemo } from 'react'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import type { FileSourceStore } from '../../lib/file-sources'
+import { preprocessObsidianEmbeds } from '../../lib/markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../../lib/plantuml'
 import { MermaidDiagram } from './diagrams/MermaidDiagram'
 import { PlantUmlDiagram } from './diagrams/PlantUmlDiagram'
+import { MarkdownAssetImage } from './MarkdownAssetImage'
 
-const mdComponents: Components = {
+function buildMdComponents(
+  docPath: string | undefined,
+  fileSources: FileSourceStore | null,
+): Components {
+  return {
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className ?? '')
     const lang = match?.[1]?.toLowerCase()
@@ -34,30 +42,55 @@ const mdComponents: Components = {
   pre({ children }) {
     return <pre className="markdown-pre">{children}</pre>
   },
-  img({ src, alt, ...props }) {
-    const lower = (src ?? '').toLowerCase()
-    const isSvg = lower.endsWith('.svg') || lower.startsWith('data:image/svg')
-    return (
-      <img
-        src={src}
-        alt={alt ?? ''}
-        className={isSvg ? 'diagram-svg-img max-w-full' : undefined}
-        {...props}
-      />
-    )
-  },
+    img({ src, alt, title }) {
+      if (docPath && fileSources && src && !/^(https?:|data:|blob:)/i.test(src)) {
+        return (
+          <MarkdownAssetImage
+            src={src}
+            alt={alt ?? undefined}
+            title={title ?? undefined}
+            docPath={docPath}
+            fileSources={fileSources}
+          />
+        )
+      }
+      const lower = (src ?? '').toLowerCase()
+      const isSvg = lower.endsWith('.svg') || lower.startsWith('data:image/svg')
+      return (
+        <img
+          src={src}
+          alt={alt ?? ''}
+          title={title ?? undefined}
+          className={isSvg ? 'diagram-svg-img max-w-full' : undefined}
+        />
+      )
+    },
+  }
 }
 
-interface MarkdownContentProps {
+export interface MarkdownContentProps {
   content: string
   className?: string
+  docPath?: string
+  fileSources?: FileSourceStore | null
 }
 
-export function MarkdownContent({ content, className }: MarkdownContentProps) {
+export function MarkdownContent({
+  content,
+  className,
+  docPath,
+  fileSources = null,
+}: MarkdownContentProps) {
+  const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
+  const components = useMemo(
+    () => buildMdComponents(docPath, fileSources ?? null),
+    [docPath, fileSources],
+  )
+
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-        {content}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {display}
       </ReactMarkdown>
     </div>
   )

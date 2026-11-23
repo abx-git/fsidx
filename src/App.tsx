@@ -78,8 +78,6 @@ function App() {
   } | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [markdownSaveError, setMarkdownSaveError] = useState<string | null>(null)
-  const [markdownSaving, setMarkdownSaving] = useState(false)
   const [showEt2DotFiles, setShowEt2DotFiles] = useState(false)
   const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
   const [selectedTskTaskRef, setSelectedTskTaskRef] = useState<string | null>(null)
@@ -159,11 +157,6 @@ function App() {
     })
   }, [viewerPinned, selectedNode, metadataTarget])
 
-  const markdown = useMarkdownDocument(
-    fileView?.viewer === 'markdown' ? fileView.path : null,
-    fileSources,
-  )
-
   const sidecarExists = metadataTarget
     ? hasSidecar(metadataTarget.path)
     : false
@@ -177,6 +170,27 @@ function App() {
 
   const canWrite = canWriteToStore(fileSources)
   const connectionState = getWorkspaceConnectionState(fileSources)
+
+  const markdownOnPersisted = useCallback(
+    (stats: { size: number; lastModified: number }) => {
+      if (fileView?.viewer !== 'markdown') return
+      const name = fileView.path.split('/').pop() ?? fileView.name
+      registerSidecarFile({
+        relativePath: fileView.path,
+        name,
+        kind: 'file',
+        size: stats.size,
+        lastModified: stats.lastModified,
+      })
+    },
+    [fileView, registerSidecarFile],
+  )
+
+  const markdown = useMarkdownDocument(
+    fileView?.viewer === 'markdown' ? fileView.path : null,
+    fileSources,
+    { autosave: canWrite, onPersisted: markdownOnPersisted },
+  )
 
   const indexedPathList = useMemo(
     () => (manifest ? manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path) : []),
@@ -344,19 +358,6 @@ function App() {
     [setSelectedId, setSearchQuery],
   )
 
-  const handleSaveMarkdown = useCallback(async () => {
-    setMarkdownSaveError(null)
-    setMarkdownSaving(true)
-    try {
-      await markdown.save()
-    } catch (err) {
-      setMarkdownSaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
-      throw err
-    } finally {
-      setMarkdownSaving(false)
-    }
-  }, [markdown])
-
   const markdownEditorProps = useMemo(
     () =>
       fileView?.viewer === 'markdown'
@@ -365,17 +366,14 @@ function App() {
             updateContent: markdown.updateContent,
             viewMode: markdown.viewMode,
             setViewMode: markdown.setViewMode,
-            toggleViewMode: markdown.toggleViewMode,
             loading: markdown.loading,
             error: markdown.error,
-            dirty: markdown.dirty,
             canWrite,
-            onSave: handleSaveMarkdown,
-            saving: markdownSaving,
-            saveError: markdownSaveError,
+            saving: markdown.saving,
+            saveError: markdown.saveError,
           }
         : null,
-    [fileView?.viewer, markdown, canWrite, handleSaveMarkdown, markdownSaving, markdownSaveError],
+    [fileView?.viewer, markdown, canWrite],
   )
 
   const handleDirectoryReadme = useCallback(
@@ -411,7 +409,6 @@ function App() {
       }
 
       setMetadataTarget(null)
-      setMarkdownSaveError(null)
       openViewer('markdown', mdPath, DIRECTORY_README_NAME, entryId, existing?.size)
     },
     [manifest, fileSources, canWrite, registerSidecarFile, openViewer],

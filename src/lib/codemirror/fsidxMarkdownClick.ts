@@ -17,6 +17,21 @@ export function blockClickToLineStart(
   return state.doc.line(lineNo).from
 }
 
+export function columnFromClickX(
+  state: EditorState,
+  lineFrom: number,
+  clientX: number,
+  rect: DOMRect,
+): number {
+  const line = state.doc.lineAt(lineFrom)
+  const text = state.sliceDoc(line.from, line.to)
+  if (!text.length) return line.from
+  const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)))
+  const col = Math.min(text.length, Math.round(xRatio * text.length))
+  return line.from + col
+}
+
+/** In Vorschau-Widgets nicht posAtCoords verwenden (springt oft an Blockanfang). */
 export function focusPosFromPreviewClick(
   view: EditorView,
   e: MouseEvent,
@@ -24,17 +39,15 @@ export function focusPosFromPreviewClick(
   blockTo: number,
   previewEl: HTMLElement,
 ): number {
-  const hit = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
-  if (hit >= blockFrom && hit <= blockTo) {
-    return hit
-  }
-  return blockClickToLineStart(
+  const rect = previewEl.getBoundingClientRect()
+  const lineStart = blockClickToLineStart(
     view.state,
     blockFrom,
     blockTo,
     e.clientY,
-    previewEl.getBoundingClientRect(),
+    rect,
   )
+  return columnFromClickX(view.state, lineStart, e.clientX, rect)
 }
 
 export function dispatchSelection(view: EditorView, anchor: number) {

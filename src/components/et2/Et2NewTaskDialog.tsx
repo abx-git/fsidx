@@ -3,12 +3,19 @@ import { Loader2, X } from 'lucide-react'
 
 interface Et2NewTaskDialogProps {
   open: boolean
+  targetDirPath: string
   onClose: () => void
-  onSubmit: (title: string, body: string) => Promise<void>
+  onSubmit: (dirPath: string, title: string, body: string) => Promise<void>
   scopeLabel: string
 }
 
-export function Et2NewTaskDialog({ open, onClose, onSubmit, scopeLabel }: Et2NewTaskDialogProps) {
+export function Et2NewTaskDialog({
+  open,
+  targetDirPath,
+  onClose,
+  onSubmit,
+  scopeLabel,
+}: Et2NewTaskDialogProps) {
   const [title, setTitle] = useState('Neue Aufgabe')
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
@@ -32,7 +39,7 @@ export function Et2NewTaskDialog({ open, onClose, onSubmit, scopeLabel }: Et2New
     setSaving(true)
     setError(null)
     try {
-      await onSubmit(title.trim(), body)
+      await onSubmit(targetDirPath, title.trim(), body)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Anlegen fehlgeschlagen')
@@ -51,9 +58,9 @@ export function Et2NewTaskDialog({ open, onClose, onSubmit, scopeLabel }: Et2New
         <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <div>
             <h2 id="et2-new-task-title" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              Neue Aufgabe
+              Aufgabe mit Textvorlage
             </h2>
-            <p className="text-xs text-zinc-500">Scope: {scopeLabel || '(Root)'}</p>
+            <p className="text-xs text-zinc-500">Speichern in: {scopeLabel}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <X className="h-4 w-4" />
@@ -102,7 +109,7 @@ export function Et2NewTaskDialog({ open, onClose, onSubmit, scopeLabel }: Et2New
             className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Anlegen & bearbeiten
+            Anlegen
           </button>
         </div>
       </div>

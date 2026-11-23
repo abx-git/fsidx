@@ -33,6 +33,7 @@ interface FileBrowserProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTask: () => void
+  onNewTaskWithDialog?: () => void
 }
 
 type Row = {
@@ -63,6 +64,7 @@ export function FileBrowser({
   onNewFolder,
   onNewMarkdown,
   onNewTask,
+  onNewTaskWithDialog,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
 
@@ -108,6 +110,7 @@ export function FileBrowser({
             onNewFolder={onNewFolder}
             onNewMarkdown={onNewMarkdown}
             onNewTask={onNewTask}
+            onNewTaskWithDialog={onNewTaskWithDialog}
           />
         )}
         {inSearch && (

@@ -39,6 +39,8 @@ import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
+import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
+import { formatScopeLabel, getWorkspaceConnectionState } from './lib/workspace-connection'
 
 function App() {
   const fallbackInputRef = useRef<HTMLInputElement>(null)
@@ -63,7 +65,7 @@ function App() {
   const [showEt2DotFiles, setShowEt2DotFiles] = useState(false)
   const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
   const [selectedEt2TaskPath, setSelectedEt2TaskPath] = useState<string | null>(null)
-  const [newEt2TaskTarget, setNewEt2TaskTarget] = useState<string | null>(null)
+  const [newEt2TaskRequest, setNewEt2TaskRequest] = useState<{ dirPath: string } | null>(null)
 
   const {
     manifest,
@@ -145,6 +147,7 @@ function App() {
   )
 
   const canWrite = canWriteToStore(fileSources)
+  const connectionState = getWorkspaceConnectionState(fileSources)
 
   const indexedPathList = useMemo(
     () => (manifest ? manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path) : []),
@@ -478,43 +481,54 @@ function App() {
     openViewer,
   ])
 
-  const openNewEt2TaskDialog = useCallback(
-    (dirPath: string) => {
-      if (!fileSources || !canWrite) {
-        window.alert('ET2-Aufgabe: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.')
-        return
-      }
-      setCenterMode('tasks')
-      setNewEt2TaskTarget(dirPath)
-    },
-    [fileSources, canWrite],
-  )
-
-  const submitNewEt2Task = useCallback(
-    async (title: string, body: string) => {
-      if (!fileSources || !newEt2TaskTarget) {
-        throw new Error('Ordner nicht verbunden.')
+  const finalizeNewEt2Task = useCallback(
+    async (dirPath: string, title: string, body: string) => {
+      if (!fileSources) {
+        throw new Error('Ordner nicht verbunden. Bitte oben „Ordner verbinden“.')
       }
       const { row } = await createEt2TaskOnDisk(fileSources, {
-        dirPath: newEt2TaskTarget,
+        dirPath,
         title,
         body,
       })
-      const id = registerSidecarFile(row)
-      if (!id) {
-        window.alert(
-          'Aufgabe wurde geschrieben, aber der Index wurde nicht aktualisiert. Ordner neu indexieren.',
-        )
-      } else {
-        setSelectedId(id)
-      }
+      registerSidecarFile(row)
       clearMarkdownDrafts()
       et2Tasks.reload()
       setCenterMode('tasks')
       setSelectedEt2TaskPath(row.relativePath)
+      setSelectedId(null)
     },
-    [fileSources, newEt2TaskTarget, registerSidecarFile, et2Tasks],
+    [fileSources, registerSidecarFile, et2Tasks, setSelectedId],
   )
+
+  const createEt2TaskQuick = useCallback(
+    (dirPath: string) => {
+      setCenterMode('tasks')
+      if (!fileSources || !canWrite) return
+      void finalizeNewEt2Task(dirPath, 'Neue Aufgabe', '').catch((err) => {
+        window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
+      })
+    },
+    [fileSources, canWrite, finalizeNewEt2Task],
+  )
+
+  const openNewEt2TaskWithDialog = useCallback(
+    (dirPath: string) => {
+      setCenterMode('tasks')
+      if (!fileSources || !canWrite) return
+      setNewEt2TaskRequest({ dirPath })
+    },
+    [fileSources, canWrite],
+  )
+
+  const handleConnectWorkspace = useCallback(() => {
+    if (supportsFsPicker) {
+      if (needsFolderReconnect) void reconnectLastFolder()
+      else void handleOpenFolder()
+    } else {
+      fallbackInputRef.current?.click()
+    }
+  }, [supportsFsPicker, needsFolderReconnect, reconnectLastFolder, handleOpenFolder])
 
   const handleSaveEt2TaskContent = useCallback(async () => {
     if (!selectedEt2TaskPath) return
@@ -537,8 +551,8 @@ function App() {
   }, [selectedEt2TaskPath, et2TaskEditor, registerSidecarFile, et2Tasks])
 
   const handleNewEt2TaskFromChrome = useCallback(() => {
-    openNewEt2TaskDialog(currentPath)
-  }, [openNewEt2TaskDialog, currentPath])
+    createEt2TaskQuick(currentPath)
+  }, [createEt2TaskQuick, currentPath])
 
   const handleEt2FolderMeta = useCallback(
     async (dirPath: string) => {
@@ -656,7 +670,8 @@ function App() {
         setSelectedEt2TaskPath(relativePath)
         if (fileView?.path.includes('/.et2/tasks/')) setFileView(null)
       }}
-      onNewTask={() => openNewEt2TaskDialog(currentPath)}
+      onNewTask={() => createEt2TaskQuick(currentPath)}
+      onNewTaskWithDialog={() => openNewEt2TaskWithDialog(currentPath)}
       taskEditor={{
         title: et2TaskEditor.title,
         body: et2TaskEditor.body,
@@ -691,6 +706,7 @@ function App() {
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
       onNewTask={handleNewEt2TaskFromChrome}
+      onNewTaskWithDialog={() => openNewEt2TaskWithDialog(currentPath)}
     />
   )
 
@@ -743,23 +759,13 @@ function App() {
         onApplied={() => et2Tasks.reload()}
       />
 
-      {needsFolderReconnect && manifest && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-          <span>
-            Ordner <strong className="font-medium">{manifest.rootName}</strong> ist im Index, aber
-            nach dem Reload sind die Datei-Inhalte noch nicht angebunden.
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (supportsFsPicker) void reconnectLastFolder()
-              else fallbackInputRef.current?.click()
-            }}
-            className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500"
-          >
-            Ordner erneut verbinden
-          </button>
-        </div>
+      {manifest && (
+        <WorkspaceConnectionBanner
+          state={connectionState}
+          rootName={manifest.rootName}
+          supportsFsPicker={supportsFsPicker}
+          onConnect={handleConnectWorkspace}
+        />
       )}
 
       {!manifest ? (
@@ -826,12 +832,15 @@ function App() {
         </div>
       )}
 
-      <Et2NewTaskDialog
-        open={newEt2TaskTarget !== null}
-        onClose={() => setNewEt2TaskTarget(null)}
-        onSubmit={submitNewEt2Task}
-        scopeLabel={newEt2TaskTarget ?? currentPath}
-      />
+      {newEt2TaskRequest && (
+        <Et2NewTaskDialog
+          open
+          targetDirPath={newEt2TaskRequest.dirPath}
+          onClose={() => setNewEt2TaskRequest(null)}
+          onSubmit={finalizeNewEt2Task}
+          scopeLabel={formatScopeLabel(newEt2TaskRequest.dirPath, manifest?.rootName)}
+        />
+      )}
 
       <FileContextMenu
         target={contextMenu}
@@ -857,7 +866,7 @@ function App() {
         }}
         onEt2NewTask={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
-          openNewEt2TaskDialog(contextMenu.path)
+          createEt2TaskQuick(contextMenu.path)
         }}
         onEt2FolderMeta={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return

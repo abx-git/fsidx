@@ -29,6 +29,7 @@ interface Et2TaskPanelProps {
   selectedTaskPath: string | null
   onSelectTask: (relativePath: string) => void
   onNewTask: () => void
+  onNewTaskWithDialog?: () => void
   onNewSubtask?: () => void
   onNewFolder?: () => void
   onNewMarkdown?: () => void
@@ -45,6 +46,7 @@ export function Et2TaskPanel({
   selectedTaskPath,
   onSelectTask,
   onNewTask,
+  onNewTaskWithDialog,
   onNewSubtask,
   onNewFolder,
   onNewMarkdown,
@@ -65,6 +67,7 @@ export function Et2TaskPanel({
           onNewFolder={onNewFolder ?? (() => {})}
           onNewMarkdown={onNewMarkdown ?? (() => {})}
           onNewTask={onNewTask}
+          onNewTaskWithDialog={onNewTaskWithDialog}
           compact
         />
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">

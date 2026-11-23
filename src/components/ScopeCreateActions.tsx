@@ -6,6 +6,7 @@ interface ScopeCreateActionsProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTask?: () => void
+  onNewTaskWithDialog?: () => void
   compact?: boolean
 }
 
@@ -14,6 +15,7 @@ export function ScopeCreateActions({
   onNewFolder,
   onNewMarkdown,
   onNewTask,
+  onNewTaskWithDialog,
   compact,
 }: ScopeCreateActionsProps) {
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2'
@@ -37,20 +39,33 @@ export function ScopeCreateActions({
         </button>
       )}
       <CollapsibleSection summary="Weitere anlegen" className="py-0.5">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-2">
-          <button type="button" disabled={!canWrite} onClick={onNewFolder} className={btnSec}>
-            <FolderPlus className="h-3.5 w-3.5 text-amber-500" />
-            Ordner
-          </button>
-          <button type="button" disabled={!canWrite} onClick={onNewMarkdown} className={btnSec}>
-            <FileText className="h-3.5 w-3.5 text-sky-500" />
-            Markdown-Datei
-          </button>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-2">
+            <button type="button" disabled={!canWrite} onClick={onNewFolder} className={btnSec}>
+              <FolderPlus className="h-3.5 w-3.5 text-amber-500" />
+              Ordner
+            </button>
+            <button type="button" disabled={!canWrite} onClick={onNewMarkdown} className={btnSec}>
+              <FileText className="h-3.5 w-3.5 text-sky-500" />
+              Markdown-Datei
+            </button>
+          </div>
+          {onNewTaskWithDialog && (
+            <button
+              type="button"
+              disabled={!canWrite}
+              onClick={onNewTaskWithDialog}
+              className={btnSec}
+            >
+              <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
+              Aufgabe mit Textvorlage…
+            </button>
+          )}
         </div>
       </CollapsibleSection>
       {!canWrite && (
         <p className="w-full text-[10px] leading-snug text-amber-800 dark:text-amber-200">
-          Zum Anlegen: Ordner in Chrome/Edge mit Schreibzugriff öffnen.
+          Zum Anlegen: oben „Ordner verbinden“ und Schreibzugriff erlauben.
         </p>
       )}
     </div>

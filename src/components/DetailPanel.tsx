@@ -6,11 +6,15 @@ import { formatBytes, formatDate } from '../lib/format'
 import { DIRECTORY_README_NAME } from '../lib/directory-readme'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
+import type { Et2TaskStatus } from '../types/et2-tasks-bundle'
+import { et2TaskStatusLabel } from '../lib/et2/task-status-labels'
+
 export interface Et2TaskFocusInfo {
   title: string
   folderLabel?: string | null
   dueDate?: string | null
   tags?: string[]
+  status?: Et2TaskStatus
 }
 
 interface DetailPanelProps {
@@ -121,6 +125,11 @@ export function DetailPanel({
         {showTaskCard && taskFocus && (
           <div className="shrink-0 border-b border-violet-100 bg-violet-50/50 px-3 py-3 dark:border-violet-900/40 dark:bg-violet-950/20">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{taskFocus.title}</h3>
+            {taskFocus.status && (
+              <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">
+                Status: {et2TaskStatusLabel(taskFocus.status)}
+              </p>
+            )}
             {taskFocus.folderLabel && (
               <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Ordner: {taskFocus.folderLabel}</p>
             )}

@@ -1,12 +1,17 @@
 import { Loader2, Save } from 'lucide-react'
 import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
+import type { Et2TaskStatus } from '../../types/et2-tasks-bundle'
+import { ET2_TASK_STATUS_OPTIONS } from '../../lib/et2/task-status-labels'
+import { taskRefFromPath } from '../../lib/et2/paths'
 import { LivePreviewMarkdown } from '../markdown/LivePreviewMarkdown'
 
 interface Et2TaskContentEditorProps {
   title: string
   body: string
+  status: Et2TaskStatus
   onTitleChange: (v: string) => void
   onBodyChange: (v: string) => void
+  onStatusChange: (v: Et2TaskStatus) => void
   onSave: () => Promise<void>
   loading: boolean
   saving: boolean
@@ -19,8 +24,10 @@ interface Et2TaskContentEditorProps {
 export function Et2TaskContentEditor({
   title,
   body,
+  status,
   onTitleChange,
   onBodyChange,
+  onStatusChange,
   onSave,
   loading,
   saving,
@@ -59,6 +66,23 @@ export function Et2TaskContentEditor({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="shrink-0 border-b border-violet-100 px-3 py-3 dark:border-violet-900/40">
+            {taskPath && taskRefFromPath(taskPath) && (
+              <label className="mb-3 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Status
+                <select
+                  value={status}
+                  onChange={(e) => onStatusChange(e.target.value as Et2TaskStatus)}
+                  disabled={!canWrite}
+                  className="mt-1 w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                >
+                  {ET2_TASK_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
               Titel
               <input

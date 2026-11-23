@@ -88,8 +88,9 @@ export function Et2MigrateDialog({
 
         <div className="space-y-4 px-4 py-4 text-sm">
           <p className="text-zinc-600 dark:text-zinc-400">
-            Wähle eine <code className="text-xs">et2-board.json</code> (scope: board). Der Wizard erzeugt Unterordner
-            und <code className="text-xs">.et2/tasks/*.task.md</code> im Workspace-Root.
+            Wähle eine <code className="text-xs">et2-board.json</code> (scope: board). Der Wizard schreibt eine{' '}
+            <code className="text-xs">.et2/tasks.json</code> mit allen Aufgaben, Unteraufgaben (
+            <code className="text-xs">parentId</code>) und Status — ohne zusätzliche Projekt-Unterordner.
           </p>
 
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-4 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800/50">

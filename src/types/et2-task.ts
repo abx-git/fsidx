@@ -1,3 +1,5 @@
+import type { Et2TaskStatus } from './et2-tasks-bundle'
+
 export const ET2_TASK_FORMAT = 'et2-task-v1' as const
 
 export type Et2TaskKind = 'card' | 'note' | 'symbol'
@@ -40,6 +42,10 @@ export interface Et2TaskSummary {
   kind?: Et2TaskKind
   dueDate?: string | null
   tags?: string[]
+  status?: Et2TaskStatus
+  parentId?: string | null
+  depth?: number
+  bundlePath?: string
   /** Pfad des Ordners relativ zum aktuellen Scope (z. B. `B` oder `.`). */
   folderWithinScope?: string
 }

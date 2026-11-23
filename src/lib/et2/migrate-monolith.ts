@@ -1,8 +1,8 @@
-import type { Et2BoardSnapshotV1, Et2TaskNodeJson, Et2TaskRelation } from '../../types/et2-legacy'
+import type { Et2BoardSnapshotV1, Et2TaskNodeJson } from '../../types/et2-legacy'
 import { et2NodeToTaskDocument } from './node-to-task'
-import { serializeTaskMd } from './serialize-task-md'
-import { folderMetaRelative, relationsRelative, taskRelativePath } from './paths'
-import { sanitizePathSegment } from './sanitize-segment'
+import { tasksBundleRelative } from './paths'
+import { serializeTasksBundle } from './tasks-bundle'
+import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
 export interface MigratePlannedFile {
   relativePath: string
@@ -22,86 +22,58 @@ export interface MigrateApplyCallbacks {
   onFileWritten?: (relativePath: string, size: number) => void
 }
 
-function relationsForChildren(children: Et2TaskNodeJson[], all: Et2TaskRelation[]): Et2TaskRelation[] {
-  const ids = new Set(children.map((c) => c.id))
-  return all.filter((r) => ids.has(r.sourceId) && ids.has(r.targetId))
-}
-
-function walkNode(
-  node: Et2TaskNodeJson,
-  parentPath: string,
+function collectTasksFlat(
+  nodes: Et2TaskNodeJson[],
+  parentId: string | null,
   migratedAt: string,
-  allRelations: Et2TaskRelation[],
-  acc: MigratePlannedFile[],
-): string {
-  const folderName = sanitizePathSegment(node.title, node.id)
-  const dirPath = parentPath ? `${parentPath}/${folderName}` : folderName
-
-  const taskDoc = et2NodeToTaskDocument(node, migratedAt)
-  const taskContent = serializeTaskMd(taskDoc)
-  const taskPath = taskRelativePath(dirPath, node.id)
-  acc.push({
-    relativePath: taskPath,
-    content: taskContent,
-    size: new Blob([taskContent]).size,
-  })
-
-  if (node.children.length > 0) {
-    const folderMeta = {
-      format: 'et2-folder-v1',
-      version: 1,
-      title: node.title,
-      et2: { legacyId: node.id, legacyPath: dirPath },
-    }
-    const folderMetaContent = `${JSON.stringify(folderMeta, null, 2)}\n`
+  acc: Et2TaskRecord[],
+  orderStart: number,
+): number {
+  let order = orderStart
+  for (const node of nodes) {
+    const doc = et2NodeToTaskDocument(node, migratedAt)
     acc.push({
-      relativePath: folderMetaRelative(dirPath),
-      content: folderMetaContent,
-      size: new Blob([folderMetaContent]).size,
+      id: node.id,
+      parentId,
+      title: doc.frontmatter.title,
+      body: doc.body,
+      status: 'open',
+      kind: doc.frontmatter.kind,
+      order,
+      tags: doc.frontmatter.tags,
+      dueDate: doc.frontmatter.dueDate,
     })
-
-    const rels = relationsForChildren(node.children, allRelations)
-    if (rels.length > 0) {
-      const relContent = `${JSON.stringify(rels, null, 2)}\n`
-      acc.push({
-        relativePath: relationsRelative(dirPath),
-        content: relContent,
-        size: new Blob([relContent]).size,
-      })
-    }
-
-    for (const child of node.children) {
-      walkNode(child, dirPath, migratedAt, allRelations, acc)
+    order += 1
+    if (node.children.length > 0) {
+      order = collectTasksFlat(node.children, node.id, migratedAt, acc, order)
     }
   }
-
-  return dirPath
+  return order
 }
 
 export function migrateEt2BoardDryRun(board: Et2BoardSnapshotV1): MigrateDryRunResult {
   const migratedAt = new Date().toISOString()
   const files: MigratePlannedFile[] = []
-  const relations = board.relations ?? []
+  const tasks: Et2TaskRecord[] = []
+  collectTasksFlat(board.roots, null, migratedAt, tasks, 0)
 
-  for (const root of board.roots) {
-    walkNode(root, '', migratedAt, relations, files)
-  }
-
-  const taskCount = files.filter((f) => f.relativePath.includes('/.et2/tasks/')).length
-  const relationFiles = files.filter((f) => f.relativePath.endsWith('relations.json')).length
-  const folderPaths = new Set<string>()
-  for (const f of files) {
-    const parts = f.relativePath.split('/')
-    for (let i = 1; i < parts.length; i++) {
-      folderPaths.add(parts.slice(0, i).join('/'))
-    }
-  }
+  const bundleContent = serializeTasksBundle({
+    format: 'et2-tasks-v1',
+    version: 1,
+    tasks,
+  })
+  const bundlePath = tasksBundleRelative('')
+  files.push({
+    relativePath: bundlePath,
+    content: bundleContent,
+    size: new Blob([bundleContent]).size,
+  })
 
   return {
     files,
-    folderCount: folderPaths.size,
-    taskCount,
-    relationFiles,
+    folderCount: 0,
+    taskCount: tasks.length,
+    relationFiles: 0,
   }
 }
 

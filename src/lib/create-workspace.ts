@@ -2,8 +2,6 @@ import type { RawFileRow } from './build-manifest'
 import type { FileSourceStore } from './file-sources'
 import { writeTextToStore } from './file-sources'
 import { sanitizePathSegment } from './et2/sanitize-segment'
-import { createEt2TaskOnDisk } from './et2/create-task'
-
 export function sanitizeNewName(input: string, fallback: string): string {
   const trimmed = input.trim()
   const base = sanitizePathSegment(trimmed || fallback, fallback)
@@ -69,34 +67,4 @@ export async function createMarkdownInScope(
     lastModified: Date.now(),
   }
   return { relativePath, row }
-}
-
-/** ET2-Unteraufgabe: Unterordner + Task-Datei darin (wie Board-Hierarchie). */
-export async function createEt2SubtaskInFolder(
-  store: FileSourceStore,
-  parentDirPath: string,
-  subfolderTitle: string,
-  taskTitle?: string,
-): Promise<{
-  childDirPath: string
-  dirRow: RawFileRow
-  taskRelativePath: string
-  taskRow: RawFileRow
-  taskId: string
-}> {
-  const folderName = sanitizeNewName(subfolderTitle, 'Unteraufgabe')
-  const childDirPath = parentDirPath ? `${parentDirPath}/${folderName}` : folderName
-  await ensureDirectoryOnDisk(store, childDirPath)
-  const dirRow = directoryRow(childDirPath)
-  const taskResult = await createEt2TaskOnDisk(store, {
-    dirPath: childDirPath,
-    title: taskTitle?.trim() || subfolderTitle.trim() || folderName,
-  })
-  return {
-    childDirPath,
-    dirRow,
-    taskRelativePath: taskResult.relativePath,
-    taskRow: taskResult.row,
-    taskId: taskResult.taskId,
-  }
 }

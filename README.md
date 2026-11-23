@@ -13,7 +13,7 @@ A **browser-only** single-page app that indexes every file in a folder you choos
 4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
 5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, Datei-Info. Doppelklick öffnet den Standard-Viewer für den Typ.
 6. **Metadaten-JSON** weiterhin im Kontextmenü: Sidecar `datei.json` mit Schema-Editor (`file-metadata.v1`).
-7. **ET2-Aufgaben** (optional): Umschalter **Dateien / Aufgaben**, eine Aufgabe pro `.et2/tasks/<id>.task.md` (YAML-Frontmatter + Markdown). Import eines [ET2](https://github.com/abx-git/ET2)-Boards (`hierarchical-task-manager`) über **ET2 import** in die Ordnerstruktur.
+7. **ET2-Aufgaben** (optional): Umschalter **Dateien / Aufgaben**. Pro Arbeitsordner eine **`/.et2/tasks.json`** (`et2-tasks-v1`): alle Aufgaben mit **Status**, **Unteraufgaben** (`parentId`) und Markdown-Text im selben Ordner — **ohne** Extra-Unterordner. Ältere `.et2/tasks/*.task.md` bleiben lesbar. ET2-Board-Import legt eine zentrale `tasks.json` an.
 
 Nothing is uploaded; metadata stays in memory unless you export it.
 
@@ -25,13 +25,12 @@ Pro Ordner (parallel zu normalen Dateien und `README.md`):
 projekt/phase/
   README.md
   .et2/
-    folder.json          # et2-folder-v1
-    tasks/
-      abc123.task.md     # et2-task-v1 (Frontmatter + Beschreibung)
-    relations.json         # optional, Geschwister-Relationen nach Migration
+    folder.json          # et2-folder-v1 (optional)
+    tasks.json           # et2-tasks-v1 — Aufgaben, Status, parentId, body
+    tasks/               # optional, Legacy: einzelne .task.md
 ```
 
-- Schemas: [`public/schemas/et2-task.v1.schema.json`](public/schemas/et2-task.v1.schema.json), [`et2-folder.v1.schema.json`](public/schemas/et2-folder.v1.schema.json)
+- Schemas: [`et2-tasks.v1.schema.json`](public/schemas/et2-tasks.v1.schema.json), [`et2-task.v1.schema.json`](public/schemas/et2-task.v1.schema.json), [`et2-folder.v1.schema.json`](public/schemas/et2-folder.v1.schema.json)
 - Mapping Monolith → Dateien: [`docs/et2-mapping.md`](docs/et2-mapping.md)
 - Im Datei-Modus sind `.et2/`-Pfade standardmäßig ausgeblendet („**.et2 anzeigen**“ im Header).
 
@@ -39,7 +38,7 @@ projekt/phase/
 
 Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
-Mit **Schreibzugriff** (Chrome/Edge-Ordnerpicker) kannst du im aktuellen Scope **Ordner** und **Markdown-Dateien** anlegen (Toolbar „Anlegen“ oder Rechtsklick auf einen Ordner). Im **Aufgaben**-Tab: **Unteraufgabe** legt einen Unterordner plus `.task.md` an (ET2-Hierarchie wie nach dem Board-Import).
+Mit **Schreibzugriff** (Chrome/Edge-Ordnerpicker) kannst du im aktuellen Scope **Ordner** und **Markdown-Dateien** anlegen (Toolbar „Anlegen“ oder Rechtsklick auf einen Ordner). Im **Aufgaben**-Tab: **Unteraufgabe** ergänzt einen Eintrag in derselben `tasks.json` — kein neuer Ordner.
 
 ## Sidecar-Metadaten (JSON Schema)
 

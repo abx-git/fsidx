@@ -13,14 +13,10 @@ import { Et2TaskPanel } from './components/et2/Et2TaskPanel'
 import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
-import {
-  createDirectoryInScope,
-  createEt2SubtaskInFolder,
-  createMarkdownInScope,
-} from './lib/create-workspace'
+import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { taskContainerDir } from './lib/workspace-scope'
 import { formatTaskFolderLabel, looksLikeOpaqueId } from './lib/et2/display-title'
-import { folderMetaRelative, isTaskFilePath } from './lib/et2/paths'
+import { folderMetaRelative, isEt2TaskSelectionPath, taskRefFromPath } from './lib/et2/paths'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
 import { TreeNav } from './components/TreeNav'
@@ -181,6 +177,7 @@ function App() {
       folderLabel: formatTaskFolderLabel(selectedTaskSummary.folderWithinScope),
       dueDate: selectedTaskSummary.dueDate,
       tags: selectedTaskSummary.tags,
+      status: selectedTaskSummary.status,
     }
   }, [selectedTaskSummary])
 
@@ -452,41 +449,30 @@ function App() {
       window.alert('Unteraufgabe: zuerst eine Aufgabe wählen und Schreibzugriff aktivieren.')
       return
     }
-    const parentDir = taskContainerDir(selectedEt2TaskPath)
-    const subName = window.prompt('Unterordner für die Unteraufgabe:', 'Teilaufgabe')
-    if (subName === null || !subName.trim()) return
-    const taskTitle = window.prompt('Titel der Unteraufgabe:', subName.trim())
-    if (taskTitle === null) return
-    try {
-      const result = await createEt2SubtaskInFolder(
-        fileSources,
-        parentDir,
-        subName.trim(),
-        taskTitle.trim() || subName.trim(),
+    const ref = taskRefFromPath(selectedEt2TaskPath)
+    if (!ref) {
+      window.alert(
+        'Unteraufgaben hängen an Aufgaben in .et2/tasks.json. Lege eine neue Aufgabe an — alte .task.md-Dateien bleiben lesbar.',
       )
-      registerSidecarFile(result.dirRow)
-      const taskEntryId = registerSidecarFile(result.taskRow)
+      return
+    }
+    const parentDir = taskContainerDir(selectedEt2TaskPath)
+    try {
+      const result = await createEt2TaskOnDisk(fileSources, {
+        dirPath: parentDir,
+        title: '',
+        body: '',
+        parentId: ref.taskId,
+      })
+      registerSidecarFile(result.row)
       clearMarkdownDrafts()
       et2Tasks.reload()
-      navigateToPath(result.childDirPath, taskEntryId)
-      setSelectedEt2TaskPath(result.taskRelativePath)
-      if (taskEntryId) {
-        const subTitle =
-          et2Tasks.tasks.find((t) => t.relativePath === result.taskRelativePath)?.title ?? 'Unteraufgabe'
-        openViewer('markdown', result.taskRelativePath, subTitle, taskEntryId, result.taskRow.size)
-      }
+      setCenterMode('tasks')
+      setSelectedEt2TaskPath(result.relativePath)
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
     }
-  }, [
-    selectedEt2TaskPath,
-    fileSources,
-    canWrite,
-    registerSidecarFile,
-    et2Tasks,
-    navigateToPath,
-    openViewer,
-  ])
+  }, [selectedEt2TaskPath, fileSources, canWrite, registerSidecarFile, et2Tasks])
 
   const finalizeNewEt2Task = useCallback(
     async (dirPath: string, title: string, body: string) => {
@@ -542,9 +528,11 @@ function App() {
     try {
       const stats = await et2TaskEditor.save()
       if (stats) {
-        const name = selectedEt2TaskPath.split('/').pop() ?? selectedEt2TaskPath
+        const ref = taskRefFromPath(selectedEt2TaskPath)
+        const rel = ref?.bundlePath ?? selectedEt2TaskPath
+        const name = rel.split('/').pop() ?? rel
         registerSidecarFile({
-          relativePath: selectedEt2TaskPath,
+          relativePath: rel,
           name,
           kind: 'file',
           size: stats.size,
@@ -684,6 +672,8 @@ function App() {
         body: et2TaskEditor.body,
         onTitleChange: et2TaskEditor.updateTitle,
         onBodyChange: et2TaskEditor.updateBody,
+        status: et2TaskEditor.status,
+        onStatusChange: et2TaskEditor.updateStatus,
         onSave: handleSaveEt2TaskContent,
         loading: et2TaskEditor.loading,
         saving: et2TaskEditor.saving,
@@ -804,7 +794,7 @@ function App() {
                 const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
                 setCurrentPath(parent)
                 setSelectedId(id)
-                if (isTaskFilePath(path)) {
+                if (isEt2TaskSelectionPath(path)) {
                   setCenterMode('tasks')
                   setSelectedEt2TaskPath(path)
                 }

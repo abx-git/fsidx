@@ -1,17 +1,20 @@
 import { GitBranch, Loader2, ListTodo } from 'lucide-react'
-import { CollapsibleSection } from '../ui/CollapsibleSection'
 import { ScopeCreateActions } from '../ScopeCreateActions'
 import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
+import type { Et2TaskStatus } from '../../types/et2-tasks-bundle'
 import { normalizeScopePath } from '../../lib/workspace-scope'
 import { formatTaskFolderLabel } from '../../lib/et2/display-title'
+import { et2TaskStatusLabel } from '../../lib/et2/task-status-labels'
 import { Et2TaskContentEditor } from './Et2TaskContentEditor'
 
 interface TaskEditorSlice {
   title: string
   body: string
+  status: Et2TaskStatus
   onTitleChange: (v: string) => void
   onBodyChange: (v: string) => void
+  onStatusChange: (v: Et2TaskStatus) => void
   onSave: () => Promise<void>
   loading: boolean
   saving: boolean
@@ -87,17 +90,16 @@ export function Et2TaskPanel({
             )}
           </p>
           {onNewSubtask && (
-            <CollapsibleSection summary="Erweitert">
-              <button
-                type="button"
-                disabled={!canWrite || !selectedTaskPath}
-                onClick={onNewSubtask}
-                className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 px-2 py-1 text-[11px] font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200"
-              >
-                <GitBranch className="h-3 w-3" />
-                Unteraufgabe anlegen
-              </button>
-            </CollapsibleSection>
+            <button
+              type="button"
+              disabled={!canWrite || !selectedTaskPath}
+              onClick={onNewSubtask}
+              className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 px-2 py-1 text-[11px] font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200"
+              title="Unteraufgabe in derselben tasks.json — kein neuer Ordner"
+            >
+              <GitBranch className="h-3 w-3" />
+              Unteraufgabe
+            </button>
           )}
         </div>
       </div>
@@ -112,7 +114,7 @@ export function Et2TaskPanel({
         {tasks.length === 0 && !loading ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-500">
             Leg über <strong className="font-medium">Anlegen → Aufgabe</strong> die erste Aufgabe in diesem
-            Bereich an.
+            Bereich an (gespeichert in <code className="text-xs">.et2/tasks.json</code>).
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -126,14 +128,17 @@ export function Et2TaskPanel({
                     ? `${scope}/${folder}`
                     : folder
                   : scope
+              const depth = task.depth ?? 0
+              const statusLabel = task.status ? et2TaskStatusLabel(task.status) : null
               return (
                 <li key={task.relativePath}>
                   <div
                     role="button"
                     tabIndex={0}
-                    className={`flex w-full cursor-pointer flex-col gap-0.5 px-4 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${
-                      selected ? 'border-l-2 border-violet-500 bg-violet-50/90 pl-[calc(1rem-2px)] dark:bg-violet-950/25' : ''
+                    className={`flex w-full cursor-pointer flex-col gap-0.5 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${
+                      selected ? 'border-l-2 border-violet-500 bg-violet-50/90 dark:bg-violet-950/25' : ''
                     }`}
+                    style={{ paddingLeft: `${1 + depth * 0.75}rem`, paddingRight: '1rem' }}
                     onClick={() => onSelectTask(task.relativePath)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -142,7 +147,24 @@ export function Et2TaskPanel({
                       }
                     }}
                   >
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">{task.title}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{task.title}</span>
+                      {statusLabel && (
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                            task.status === 'done'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+                              : task.status === 'in_progress'
+                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
+                                : task.status === 'cancelled'
+                                  ? 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                  : 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200'
+                          }`}
+                        >
+                          {statusLabel}
+                        </span>
+                      )}
+                    </span>
                     {folderLabel && (
                       <span
                         className="w-fit text-[11px] text-violet-700 hover:underline dark:text-violet-300"
@@ -168,8 +190,10 @@ export function Et2TaskPanel({
         taskPath={selectedTaskPath}
         title={taskEditor.title}
         body={taskEditor.body}
+        status={taskEditor.status}
         onTitleChange={taskEditor.onTitleChange}
         onBodyChange={taskEditor.onBodyChange}
+        onStatusChange={taskEditor.onStatusChange}
         onSave={taskEditor.onSave}
         loading={taskEditor.loading}
         saving={taskEditor.saving}

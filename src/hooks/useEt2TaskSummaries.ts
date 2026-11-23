@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Et2TaskSummary } from '../types/et2-task'
 import type { FileSourceStore } from '../lib/file-sources'
+import {
+  scanSubtreeLegacyTasks,
+  scanSubtreeTaskBundles,
+  summaryFromBundleTask,
+} from '../lib/et2/scan-folder-tasks'
+import { parseTasksBundle, readTasksBundle } from '../lib/et2/tasks-bundle'
 import { readTextFromStore } from '../lib/file-sources'
-import { scanSubtreeTasks } from '../lib/et2/scan-folder-tasks'
+import { orderTasksAsTree } from '../lib/et2/task-tree-order'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { taskIdFromPath } from '../lib/et2/paths'
 import { humanTaskTitle } from '../lib/et2/display-title'
@@ -20,15 +26,46 @@ export function useEt2TaskSummaries(
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
-    const base = scanSubtreeTasks(indexedPaths, dirPath)
+    const legacyBase = scanSubtreeLegacyTasks(indexedPaths, dirPath)
     if (!fileSources) {
-      setTasks(base)
+      setTasks(legacyBase)
       return
     }
     setLoading(true)
     try {
-      const enriched = await Promise.all(
-        base.map(async (summary) => {
+      const bundlePaths = scanSubtreeTaskBundles(indexedPaths, dirPath)
+      const bundledSummaries: Et2TaskSummary[] = []
+
+      await Promise.all(
+        bundlePaths.map(async (bundlePath) => {
+          try {
+            const text = await readTextFromStore(fileSources, bundlePath)
+            const bundle = parseTasksBundle(text)
+            const scopeDir = bundlePath.replace(/\/\.et2\/tasks\.json$/, '')
+            const ordered = orderTasksAsTree(bundle.tasks)
+            for (const t of ordered) {
+              bundledSummaries.push(
+                summaryFromBundleTask(bundlePath, dirPath, {
+                  id: t.id,
+                  title: humanTaskTitle(t.title, t.body ?? '', t.id),
+                  parentId: t.parentId,
+                  status: t.status,
+                  depth: t.depth,
+                  kind: t.kind,
+                  dueDate: t.dueDate,
+                  tags: t.tags,
+                }),
+              )
+            }
+            void scopeDir
+          } catch {
+            /* ignore broken bundle */
+          }
+        }),
+      )
+
+      const legacyEnriched = await Promise.all(
+        legacyBase.map(async (summary) => {
           try {
             const text = await readTextFromStore(fileSources, summary.relativePath)
             const id = taskIdFromPath(summary.relativePath) ?? summary.taskId
@@ -39,13 +76,26 @@ export function useEt2TaskSummaries(
               kind: doc.frontmatter.kind,
               dueDate: doc.frontmatter.dueDate,
               tags: doc.frontmatter.tags,
+              status: 'open' as const,
             }
           } catch {
             return summary
           }
         }),
       )
-      setTasks(enriched)
+
+      const merged = [...bundledSummaries, ...legacyEnriched]
+      merged.sort((a, b) => {
+        const folder = (a.folderWithinScope ?? '').localeCompare(b.folderWithinScope ?? '', undefined, {
+          sensitivity: 'base',
+        })
+        if (folder !== 0) return folder
+        const da = a.depth ?? 0
+        const db = b.depth ?? 0
+        if (da !== db) return da - db
+        return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+      })
+      setTasks(merged)
     } finally {
       setLoading(false)
     }
@@ -56,4 +106,14 @@ export function useEt2TaskSummaries(
   }, [load])
 
   return { tasks, loading, reload: load }
+}
+
+export async function readTasksBundleAt(
+  store: FileSourceStore,
+  bundlePath: string,
+): Promise<ReturnType<typeof parseTasksBundle>> {
+  const scope = bundlePath.replace(/\/\.et2\/tasks\.json$/, '')
+  const bundle = await readTasksBundle(store, scope)
+  if (!bundle) throw new Error('tasks.json fehlt')
+  return bundle
 }

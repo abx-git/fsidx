@@ -30,7 +30,10 @@ export function scopeAncestorCrumbs(scopePath: string, workspaceRootName: string
 }
 
 export function taskContainerDir(taskFilePath: string): string {
-  const norm = taskFilePath.replace(/\\/g, '/')
+  const norm = taskFilePath.replace(/\\/g, '/').split('#')[0]
+  const bundleMarker = '/.et2/tasks.json'
+  const bundleIdx = norm.indexOf(bundleMarker)
+  if (bundleIdx >= 0) return norm.slice(0, bundleIdx)
   const marker = '/.et2/tasks/'
   const idx = norm.indexOf(marker)
   if (idx === -1) return ''

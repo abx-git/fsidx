@@ -1,4 +1,5 @@
 import { Loader2, Save } from 'lucide-react'
+import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
 import { LivePreviewMarkdown } from '../markdown/LivePreviewMarkdown'
 
 interface Et2TaskContentEditorProps {
@@ -64,9 +65,12 @@ export function Et2TaskContentEditor({
                 type="text"
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
+                onFocus={(e) => {
+                  if (e.target.value === DEFAULT_NEW_TASK_TITLE) onTitleChange('')
+                }}
                 disabled={!canWrite}
                 className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium dark:border-zinc-600 dark:bg-zinc-950"
-                placeholder="Kurzer Aufgabentitel"
+                placeholder={DEFAULT_NEW_TASK_TITLE}
               />
             </label>
           </div>

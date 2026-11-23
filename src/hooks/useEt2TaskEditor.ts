@@ -4,6 +4,7 @@ import { ensureWritePermission, readTextFromStore, writeTextToStore } from '../l
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { taskIdFromPath } from '../lib/et2/paths'
+import { DEFAULT_NEW_TASK_TITLE } from '../lib/et2/constants'
 import { humanTaskTitle } from '../lib/et2/display-title'
 
 export function useEt2TaskEditor(
@@ -44,7 +45,8 @@ export function useEt2TaskEditor(
         const id = taskIdFromPath(taskPath) ?? taskPath
         const doc = parseTaskMd(text, id)
         setTaskId(doc.frontmatter.id)
-        setTitle(humanTaskTitle(doc.frontmatter.title, doc.body, id))
+        const resolved = humanTaskTitle(doc.frontmatter.title, doc.body, id)
+        setTitle(resolved === DEFAULT_NEW_TASK_TITLE ? '' : resolved)
         setBody(doc.body)
       })
       .catch((err) => {
@@ -81,7 +83,10 @@ export function useEt2TaskEditor(
       const id = taskIdFromPath(taskPath) ?? taskId
       const doc = parseTaskMd(await readTextFromStore(fileSources, taskPath), id)
       const text = serializeTaskMd({
-        frontmatter: { ...doc.frontmatter, title: title.trim() || doc.frontmatter.title },
+        frontmatter: {
+          ...doc.frontmatter,
+          title: title.trim() || doc.frontmatter.title || DEFAULT_NEW_TASK_TITLE,
+        },
         body,
       })
       await writeTextToStore(fileSources, taskPath, text)

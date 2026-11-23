@@ -512,7 +512,7 @@ function App() {
     (dirPath: string) => {
       setCenterMode('tasks')
       if (!fileSources || !canWrite) return
-      void finalizeNewEt2Task(dirPath, 'Neue Aufgabe', '').catch((err) => {
+      void finalizeNewEt2Task(dirPath, '', '').catch((err) => {
         window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
       })
     },

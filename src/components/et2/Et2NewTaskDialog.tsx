@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
 import { Loader2, X } from 'lucide-react'
 
 interface Et2NewTaskDialogProps {
@@ -16,14 +17,14 @@ export function Et2NewTaskDialog({
   onSubmit,
   scopeLabel,
 }: Et2NewTaskDialogProps) {
-  const [title, setTitle] = useState('Neue Aufgabe')
+  const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
-    setTitle('Neue Aufgabe')
+    setTitle('')
     setBody('')
     setError(null)
     setSaving(false)
@@ -32,14 +33,10 @@ export function Et2NewTaskDialog({
   if (!open) return null
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      setError('Bitte einen Titel eingeben.')
-      return
-    }
     setSaving(true)
     setError(null)
     try {
-      await onSubmit(targetDirPath, title.trim(), body)
+      await onSubmit(targetDirPath, title.trim() || DEFAULT_NEW_TASK_TITLE, body)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Anlegen fehlgeschlagen')
@@ -73,6 +70,7 @@ export function Et2NewTaskDialog({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              placeholder={DEFAULT_NEW_TASK_TITLE}
               className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
               autoFocus
             />

@@ -6,6 +6,7 @@ import type { Et2TaskKind } from '../../types/et2-task'
 import { serializeTaskMd } from './serialize-task-md'
 import { et2TasksDirRelative, taskRelativePath } from './paths'
 import { ensureDirectoryOnDisk } from '../create-workspace'
+import { DEFAULT_NEW_TASK_TITLE } from './constants'
 
 function newTaskId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -41,7 +42,7 @@ export async function createEt2TaskOnDisk(
       version: 1,
       id: taskId,
       kind: options.kind ?? 'card',
-      title: options.title.trim() || 'Neue Aufgabe',
+      title: options.title.trim() || DEFAULT_NEW_TASK_TITLE,
     },
     body: options.body ?? '',
   })

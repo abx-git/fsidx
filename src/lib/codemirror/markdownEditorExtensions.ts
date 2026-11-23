@@ -2,6 +2,7 @@ import { insertNewlineContinueMarkup, markdown, markdownLanguage } from '@codemi
 import { Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { fsidxDarkMarkdownEditorTheme, fsidxMarkdownEditorTheme } from './fsidxEditorTheme'
+import { markdownLineNavigation } from './fsidxMarkdownLineNavigation'
 import { markdownLivePreviewPlugin } from './fsidxMarkdownLivePreview'
 import type { MarkdownWidgetContext } from './fsidxMarkdownWidgets'
 
@@ -32,7 +33,7 @@ export function buildFsidxMarkdownExtensions(
   ]
 
   if (mode === 'live') {
-    base.push(markdownLivePreviewPlugin(ctx))
+    base.push(markdownLivePreviewPlugin(ctx), markdownLineNavigation)
   }
 
   return base

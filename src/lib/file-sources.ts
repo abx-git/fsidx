@@ -30,17 +30,30 @@ export async function readTextFromStore(
 async function resolveDirectory(
   root: FileSystemDirectoryHandle,
   relativeDir: string,
+  create = false,
 ): Promise<FileSystemDirectoryHandle> {
   if (!relativeDir) return root
   let current = root
-  for (const segment of relativeDir.split('/')) {
-    current = await current.getDirectoryHandle(segment)
+  for (const segment of relativeDir.split('/').filter(Boolean)) {
+    if (create) {
+      current = await current.getDirectoryHandle(segment, { create: true })
+    } else {
+      current = await current.getDirectoryHandle(segment)
+    }
   }
   return current
 }
 
 export function canWriteToStore(store: FileSourceStore | null): boolean {
   return store?.kind === 'handles'
+}
+
+export async function ensureWritePermission(store: FileSourceStore): Promise<boolean> {
+  if (store.kind !== 'handles') return false
+  const current = await store.root.queryPermission({ mode: 'readwrite' })
+  if (current === 'granted') return true
+  const next = await store.root.requestPermission({ mode: 'readwrite' })
+  return next === 'granted'
 }
 
 export async function writeTextToStore(
@@ -58,7 +71,7 @@ export async function writeTextToStore(
   const fileName = parts.pop()
   if (!fileName) throw new Error('Ungültiger Pfad')
 
-  const dir = await resolveDirectory(store.root, parts.join('/'))
+  const dir = await resolveDirectory(store.root, parts.join('/'), true)
   const handle = await dir.getFileHandle(fileName, { create: true })
   const writable = await handle.createWritable()
   await writable.write(text)

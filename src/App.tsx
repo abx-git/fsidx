@@ -443,14 +443,24 @@ function App() {
         return
       }
       const title = window.prompt('Titel der neuen Aufgabe:', 'Neue Aufgabe')
-      if (title === null) return
-      const { row } = await createEt2TaskOnDisk(fileSources, { dirPath, title })
-      const id = registerSidecarFile(row)
-      clearMarkdownDrafts()
-      et2Tasks.reload()
-      setCenterMode('tasks')
-      if (id) {
-        openViewer('markdown', row.relativePath, row.name, id, row.size)
+      if (title === null || !title.trim()) return
+      try {
+        const { row } = await createEt2TaskOnDisk(fileSources, { dirPath, title: title.trim() })
+        const id = registerSidecarFile(row)
+        if (!id) {
+          window.alert(
+            'Aufgabe wurde geschrieben, aber der Index wurde nicht aktualisiert. Ordner neu indexieren.',
+          )
+        }
+        clearMarkdownDrafts()
+        et2Tasks.reload()
+        setCenterMode('tasks')
+        setSelectedEt2TaskPath(row.relativePath)
+        if (id) {
+          openViewer('markdown', row.relativePath, row.name, id, row.size)
+        }
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
       }
     },
     [fileSources, canWrite, registerSidecarFile, openViewer, et2Tasks],

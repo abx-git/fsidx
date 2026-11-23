@@ -1,10 +1,11 @@
 import type { RawFileRow } from '../build-manifest'
 import type { FileSourceStore } from '../file-sources'
-import { writeTextToStore } from '../file-sources'
+import { ensureWritePermission, writeTextToStore } from '../file-sources'
 import { ET2_TASK_FORMAT } from '../../types/et2-task'
 import type { Et2TaskKind } from '../../types/et2-task'
 import { serializeTaskMd } from './serialize-task-md'
-import { taskRelativePath } from './paths'
+import { et2TasksDirRelative, taskRelativePath } from './paths'
+import { ensureDirectoryOnDisk } from '../create-workspace'
 
 function newTaskId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -25,8 +26,15 @@ export async function createEt2TaskOnDisk(
   store: FileSourceStore,
   options: CreateEt2TaskOptions,
 ): Promise<{ relativePath: string; row: RawFileRow; taskId: string }> {
+  if (!(await ensureWritePermission(store))) {
+    throw new Error('Schreibzugriff verweigert. Ordner erneut öffnen und Schreiben erlauben.')
+  }
   const taskId = options.taskId ?? newTaskId()
   const relativePath = taskRelativePath(options.dirPath, taskId)
+  const tasksDir = options.dirPath
+    ? `${options.dirPath}/${et2TasksDirRelative()}`
+    : et2TasksDirRelative()
+  await ensureDirectoryOnDisk(store, tasksDir)
   const text = serializeTaskMd({
     frontmatter: {
       format: ET2_TASK_FORMAT,

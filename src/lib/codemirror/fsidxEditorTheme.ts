@@ -38,6 +38,9 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
   '.cm-md-chunk-render p': {
     margin: '0.15em 0',
   },
+  '.cm-md-rendered-gap': {
+    minHeight: '0.65em',
+  },
   '.cm-md-mermaid, .cm-md-image-wrap': {
     display: 'block',
     margin: '0.75rem 0',

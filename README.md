@@ -34,7 +34,7 @@ projekt/phase/
 
 ### Scope (Teilbaum)
 
-Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
+Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. In der Kopfzeile filtert **Nur Aufgaben** die Suche auf ET2-Aufgabentitel. Am Ordner-Kontextmenü erzeugt **Aufgabenübersicht (Unterbaum)** eine lesende Gesamtliste aller Aufgaben im Unterbaum (Bearbeitung weiterhin in den jeweiligen `*.tsk.json`). Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
 Mit **Schreibzugriff** legst du **Ordner**, **Markdown** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 

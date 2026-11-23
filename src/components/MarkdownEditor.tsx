@@ -4,11 +4,13 @@ import {
   Eye,
   Code2,
   Loader2,
+  Pencil,
   Save,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { LivePreviewMarkdown } from './markdown/LivePreviewMarkdown'
+import { MarkdownReadingView } from './markdown/MarkdownReadingView'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
@@ -53,12 +55,16 @@ export function MarkdownEditor({
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
         e.preventDefault()
+        if (!canWrite) return
         onToggleViewMode()
+      }
+      if (e.key === 'Escape' && viewMode === 'edit') {
+        onViewModeChange('preview')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onToggleViewMode])
+  }, [onToggleViewMode, canWrite, viewMode, onViewModeChange])
 
   const downloadEdited = () => {
     const blob = new Blob([content], { type: 'text/markdown' })
@@ -69,6 +75,24 @@ export function MarkdownEditor({
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  const modeBadge =
+    viewMode === 'preview' ? (
+      <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+        <Eye className="h-3.5 w-3.5" />
+        Lesen
+      </span>
+    ) : viewMode === 'edit' ? (
+      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <Pencil className="h-3.5 w-3.5" />
+        Bearbeiten
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+        <Code2 className="h-3.5 w-3.5" />
+        Quelltext
+      </span>
+    )
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
@@ -103,17 +127,7 @@ export function MarkdownEditor({
               Ungespeichert
             </span>
           )}
-          {viewMode === 'live' ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-              <Eye className="h-3.5 w-3.5" />
-              Bearbeiten
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              <Code2 className="h-3.5 w-3.5" />
-              Quelltext
-            </span>
-          )}
+          {modeBadge}
           {canWrite && onSave && (
             <button
               type="button"
@@ -129,10 +143,32 @@ export function MarkdownEditor({
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => onViewModeChange(viewMode === 'live' ? 'source' : 'live')}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600"
+                onClick={() => onViewModeChange('preview')}
+                className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
+                  viewMode === 'preview' ? 'bg-sky-100 dark:bg-sky-950/50' : ''
+                }`}
               >
-                {viewMode === 'live' ? 'Quelltext' : 'WYSIWYG'}
+                Lesen
+              </button>
+              {canWrite && (
+                <button
+                  type="button"
+                  onClick={() => onViewModeChange('edit')}
+                  className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
+                    viewMode === 'edit' ? 'bg-emerald-100 dark:bg-emerald-950/50' : ''
+                  }`}
+                >
+                  Bearbeiten
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onViewModeChange('source')}
+                className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
+                  viewMode === 'source' ? 'bg-zinc-200 dark:bg-zinc-700' : ''
+                }`}
+              >
+                Quelltext
               </button>
               <button
                 type="button"
@@ -144,7 +180,9 @@ export function MarkdownEditor({
                 Download
               </button>
             </div>
-            <p className="mt-1 text-[10px] text-zinc-400">Tastenkürzel: Strg+E zwischen WYSIWYG und Quelle</p>
+            <p className="mt-1 text-[10px] text-zinc-400">
+              Strg+E: Lesen ↔ Bearbeiten · Esc: zurück zur Lesen-Ansicht
+            </p>
           </CollapsibleSection>
         </div>
       </header>
@@ -166,7 +204,14 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
-        {!loading && !error && viewMode === 'live' && (
+        {!loading && !error && viewMode === 'preview' && (
+          <MarkdownReadingView
+            content={content}
+            canWrite={canWrite}
+            onStartEdit={canWrite ? () => onViewModeChange('edit') : undefined}
+          />
+        )}
+        {!loading && !error && viewMode === 'edit' && (
           <LivePreviewMarkdown
             content={content}
             onChange={onChange}
@@ -179,6 +224,7 @@ export function MarkdownEditor({
             value={content}
             onChange={(e) => onChange(e.target.value)}
             spellCheck={false}
+            readOnly={!canWrite}
             className="h-full min-h-[60vh] w-full resize-none border-0 bg-zinc-50 p-4 font-mono text-sm leading-relaxed text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
             aria-label="Markdown-Quelltext"
           />

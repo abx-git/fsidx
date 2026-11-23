@@ -5,7 +5,8 @@ import { isTaskFilePath, taskIdFromPath } from '../lib/et2/paths'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 
-export type MarkdownViewMode = 'live' | 'source'
+/** Lesen (Standard), WYSIWYG-Bearbeitung, Roh-Markdown. */
+export type MarkdownViewMode = 'preview' | 'edit' | 'source'
 
 const draftCache = new Map<string, string>()
 
@@ -14,7 +15,7 @@ export function useMarkdownDocument(
   fileSources: FileSourceStore | null,
 ) {
   const [content, setContent] = useState('')
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>('live')
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>('preview')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -24,7 +25,7 @@ export function useMarkdownDocument(
       setContent('')
       setError(null)
       setDirty(false)
-      setViewMode('live')
+      setViewMode('preview')
       return
     }
 
@@ -32,7 +33,7 @@ export function useMarkdownDocument(
     if (cached != null) {
       setContent(cached)
       setDirty(true)
-      setViewMode('live')
+      setViewMode('preview')
       setError(null)
       return
     }
@@ -41,14 +42,14 @@ export function useMarkdownDocument(
       setContent('')
       setError('Re-open the folder to read this file. Imported JSON indexes do not include file contents.')
       setDirty(false)
-      setViewMode('live')
+      setViewMode('preview')
       return
     }
 
     let cancelled = false
     setLoading(true)
     setError(null)
-    setViewMode('live')
+    setViewMode('preview')
     setDirty(false)
 
     readTextFromStore(fileSources, path)
@@ -87,7 +88,11 @@ export function useMarkdownDocument(
   )
 
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => (m === 'live' ? 'source' : 'live'))
+    setViewMode((m) => {
+      if (m === 'source') return 'preview'
+      if (m === 'preview') return 'edit'
+      return 'preview'
+    })
   }, [])
 
   const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {

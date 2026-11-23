@@ -3,7 +3,11 @@ import type { EditorView } from '@codemirror/view'
 import { readBlobFromStore, type FileSourceStore } from '../file-sources'
 import { resolveAssetPathCandidates } from '../markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../plantuml'
-import { renderMarkdownInto, unmountMarkdown } from './fsidxMarkdownWidgetMount'
+import {
+  renderMarkdownInto,
+  unmountMarkdown,
+  type MarkdownPreviewKind,
+} from './fsidxMarkdownWidgetMount'
 
 export interface MarkdownWidgetContext {
   docPath: string
@@ -22,18 +26,26 @@ export class MarkdownPreviewWidget extends WidgetType {
   readonly content: string
   readonly focusAt: number
   readonly ctx: MarkdownWidgetContext
+  readonly kind: MarkdownPreviewKind
 
-  constructor(content: string, focusAt: number, ctx: MarkdownWidgetContext) {
+  constructor(
+    content: string,
+    focusAt: number,
+    ctx: MarkdownWidgetContext,
+    kind: MarkdownPreviewKind = 'line',
+  ) {
     super()
     this.content = content
     this.focusAt = focusAt
     this.ctx = ctx
+    this.kind = kind
   }
 
   eq(other: MarkdownPreviewWidget) {
     return (
       other.content === this.content &&
       other.focusAt === this.focusAt &&
+      other.kind === this.kind &&
       other.ctx.docPath === this.ctx.docPath
     )
   }
@@ -48,13 +60,16 @@ export class MarkdownPreviewWidget extends WidgetType {
 
   toDOM(view: EditorView) {
     const wrap = document.createElement('div')
-    wrap.className = 'cm-md-rendered-chunk cursor-text'
+    wrap.className =
+      this.kind === 'line'
+        ? 'cm-md-rendered-chunk cm-md-rendered-line cursor-text'
+        : 'cm-md-rendered-chunk cm-md-rendered-block cursor-text'
     wrap.title = 'Klicken zum Bearbeiten'
     wrap.addEventListener('mousedown', (e) => {
       e.preventDefault()
       focusRange(view, this.focusAt)
     })
-    renderMarkdownInto(wrap, this.content, this.ctx)
+    renderMarkdownInto(wrap, this.content, this.ctx, this.kind)
     return wrap
   }
 }

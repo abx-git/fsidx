@@ -10,12 +10,13 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
     outline: 'none',
   },
   '.cm-content': {
-    padding: '1.5rem 0',
+    padding: '0.75rem 0',
     caretColor: '#7c3aed',
     fontFamily: 'inherit',
   },
   '.cm-line': {
     padding: '0 1rem',
+    minHeight: '0',
   },
   '.cm-gutters': {
     display: 'none',
@@ -32,14 +33,17 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
   '.cm-md-edit-line': {
     backgroundColor: 'rgba(124, 58, 237, 0.07)',
   },
-  '.cm-md-rendered-chunk': {
+  '.cm-md-rendered-line': {
+    display: 'inline',
+    width: 'auto',
+    verticalAlign: 'baseline',
+  },
+  '.cm-md-rendered-block': {
+    display: 'block',
     width: '100%',
   },
-  '.cm-md-chunk-render p': {
-    margin: '0.15em 0',
-  },
   '.cm-md-rendered-gap': {
-    minHeight: '0.65em',
+    minHeight: '0',
   },
   '.cm-md-mermaid, .cm-md-image-wrap': {
     display: 'block',

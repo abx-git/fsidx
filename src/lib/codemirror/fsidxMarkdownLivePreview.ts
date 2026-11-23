@@ -98,7 +98,7 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
       table.from,
       table.to,
       Decoration.replace({
-        widget: new MarkdownPreviewWidget(text, table.from, ctx),
+        widget: new MarkdownPreviewWidget(text, table.from, ctx, 'block'),
         block: true,
       }),
     )
@@ -122,8 +122,9 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
       line.from,
       line.to,
       Decoration.replace({
-        widget: new MarkdownPreviewWidget(slice, line.from, ctx),
+        widget: new MarkdownPreviewWidget(slice, line.from, ctx, 'line'),
         block: false,
+        inclusive: false,
       }),
     )
   }

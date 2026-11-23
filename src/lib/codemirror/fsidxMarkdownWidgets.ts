@@ -3,10 +3,7 @@ import type { EditorView } from '@codemirror/view'
 import { readBlobFromStore, type FileSourceStore } from '../file-sources'
 import { resolveAssetPathCandidates } from '../markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../plantuml'
-import {
-  dispatchSelection,
-  focusPosFromPreviewClick,
-} from './fsidxMarkdownClick'
+import { activateFromPreviewClick, dispatchSelection } from './fsidxMarkdownClick'
 import {
   renderMarkdownInto,
   unmountMarkdown,
@@ -69,10 +66,7 @@ export class MarkdownPreviewWidget extends WidgetType {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
-      dispatchSelection(
-        view,
-        focusPosFromPreviewClick(view, e, this.blockFrom, this.blockTo, wrap),
-      )
+      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo)
     })
     renderMarkdownInto(wrap, this.content, this.ctx, this.kind)
     return wrap
@@ -196,10 +190,7 @@ export class FencedCodePreviewWidget extends WidgetType {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
-      dispatchSelection(
-        view,
-        focusPosFromPreviewClick(view, e, this.blockFrom, this.blockTo, wrap),
-      )
+      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo)
     })
 
     const trimmed = this.code.trim()

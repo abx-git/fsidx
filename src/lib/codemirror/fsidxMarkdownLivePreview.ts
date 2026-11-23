@@ -13,7 +13,6 @@ import {
   findParagraphRanges,
   findTableRanges,
   rangesOverlap,
-  splitParagraphAroundLine,
 } from './fsidxMarkdownRegions'
 import {
   FencedCodePreviewWidget,
@@ -52,6 +51,26 @@ function markRangeLines(
   })
 }
 
+function addLinePreview(
+  items: PendingDeco[],
+  hiddenLines: Set<number>,
+  state: EditorState,
+  lineNo: number,
+  ctx: MarkdownWidgetContext,
+) {
+  const line = state.doc.line(lineNo)
+  if (!line.text.trim()) return
+  addDeco(
+    items,
+    line.from,
+    line.to,
+    Decoration.replace({
+      widget: new MarkdownPreviewWidget(line.text, line.from, line.to, ctx, 'line'),
+    }),
+  )
+  hiddenLines.add(lineNo)
+}
+
 function addBlockPreview(
   items: PendingDeco[],
   hiddenLines: Set<number>,
@@ -75,17 +94,12 @@ function addBlockPreview(
   markRangeLines(state, from, to, hiddenLines)
 }
 
-function isBlockReplaceDecoration(deco: Decoration): boolean {
-  const spec = deco.spec as { block?: boolean; widget?: unknown }
-  return spec.widget != null && Boolean(spec.block)
-}
-
-/** Nur inaktive Vorschau-Blöcke sind atomar — sonst springt posAtCoords in verborgenen Nachbarzeilen. */
-function atomicPreviewRanges(view: EditorView, decorations: DecorationSet): DecorationSet {
+/** Pfeiltasten/Clicks: Cursor nicht in ersetzte Vorschau-Zeilen (aktive Zeile ausgenommen). */
+function replaceAtomicRanges(view: EditorView, decorations: DecorationSet): DecorationSet {
   const active = activeEditRegion(view.state)
   const items: PendingDeco[] = []
   decorations.between(0, view.state.doc.length, (from, to, deco) => {
-    if (!isBlockReplaceDecoration(deco)) return
+    if ((deco.spec as { widget?: unknown }).widget == null) return
     if (rangesOverlap({ from, to }, active)) return
     items.push({ from, to, deco })
   })
@@ -111,7 +125,6 @@ function finishDecorations(items: PendingDeco[]): DecorationSet {
 function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): DecorationSet {
   const items: PendingDeco[] = []
   const active = activeEditRegion(state)
-  const activeLineNo = state.doc.lineAt(active.from).number
   const hiddenLines = new Set<number>()
 
   const tables = findTableRanges(state)
@@ -149,14 +162,13 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   }
 
   for (const paragraph of findParagraphRanges(state, skipRanges)) {
-    if (!rangesOverlap(paragraph, active)) {
-      addBlockPreview(items, hiddenLines, state, paragraph.from, paragraph.to, ctx)
-      continue
+    const firstLine = state.doc.lineAt(paragraph.from).number
+    const lastLine = state.doc.lineAt(paragraph.to).number
+    for (let lineNo = firstLine; lineNo <= lastLine; lineNo++) {
+      const line = state.doc.line(lineNo)
+      if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
+      addLinePreview(items, hiddenLines, state, lineNo, ctx)
     }
-
-    const { before, after } = splitParagraphAroundLine(state, paragraph, activeLineNo)
-    if (before) addBlockPreview(items, hiddenLines, state, before.from, before.to, ctx)
-    if (after) addBlockPreview(items, hiddenLines, state, after.from, after.to, ctx)
   }
 
   for (let lineNo = 1; lineNo <= state.doc.lines; lineNo++) {
@@ -213,7 +225,7 @@ export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension
     },
     provide: (f) => [
       EditorView.decorations.from(f),
-      EditorView.atomicRanges.of((view) => atomicPreviewRanges(view, view.state.field(f))),
+      EditorView.atomicRanges.of((view) => replaceAtomicRanges(view, view.state.field(f))),
     ],
   })
   return field

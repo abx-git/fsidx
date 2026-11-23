@@ -1,53 +1,42 @@
-import type { EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
-/** Vertikaler Klick in Vorschau-Block → Zeilenanfang in der Quelle. */
-export function blockClickToLineStart(
-  state: EditorState,
-  blockFrom: number,
-  blockTo: number,
-  clientY: number,
-  rect: DOMRect,
-): number {
-  const first = state.doc.lineAt(blockFrom).number
-  const last = state.doc.lineAt(blockTo).number
-  const count = Math.max(1, last - first + 1)
-  const ratio = Math.min(1, Math.max(0, (clientY - rect.top) / Math.max(rect.height, 1)))
-  const lineNo = first + Math.min(count - 1, Math.floor(ratio * count))
-  return state.doc.line(lineNo).from
-}
-
-export function columnFromClickX(
-  state: EditorState,
-  lineFrom: number,
-  clientX: number,
-  rect: DOMRect,
-): number {
-  const line = state.doc.lineAt(lineFrom)
-  const text = state.sliceDoc(line.from, line.to)
-  if (!text.length) return line.from
-  const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)))
-  const col = Math.min(text.length, Math.round(xRatio * text.length))
-  return line.from + col
-}
-
-/** In Vorschau-Widgets nicht posAtCoords verwenden (springt oft an Blockanfang). */
-export function focusPosFromPreviewClick(
+/**
+ * Vorschau-Klick: zuerst Zeile aktivieren, nach Neuzeichnen präzise Position per posAtCoords.
+ */
+export function activateFromPreviewClick(
   view: EditorView,
   e: MouseEvent,
-  blockFrom: number,
-  blockTo: number,
-  previewEl: HTMLElement,
-): number {
-  const rect = previewEl.getBoundingClientRect()
-  const lineStart = blockClickToLineStart(
-    view.state,
-    blockFrom,
-    blockTo,
-    e.clientY,
-    rect,
-  )
-  return columnFromClickX(view.state, lineStart, e.clientX, rect)
+  rangeFrom: number,
+  rangeTo: number,
+) {
+  const safeTo = Math.min(rangeTo, view.state.doc.length)
+  view.dispatch({
+    selection: { anchor: Math.max(0, rangeFrom) },
+    scrollIntoView: false,
+  })
+  view.focus()
+
+  const x = e.clientX
+  const y = e.clientY
+  requestAnimationFrame(() => {
+    const precise = view.posAtCoords({ x, y })
+    if (precise != null && precise >= rangeFrom && precise <= safeTo) {
+      view.dispatch({
+        selection: { anchor: precise },
+        scrollIntoView: false,
+      })
+      view.focus()
+      return
+    }
+    const estimated = view.posAtCoords({ x, y }, false)
+    if (estimated >= rangeFrom && estimated <= safeTo) {
+      view.dispatch({
+        selection: { anchor: estimated },
+        scrollIntoView: false,
+      })
+      view.focus()
+    }
+  })
 }
 
 export function dispatchSelection(view: EditorView, anchor: number) {

@@ -54,8 +54,42 @@ function buildMdComponents(
   h6: ({ node, children, ...props }) => (
     <h6 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h6>
   ),
-  li: ({ node, children, ...props }) => (
-    <li className={focus(node)} {...props} {...blockAttrs(node)}>{children}</li>
+  ul({ node, children, className, ...props }) {
+    const taskList = className?.includes('contains-task-list')
+    const listClass = taskList ? 'list-none pl-1' : 'list-disc pl-6'
+    return (
+      <ul
+        className={[listClass, focus(node), className].filter(Boolean).join(' ')}
+        {...props}
+        {...blockAttrs(node)}
+      >
+        {children}
+      </ul>
+    )
+  },
+  ol({ node, children, className, ...props }) {
+    const taskList = className?.includes('contains-task-list')
+    const listClass = taskList ? 'list-none pl-1' : 'list-decimal pl-6'
+    return (
+      <ol
+        className={[listClass, focus(node), className].filter(Boolean).join(' ')}
+        {...props}
+        {...blockAttrs(node)}
+      >
+        {children}
+      </ol>
+    )
+  },
+  li: ({ node, children, className, ...props }) => (
+    <li
+      className={[focus(node), className, className?.includes('task-list-item') ? 'list-none' : undefined]
+        .filter(Boolean)
+        .join(' ') || undefined}
+      {...props}
+      {...blockAttrs(node)}
+    >
+      {children}
+    </li>
   ),
   blockquote: ({ node, children, ...props }) => (
     <blockquote className={focus(node)} {...props} {...blockAttrs(node)}>{children}</blockquote>

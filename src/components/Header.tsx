@@ -29,6 +29,8 @@ interface HeaderProps {
   showEt2DotFiles: boolean
   onShowEt2DotFilesChange: (value: boolean) => void
   onEt2Migrate: () => void
+  canWrite: boolean
+  onNewEt2Task: () => void
 }
 
 export function Header({
@@ -46,6 +48,8 @@ export function Header({
   showEt2DotFiles,
   onShowEt2DotFilesChange,
   onEt2Migrate,
+  canWrite,
+  onNewEt2Task,
 }: HeaderProps) {
   return (
     <header className="flex shrink-0 flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -157,6 +161,16 @@ export function Header({
             />
             .et2 anzeigen
           </label>
+          <button
+            type="button"
+            disabled={!canWrite}
+            onClick={onNewEt2Task}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+            title={!canWrite ? 'Schreibzugriff nötig' : 'Neue ET2-Aufgabe im Scope'}
+          >
+            <ListTodo className="h-3.5 w-3.5" />
+            Neue Aufgabe
+          </button>
           <button
             type="button"
             onClick={onEt2Migrate}

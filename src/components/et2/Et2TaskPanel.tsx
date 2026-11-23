@@ -1,4 +1,4 @@
-import { CheckSquare, GitBranch, Loader2, Plus } from 'lucide-react'
+import { CheckSquare, GitBranch, Loader2 } from 'lucide-react'
 import { ScopeCreateActions } from '../ScopeCreateActions'
 import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
@@ -51,6 +51,7 @@ export function Et2TaskPanel({
           canWrite={canWrite}
           onNewFolder={onNewFolder ?? (() => {})}
           onNewMarkdown={onNewMarkdown ?? (() => {})}
+          onNewTask={onNewTask}
           compact
         />
         <div className="flex flex-wrap justify-end gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
@@ -59,19 +60,10 @@ export function Et2TaskPanel({
             disabled={!canWrite || !onNewSubtask || !selectedTaskPath}
             onClick={onNewSubtask}
             className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 px-2.5 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40"
-            title="Unterordner + Aufgabe unter der gewählten Aufgabe"
+            title="Zuerst Aufgabe in der Liste wählen"
           >
             <GitBranch className="h-3.5 w-3.5" />
             Unteraufgabe
-          </button>
-          <button
-            type="button"
-            disabled={!canWrite}
-            onClick={onNewTask}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Aufgabe (Scope)
           </button>
         </div>
 

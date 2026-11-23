@@ -32,6 +32,7 @@ interface FileBrowserProps {
   canWrite: boolean
   onNewFolder: () => void
   onNewMarkdown: () => void
+  onNewTask: () => void
 }
 
 type Row = {
@@ -61,6 +62,7 @@ export function FileBrowser({
   canWrite,
   onNewFolder,
   onNewMarkdown,
+  onNewTask,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
 
@@ -105,6 +107,7 @@ export function FileBrowser({
             canWrite={canWrite}
             onNewFolder={onNewFolder}
             onNewMarkdown={onNewMarkdown}
+            onNewTask={onNewTask}
           />
         )}
         {inSearch && (

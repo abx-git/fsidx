@@ -448,13 +448,18 @@ function App() {
       const id = registerSidecarFile(row)
       clearMarkdownDrafts()
       et2Tasks.reload()
+      setCenterMode('tasks')
       if (id) {
         openViewer('markdown', row.relativePath, row.name, id, row.size)
       }
-      setCenterMode('tasks')
     },
     [fileSources, canWrite, registerSidecarFile, openViewer, et2Tasks],
   )
+
+  const handleNewEt2TaskFromChrome = useCallback(() => {
+    setCenterMode('tasks')
+    void handleEt2NewTask(currentPath)
+  }, [handleEt2NewTask, currentPath])
 
   const handleEt2FolderMeta = useCallback(
     async (dirPath: string) => {
@@ -602,6 +607,7 @@ function App() {
       canWrite={canWrite}
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
+      onNewTask={handleNewEt2TaskFromChrome}
     />
   )
 
@@ -641,6 +647,8 @@ function App() {
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
+        canWrite={canWrite}
+        onNewEt2Task={handleNewEt2TaskFromChrome}
       />
       </div>
 

@@ -203,11 +203,6 @@ function App() {
     [fileView?.path],
   )
 
-  const scopeNode = useMemo(() => {
-    if (!manifest) return null
-    return findNodeByPath(manifest.tree, currentPath) ?? manifest.tree
-  }, [manifest, currentPath])
-
   const inspectNode = useMemo(() => {
     if (!manifest) return null
     return selectedNode ?? currentNode ?? manifest.tree
@@ -784,11 +779,11 @@ function App() {
         >
           <div className="fsidx-pane hidden lg:flex">
             <TreeNav
-              root={scopeNode ?? manifest.tree}
+              root={manifest.tree}
+              rootName={manifest.rootName}
               currentPath={currentPath}
               onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
               indexedFilePaths={indexedPathList}
-              scopeDepth={scopeNode?.depth ?? 0}
             />
           </div>
           <div className="fsidx-pane min-h-0">{centerPane}</div>

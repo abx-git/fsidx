@@ -203,21 +203,29 @@ body {
   color: #52525b;
 }
 
-.fsidx-md-editor-shell .markdown-preview.cm-md-line-render p,
 .fsidx-md-editor-shell .cm-md-line-render p,
+.fsidx-md-editor-shell .cm-md-block-render p,
+.fsidx-md-editor-shell .markdown-preview.cm-md-line-render p,
+.fsidx-md-editor-shell .markdown-preview.cm-md-block-render p,
 .fsidx-md-editor-shell .cm-md-line-render ul,
-.fsidx-md-editor-shell .cm-md-line-render ol {
-  margin: 0;
+.fsidx-md-editor-shell .cm-md-line-render ol,
+.fsidx-md-editor-shell .cm-md-block-render ul,
+.fsidx-md-editor-shell .cm-md-block-render ol {
+  margin: 0 !important;
+  padding: 0;
 }
 
-.fsidx-md-editor-shell .cm-md-block-render {
-  margin: 0.35em 0;
-}
-
-.fsidx-md-editor-shell .cm-md-block-render {
+.fsidx-md-editor-shell .cm-md-block-render,
+.fsidx-md-editor-shell .markdown-preview.cm-md-block-render {
   margin: 0;
   padding: 0;
   line-height: 1.65;
+}
+
+.fsidx-md-editor-shell .cm-md-block-render > :first-child,
+.fsidx-md-editor-shell .cm-md-block-render > :last-child {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .fsidx-md-editor-shell .cm-md-blank-line {

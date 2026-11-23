@@ -93,9 +93,37 @@ export function MarkdownLineContent({
     [docPath, fileSources],
   )
 
+  /** Kein Block-<p>: eine Quellzeile → ein Flow-Element ohne Absatzabstand. */
+  const inlineSource = display.includes('\n') ? display : display.replace(/\n+$/, '')
+
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-      {display}
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={components}
+      allowedElements={[
+        'span',
+        'strong',
+        'em',
+        'del',
+        'code',
+        'pre',
+        'a',
+        'img',
+        'ul',
+        'ol',
+        'li',
+        'blockquote',
+        'br',
+        'table',
+        'thead',
+        'tbody',
+        'tr',
+        'th',
+        'td',
+      ]}
+      unwrapDisallowed
+    >
+      {inlineSource}
     </ReactMarkdown>
   )
 }

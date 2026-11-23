@@ -13,6 +13,7 @@ import {
   findParagraphRanges,
   findTableRanges,
   rangesOverlap,
+  splitParagraphAroundLine,
 } from './fsidxMarkdownRegions'
 import {
   FencedCodePreviewWidget,
@@ -162,26 +163,45 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
 
   for (const table of tables) {
     if (rangesOverlap(table, active)) {
+      const activeLineNo = state.doc.lineAt(active.from).number
       const first = state.doc.lineAt(table.from).number
       const last = state.doc.lineAt(table.to).number
-      for (let lineNo = first; lineNo <= last; lineNo++) {
-        const line = state.doc.line(lineNo)
-        if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
-        addLinePreview(items, hiddenLines, state, lineNo, ctx)
+      if (activeLineNo > first) {
+        addBlockPreview(
+          items,
+          hiddenLines,
+          state,
+          table.from,
+          state.doc.line(activeLineNo - 1).to,
+          ctx,
+        )
+      }
+      if (activeLineNo < last) {
+        addBlockPreview(
+          items,
+          hiddenLines,
+          state,
+          state.doc.line(activeLineNo + 1).from,
+          table.to,
+          ctx,
+        )
       }
       continue
     }
     addBlockPreview(items, hiddenLines, state, table.from, table.to, ctx)
   }
 
+  const activeLineNo = state.doc.lineAt(active.from).number
+
   for (const paragraph of findParagraphRanges(state, skipRanges)) {
-    const firstLine = state.doc.lineAt(paragraph.from).number
-    const lastLine = state.doc.lineAt(paragraph.to).number
-    for (let lineNo = firstLine; lineNo <= lastLine; lineNo++) {
-      const line = state.doc.line(lineNo)
-      if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
-      addLinePreview(items, hiddenLines, state, lineNo, ctx)
+    if (!rangesOverlap(paragraph, active)) {
+      addBlockPreview(items, hiddenLines, state, paragraph.from, paragraph.to, ctx)
+      continue
     }
+
+    const { before, after } = splitParagraphAroundLine(state, paragraph, activeLineNo)
+    if (before) addBlockPreview(items, hiddenLines, state, before.from, before.to, ctx)
+    if (after) addBlockPreview(items, hiddenLines, state, after.from, after.to, ctx)
   }
 
   for (let lineNo = 1; lineNo <= state.doc.lines; lineNo++) {

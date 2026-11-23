@@ -20,6 +20,7 @@ import { EFFORT_UNITS, EFFORT_UNIT_LABELS } from '../../lib/et2/task-effort'
 import { formatTaskIdForDisplay } from '../../lib/et2/task-id'
 import { DEFAULT_COMPLETED_TAG } from '../../lib/et2/task-tags'
 import type { Et2TaskSummary } from '../../types/et2-task'
+import type { FileSourceStore } from '../../lib/file-sources'
 
 const fieldClass =
   'mt-1 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-950'
@@ -51,6 +52,8 @@ interface Et2TaskDetailFormProps {
   onEffortUnitChange: (v: Et2EffortUnit) => void
   onDelete: () => void
   titleInputRef?: React.RefObject<HTMLInputElement | null>
+  assetDocPath?: string
+  fileSources?: FileSourceStore | null
 }
 
 export function Et2TaskDetailForm({
@@ -79,6 +82,8 @@ export function Et2TaskDetailForm({
   onEffortUnitChange,
   onDelete,
   titleInputRef,
+  assetDocPath,
+  fileSources = null,
 }: Et2TaskDetailFormProps) {
   const [tagDraft, setTagDraft] = useState('')
   const [idCopied, setIdCopied] = useState(false)
@@ -317,7 +322,14 @@ export function Et2TaskDetailForm({
       <div>
         <label className={labelClass}>Beschreibung</label>
         <div className="mt-1 [&_.markdown-preview]:max-w-none">
-          <LivePreviewMarkdown content={body} onChange={onBodyChange} canWrite={canWrite} simple />
+          <LivePreviewMarkdown
+            content={body}
+            onChange={onBodyChange}
+            canWrite={canWrite}
+            simple
+            docPath={assetDocPath}
+            fileSources={fileSources}
+          />
         </div>
       </div>
 

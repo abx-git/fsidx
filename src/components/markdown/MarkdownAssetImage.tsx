@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { readBlobFromStore, type FileSourceStore } from '../../lib/file-sources'
-import { resolveAssetPath } from '../../lib/markdown-assets'
+import { resolveAssetPath, resolveAssetPathCandidates } from '../../lib/markdown-assets'
 
 interface MarkdownAssetImageProps {
   src?: string
@@ -32,22 +32,27 @@ export function MarkdownAssetImage({
     let revoked: string | null = null
     let cancelled = false
 
-    const resolved = resolveAssetPath(docPath, src)
+    const candidates = resolveAssetPathCandidates(docPath, src)
 
     void (async () => {
-      try {
-        const blob = await readBlobFromStore(fileSources, resolved)
-        const objectUrl = URL.createObjectURL(blob)
-        revoked = objectUrl
-        if (!cancelled) {
-          setUrl(objectUrl)
-          setFailed(false)
-        } else URL.revokeObjectURL(objectUrl)
-      } catch {
-        if (!cancelled) {
-          setUrl(null)
-          setFailed(true)
+      for (const resolved of candidates) {
+        if (/^(https?:|data:|blob:)/i.test(resolved)) continue
+        try {
+          const blob = await readBlobFromStore(fileSources, resolved)
+          const objectUrl = URL.createObjectURL(blob)
+          revoked = objectUrl
+          if (!cancelled) {
+            setUrl(objectUrl)
+            setFailed(false)
+          } else URL.revokeObjectURL(objectUrl)
+          return
+        } catch {
+          /* nächster Kandidat */
         }
+      }
+      if (!cancelled) {
+        setUrl(null)
+        setFailed(true)
       }
     })()
 

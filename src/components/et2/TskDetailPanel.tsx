@@ -1,6 +1,7 @@
 import { Loader2, ListTodo } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { Et2TaskSummary } from '../../types/et2-task'
+import type { FileSourceStore } from '../../lib/file-sources'
 import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
 import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
 import { Et2TaskList } from './Et2TaskList'
@@ -49,6 +50,7 @@ interface TskDetailPanelProps {
   editorError: string | null
   editorTaskId: string | null
   titleFocusTick?: number
+  fileSources?: FileSourceStore | null
 }
 
 export function TskDetailPanel({
@@ -94,6 +96,7 @@ export function TskDetailPanel({
   editorError,
   editorTaskId,
   titleFocusTick = 0,
+  fileSources = null,
 }: TskDetailPanelProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
 
@@ -197,6 +200,8 @@ export function TskDetailPanel({
               onEffortUnitChange={onEffortUnitChange}
               onDelete={onDeleteFromDetail}
               titleInputRef={titleInputRef}
+              assetDocPath={tskPath}
+              fileSources={fileSources}
             />
           </>
         )}

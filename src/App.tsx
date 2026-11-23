@@ -1200,6 +1200,7 @@ function App() {
                   editorError={et2TaskEditor.error}
                   editorTaskId={et2TaskEditor.taskId}
                   titleFocusTick={titleFocusTick}
+                  fileSources={fileSources}
                 />
               ) : undefined
             }

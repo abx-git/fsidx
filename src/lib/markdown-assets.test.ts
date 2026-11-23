@@ -14,6 +14,11 @@ describe('resolveAssetPath', () => {
     expect(resolveAssetPath('docs/readme.md', 'assets/pic.png')).toBe('docs/assets/pic.png')
     expect(resolveAssetPath('readme.md', './x.png')).toBe('x.png')
   })
+
+  it('nimmt nackte Dateinamen aus dem MD-Ordner', () => {
+    expect(resolveAssetPath('proj/notes/lese.md', 'bild.png')).toBe('proj/notes/bild.png')
+    expect(resolveAssetPath('lese.md', 'bild.png')).toBe('bild.png')
+  })
 })
 
 describe('joinRelativePath', () => {

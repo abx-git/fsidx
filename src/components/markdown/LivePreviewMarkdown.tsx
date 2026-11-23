@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef } from 'react'
+import type { FileSourceStore } from '../../lib/file-sources'
 import { MarkdownContent } from './MarkdownContent'
 import { Loader2 } from 'lucide-react'
 
@@ -16,16 +17,23 @@ interface LivePreviewMarkdownProps {
   simple?: boolean
   /** Editor neu laden beim Dateiwechsel (Markdown-Dateien). */
   editorKey?: string
+  /** Für Bilder: Workspace-Datei neben dem Dokument (z. B. Pfad der `.md` oder `.tsk.json`). */
+  docPath?: string
+  fileSources?: FileSourceStore | null
 }
 
 function SimpleMarkdownBody({
   content,
   onChange,
   canWrite,
+  docPath,
+  fileSources,
 }: {
   content: string
   onChange: (value: string) => void
   canWrite: boolean
+  docPath?: string
+  fileSources?: FileSourceStore | null
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -56,7 +64,11 @@ function SimpleMarkdownBody({
       />
       {content.trim() ? (
         <div className="markdown-preview max-h-[40vh] overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/50">
-          <MarkdownContent content={content} />
+          <MarkdownContent
+            content={content}
+            docPath={docPath}
+            fileSources={fileSources}
+          />
         </div>
       ) : null}
     </div>
@@ -69,9 +81,19 @@ export function LivePreviewMarkdown({
   canWrite,
   simple = false,
   editorKey,
+  docPath,
+  fileSources = null,
 }: LivePreviewMarkdownProps) {
   if (simple) {
-    return <SimpleMarkdownBody content={content} onChange={onChange} canWrite={canWrite} />
+    return (
+      <SimpleMarkdownBody
+        content={content}
+        onChange={onChange}
+        canWrite={canWrite}
+        docPath={docPath}
+        fileSources={fileSources}
+      />
+    )
   }
 
   return (

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/fsidx-tsk.v1.schema.json",
+  "title": "fsidx Aufgaben-Datei (*.tsk.json)",
+  "$ref": "et2-tasks.v1.schema.json"
+}

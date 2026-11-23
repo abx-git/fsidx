@@ -53,6 +53,7 @@ interface FileContextMenuProps {
   onNewMarkdown?: () => void
   onDelete?: () => void
   onOpenInScope?: () => void
+  onAggregateTasks?: () => void
 }
 
 export function FileContextMenu({
@@ -69,6 +70,7 @@ export function FileContextMenu({
   onNewMarkdown,
   onDelete,
   onOpenInScope,
+  onAggregateTasks,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -114,6 +116,20 @@ export function FileContextMenu({
           >
             <FolderOpen className="h-4 w-4 shrink-0 text-emerald-600" />
             <span>In Dateiliste öffnen</span>
+          </button>
+        )}
+        {onAggregateTasks && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onAggregateTasks()
+              onClose()
+            }}
+          >
+            <ListTodo className="h-4 w-4 shrink-0 text-violet-600" />
+            <span>Aufgabenübersicht (Unterbaum)</span>
           </button>
         )}
         {onNewSubfolder && (

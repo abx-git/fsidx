@@ -14,6 +14,8 @@ import { CollapsibleSection } from './ui/CollapsibleSection'
 interface HeaderProps {
   searchQuery: string
   onSearchChange: (value: string) => void
+  searchTasksOnly?: boolean
+  onSearchTasksOnlyChange?: (value: boolean) => void
   onOpenFolder: () => void
   onFallbackInput: () => void
   onImportJson: () => void
@@ -29,6 +31,8 @@ interface HeaderProps {
 export function Header({
   searchQuery,
   onSearchChange,
+  searchTasksOnly = false,
+  onSearchTasksOnlyChange,
   onOpenFolder,
   onFallbackInput,
   onImportJson,
@@ -140,12 +144,23 @@ export function Header({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <input
               type="search"
-              placeholder="Suche im aktuellen Scope…"
+              placeholder={searchTasksOnly ? 'Aufgaben im Scope suchen…' : 'Suche im aktuellen Scope…'}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 bg-zinc-50 py-1.5 pl-10 pr-3 text-sm text-zinc-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             />
           </div>
+          {onSearchTasksOnlyChange && (
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-zinc-300 text-violet-600"
+                checked={searchTasksOnly}
+                onChange={(e) => onSearchTasksOnlyChange(e.target.checked)}
+              />
+              Nur Aufgaben
+            </label>
+          )}
         </div>
       )}
     </header>

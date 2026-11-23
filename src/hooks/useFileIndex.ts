@@ -10,9 +10,15 @@ import {
 import type { FileSourceStore } from '../lib/file-sources'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
-import { listEt2TaskPathsFromEntries, searchEt2Tasks } from '../lib/et2/et2-search'
+import {
+  et2SearchHitToIndexEntry,
+  listEt2TaskPathsFromEntries,
+  searchEt2Tasks,
+} from '../lib/et2/et2-search'
+import { isTaskFilePath, isTasksBundlePath } from '../lib/et2/paths'
+import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isEntryInScope } from '../lib/workspace-scope'
-import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
+import type { FileIndexManifest, IndexEntry, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
 import { appendFileToManifest } from '../lib/manifest-append'
 import { removePathFromManifest } from '../lib/manifest-remove'
@@ -58,6 +64,9 @@ export function useFileIndex() {
   const [currentPath, setCurrentPath] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchTasksOnly, setSearchTasksOnly] = useState(false)
+  const taskTitlesRef = useRef<Map<string, string>>(new Map())
+  const [taskTitleGeneration, setTaskTitleGeneration] = useState(0)
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentNode = useMemo(() => {
@@ -78,31 +87,51 @@ export function useFileIndex() {
     return listEt2TaskPathsFromEntries(manifest.entries)
   }, [manifest])
 
+  const registerTaskSearchTitles = useCallback((titles: Map<string, string>) => {
+    taskTitlesRef.current = titles
+    setTaskTitleGeneration((g) => g + 1)
+  }, [])
+
   const searchResults = useMemo(() => {
     if (!manifest || !searchQuery.trim()) return []
     const scopedEntries = manifest.entries.filter((e) => isEntryInScope(e.path, currentPath))
-    const fileResults = searchEntries(scopedEntries, { query: searchQuery })
-    const scopedEt2Hits = et2TaskHits.filter((h) => isEntryInScope(h.relativePath, currentPath))
-    const et2Hits = searchEt2Tasks(scopedEt2Hits, searchQuery)
-    const seen = new Set(fileResults.map((e) => e.path))
-    const fromTasks = et2Hits
-      .filter((h) => !seen.has(h.relativePath))
-      .map((h) => {
-        const existing = manifest.entries.find((e) => e.path === h.relativePath)
-        if (existing) return existing
-        return {
-          id: `et2-search-${h.relativePath}`,
-          kind: 'file' as const,
-          name: `${h.titleHint}.task.md`,
-          path: h.relativePath,
-          parentPath: h.parentPath,
-          depth: h.relativePath.split('/').length,
-          extension: 'md',
-          searchText: `et2 task ${h.titleHint} ${h.relativePath}`,
+    const scopedEt2Hits = et2TaskHits.filter((h) => isEntryInScope(h.relativePath.split('#')[0], currentPath))
+    const et2Hits = searchEt2Tasks(scopedEt2Hits, searchQuery, taskTitlesRef.current)
+    const fromTasks = et2Hits.map(et2SearchHitToIndexEntry)
+
+    if (searchTasksOnly) {
+      const bundleFiles = searchEntries(
+        scopedEntries.filter(
+          (e) => e.kind === 'file' && (isTskJsonPath(e.path) || isTasksBundlePath(e.path) || isTaskFilePath(e.path)),
+        ),
+        { query: searchQuery },
+      )
+      const seen = new Set(fromTasks.map((e) => e.path.split('#')[0]))
+      for (const f of bundleFiles) {
+        if (!seen.has(f.path)) {
+          fromTasks.push(f)
+          seen.add(f.path)
         }
-      })
-    return [...fileResults, ...fromTasks]
-  }, [manifest, searchQuery, et2TaskHits, currentPath])
+      }
+      return fromTasks
+    }
+
+    const fileResults = searchEntries(scopedEntries, { query: searchQuery }).filter(
+      (e) =>
+        !isTaskFilePath(e.path) &&
+        !isTasksBundlePath(e.path) &&
+        !isTskJsonPath(e.path),
+    )
+    const seen = new Set<string>()
+    const merged: IndexEntry[] = []
+    for (const e of [...fromTasks, ...fileResults]) {
+      const key = e.path
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(e)
+    }
+    return merged
+  }, [manifest, searchQuery, et2TaskHits, currentPath, searchTasksOnly, taskTitleGeneration])
 
   const indexedFilePaths = useMemo(() => {
     if (!manifest) return new Set<string>()
@@ -366,6 +395,9 @@ export function useFileIndex() {
     selectedNode,
     searchQuery,
     setSearchQuery,
+    searchTasksOnly,
+    setSearchTasksOnly,
+    registerTaskSearchTitles,
     searchResults,
     indexFromPicker,
     indexFromFileList,

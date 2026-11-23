@@ -19,6 +19,7 @@ interface FileBrowserProps {
   selectedId: string | null
   searchQuery: string
   searchResults: IndexEntry[]
+  searchTasksOnly?: boolean
   indexedFilePaths: Set<string>
   hasSidecar: (filePath: string) => boolean
   onOpenViewer: (
@@ -55,6 +56,7 @@ export function FileBrowser({
   selectedId,
   searchQuery,
   searchResults,
+  searchTasksOnly = false,
   indexedFilePaths,
   hasSidecar,
   onOpenViewer,
@@ -121,7 +123,8 @@ export function FileBrowser({
               variant="compact"
             />
             <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-              {searchResults.length} Treffer für &quot;{searchQuery}&quot; (nur im aktuellen Scope)
+              {searchResults.length} Treffer für &quot;{searchQuery}&quot;
+              {searchTasksOnly ? ' (nur Aufgaben)' : ''} · Scope: aktueller Ordner
             </p>
           </>
         )}

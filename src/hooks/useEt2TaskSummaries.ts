@@ -17,6 +17,7 @@ export function useEt2TaskSummaries(
   indexedPaths: string[],
   dirPath: string,
   fileSources: FileSourceStore | null,
+  enabled = true,
 ): {
   tasks: Et2TaskSummary[]
   loading: boolean
@@ -33,6 +34,11 @@ export function useEt2TaskSummaries(
   }, [])
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!enabled) {
+      setTasks([])
+      setLoading(false)
+      return
+    }
     const legacyBase = scanSubtreeLegacyTasks(indexedPaths, dirPath)
     if (!fileSources) {
       setTasks(legacyBase)
@@ -106,7 +112,7 @@ export function useEt2TaskSummaries(
     } finally {
       if (!opts?.silent) setLoading(false)
     }
-  }, [indexedPaths, dirPath, fileSources])
+  }, [indexedPaths, dirPath, fileSources, enabled])
 
   useEffect(() => {
     void load()

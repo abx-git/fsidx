@@ -11,6 +11,7 @@ interface DetailPanelProps {
   node: IndexNode | null
   jsonPreview: string
   tskDetailSlot?: ReactNode
+  aggregateTaskSlot?: ReactNode
   legacyNoticeSlot?: ReactNode
   viewerPinned: boolean
   onViewerPinnedChange: (value: boolean) => void
@@ -32,6 +33,7 @@ export function DetailPanel({
   node,
   jsonPreview,
   tskDetailSlot,
+  aggregateTaskSlot,
   legacyNoticeSlot,
   viewerPinned,
   onViewerPinnedChange,
@@ -49,7 +51,8 @@ export function DetailPanel({
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
   const detailsVisible = !showViewer || !viewerExpanded
-  const showTskDetail = Boolean(tskDetailSlot)
+  const showAggregateTasks = Boolean(aggregateTaskSlot)
+  const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLegacyNotice = Boolean(legacyNoticeSlot)
   const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail && !showLegacyNotice
 
@@ -114,6 +117,9 @@ export function DetailPanel({
         </div>
       )}
 
+        {showAggregateTasks && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{aggregateTaskSlot}</div>
+        )}
         {showLegacyNotice && <div className="shrink-0">{legacyNoticeSlot}</div>}
         {showTskDetail && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{tskDetailSlot}</div>

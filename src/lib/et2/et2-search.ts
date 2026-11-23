@@ -1,5 +1,6 @@
 import type { IndexEntry } from '../../types'
 import { isBundledTaskRef, isTaskFilePath, isTasksBundlePath, taskIdFromPath } from './paths'
+import { isTskJsonPath } from './tsk-paths'
 import { normalizeQuery } from '../search'
 
 export interface Et2SearchHit {
@@ -14,7 +15,7 @@ export function listEt2TaskPathsFromEntries(entries: IndexEntry[]): Et2SearchHit
   const hits: Et2SearchHit[] = []
   for (const e of entries) {
     if (e.kind !== 'file') continue
-    if (!isTaskFilePath(e.path) && !isTasksBundlePath(e.path)) continue
+    if (!isTaskFilePath(e.path) && !isTasksBundlePath(e.path) && !isTskJsonPath(e.path)) continue
     const taskId = taskIdFromPath(e.path) ?? (isTasksBundlePath(e.path) ? 'tasks' : e.name)
     const parentPath = e.parentPath
     hits.push({
@@ -64,4 +65,21 @@ export function searchEt2Tasks(
     const hay = `${title} ${h.taskId} ${h.relativePath} task et2`.toLowerCase()
     return terms.every((t) => hay.includes(t))
   })
+}
+
+export function et2SearchHitToIndexEntry(h: Et2SearchHit): IndexEntry {
+  const bundlePath = h.relativePath.split('#')[0]
+  const parentPath = bundlePath.includes('/')
+    ? bundlePath.slice(0, bundlePath.lastIndexOf('/'))
+    : ''
+  return {
+    id: `et2-search-${h.relativePath}`,
+    kind: 'file',
+    name: h.titleHint || h.displayName,
+    path: h.relativePath,
+    parentPath,
+    depth: h.relativePath.replace(/#/g, '/').split('/').length,
+    extension: isTskJsonPath(bundlePath) ? 'tsk.json' : 'md',
+    searchText: `${h.titleHint} ${h.relativePath} aufgabe task`,
+  }
 }

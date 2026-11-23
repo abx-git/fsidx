@@ -10,6 +10,7 @@ import { canWriteToStore, writeTextToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
 import { TskDetailPanel } from './components/et2/TskDetailPanel'
+import { Et2AggregateTaskPanel } from './components/et2/Et2AggregateTaskPanel'
 import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
@@ -26,7 +27,12 @@ import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
 import { isTskJsonPath } from './lib/et2/tsk-paths'
-import { isTaskFilePath, makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
+import {
+  isBundledTaskRef,
+  isTaskFilePath,
+  makeBundledTaskRef,
+  taskRefFromPath,
+} from './lib/et2/paths'
 import { sanitizeScopePath } from './lib/scope-sanitize'
 import { LegacyTaskNotice } from './components/et2/LegacyTaskNotice'
 import { taskContainerDir } from './lib/workspace-scope'
@@ -92,6 +98,9 @@ function App() {
     selectedNode,
     searchQuery,
     setSearchQuery,
+    searchTasksOnly,
+    setSearchTasksOnly,
+    registerTaskSearchTitles,
     searchResults,
     indexFromPicker,
     indexFromFileList,
@@ -172,7 +181,21 @@ function App() {
     [manifest],
   )
 
+  const [aggregateTasksDir, setAggregateTasksDir] = useState<string | null>(null)
+
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
+  const aggregateEt2Tasks = useEt2TaskSummaries(
+    indexedPathList,
+    aggregateTasksDir ?? currentPath,
+    fileSources,
+    aggregateTasksDir !== null,
+  )
+
+  useEffect(() => {
+    const titles = new Map<string, string>()
+    for (const t of et2Tasks.tasks) titles.set(t.relativePath, t.title)
+    registerTaskSearchTitles(titles)
+  }, [et2Tasks.tasks, registerTaskSearchTitles])
 
   const activeTskPath = useMemo(() => {
     if (selectedNode?.kind !== 'file' || !isTskJsonPath(selectedNode.path)) return null
@@ -258,6 +281,50 @@ function App() {
         : target
     return JSON.stringify(slice, null, 2)
   }, [manifest, inspectNode])
+
+  const handleSelectEntry = useCallback(
+    (id: string) => {
+      if (!manifest) {
+        setSelectedId(id)
+        return
+      }
+      const fromSearch = searchResults.find((e) => e.id === id)
+      const entry =
+        fromSearch ?? manifest.entries.find((e) => e.id === id) ?? null
+      if (!entry) {
+        setSelectedId(id)
+        return
+      }
+      const ref = taskRefFromPath(entry.path)
+      if (ref) {
+        const bundleEntry = manifest.entries.find((e) => e.path === ref.bundlePath)
+        const dirPath = ref.bundlePath.includes('/')
+          ? ref.bundlePath.slice(0, ref.bundlePath.lastIndexOf('/'))
+          : ''
+        navigateToPath(dirPath, bundleEntry?.id ?? null)
+        setSelectedTskTaskRef(makeBundledTaskRef(ref.bundlePath, ref.taskId))
+        setSearchQuery('')
+        return
+      }
+      setSelectedId(id)
+    },
+    [manifest, searchResults, setSelectedId, setSearchQuery, navigateToPath],
+  )
+
+  const handleOpenTaskFromAggregate = useCallback(
+    (taskRef: string, bundlePath: string) => {
+      if (!manifest) return
+      const bundleEntry = manifest.entries.find((e) => e.path === bundlePath)
+      const dirPath = bundlePath.includes('/')
+        ? bundlePath.slice(0, bundlePath.lastIndexOf('/'))
+        : ''
+      navigateToPath(dirPath, bundleEntry?.id ?? null)
+      const ref = taskRefFromPath(taskRef)
+      if (ref) setSelectedTskTaskRef(makeBundledTaskRef(ref.bundlePath, ref.taskId))
+      else if (isBundledTaskRef(taskRef)) setSelectedTskTaskRef(taskRef)
+    },
+    [manifest, navigateToPath],
+  )
 
   const openViewer = useCallback(
     (
@@ -877,9 +944,10 @@ function App() {
       rootName={manifest.rootName}
       currentNode={currentNode}
       onNavigate={(path) => navigateToPath(path, null)}
-      onSelectEntry={setSelectedId}
+      onSelectEntry={handleSelectEntry}
       selectedId={selectedId}
       searchQuery={searchQuery}
+      searchTasksOnly={searchTasksOnly}
       searchResults={searchResults}
       indexedFilePaths={indexedFilePaths}
       hasSidecar={hasSidecar}
@@ -918,6 +986,8 @@ function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        searchTasksOnly={searchTasksOnly}
+        onSearchTasksOnlyChange={setSearchTasksOnly}
         onOpenFolder={handleOpenFolder}
         onFallbackInput={() => fallbackInputRef.current?.click()}
         onImportJson={() => importInputRef.current?.click()}
@@ -988,6 +1058,18 @@ function App() {
             manifest={manifest}
             node={inspectNode}
             jsonPreview={jsonPreview}
+            aggregateTaskSlot={
+              aggregateTasksDir !== null ? (
+                <Et2AggregateTaskPanel
+                  scopePath={aggregateTasksDir}
+                  rootName={manifest.rootName}
+                  tasks={aggregateEt2Tasks.tasks}
+                  loading={aggregateEt2Tasks.loading}
+                  onOpenTask={handleOpenTaskFromAggregate}
+                  onClose={() => setAggregateTasksDir(null)}
+                />
+              ) : undefined
+            }
             legacyNoticeSlot={
               isLegacyTaskFile && selectedNode ? (
                 <LegacyTaskNotice
@@ -1136,6 +1218,14 @@ function App() {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           void handleNewMarkdown(contextMenu.path)
         }}
+        onAggregateTasks={
+          contextMenu?.kind === 'directory'
+            ? () => {
+                setAggregateTasksDir(contextMenu.path)
+                setContextMenu(null)
+              }
+            : undefined
+        }
         onOpenInScope={() => handleOpenContextInScope()}
         onDelete={
           contextMenu && (contextMenu.kind === 'file' || contextMenu.path !== '')

@@ -1,12 +1,10 @@
 import { syntaxTree } from '@codemirror/language'
-import type { EditorState } from '@codemirror/state'
-import { RangeSetBuilder } from '@codemirror/state'
+import type { EditorState, Extension } from '@codemirror/state'
+import { RangeSetBuilder, StateField } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
   EditorView,
-  ViewPlugin,
-  type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNodeRef } from '@lezer/common'
 import {
@@ -125,7 +123,7 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
       line.to,
       Decoration.replace({
         widget: new MarkdownPreviewWidget(slice, line.from, ctx),
-        block: true,
+        block: false,
       }),
     )
   }
@@ -138,21 +136,28 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   }
 }
 
-export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext) {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-
-      constructor(view: EditorView) {
-        this.decorations = buildDecorations(view.state, ctx)
-      }
-
-      update(update: ViewUpdate) {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildDecorations(update.state, ctx)
-        }
-      }
+/**
+ * Block-/zeilenübergreifende Replace-Widgets müssen als StateField laufen
+ * (nicht ViewPlugin), siehe CodeMirror-Dokumentation zu EditorView.decorations.
+ */
+export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension {
+  const field = StateField.define<DecorationSet>({
+    create(state) {
+      return buildDecorations(state, ctx)
     },
-    { decorations: (v) => v.decorations },
-  )
+    update(decorations, tr) {
+      if (
+        tr.docChanged ||
+        !tr.startState.selection.eq(tr.state.selection)
+      ) {
+        return buildDecorations(tr.state, ctx)
+      }
+      return decorations.map(tr.changes)
+    },
+    provide: (f) => [
+      EditorView.decorations.from(f),
+      EditorView.atomicRanges.of((view) => view.state.field(f)),
+    ],
+  })
+  return field
 }

@@ -1,45 +1,24 @@
-import { isEt2InternalPath } from './et2/is-et2-internal'
 import type { IndexNode } from '../types'
-import {
-  shouldShowDirectoryInTree,
-  shouldShowFileInTree,
-  type TreeDisplayFilterState,
-} from './tree-display-filter'
+import { isIndexedFileInTree, shouldShowDirectoryInTree } from './tree-display-filter'
 
 export interface VisibleTreeRow {
   id: string
   path: string
   parentPath: string
-  kind: 'directory' | 'file'
+  kind: 'directory'
   hasChildren: boolean
   expanded: boolean
   depth: number
   node: IndexNode
 }
 
-/** Ordner im Baum, auch wenn Dateien ausgeblendet sind (Navigation über SCOPE). */
+/** Ordner im Baum, auch wenn Dateien nur in der mittleren Liste erscheinen. */
 export function directoryHasNavigableContent(node: IndexNode, showEt2DotFiles: boolean): boolean {
   for (const child of node.children ?? []) {
     if (child.kind === 'directory') {
       if (!shouldShowDirectoryInTree(child.path, showEt2DotFiles)) continue
       if (directoryHasNavigableContent(child, showEt2DotFiles)) return true
-    } else if (!isEt2InternalPath(child.path, showEt2DotFiles)) {
-      return true
-    }
-  }
-  return false
-}
-
-export function dirHasVisibleDescendants(
-  node: IndexNode,
-  filter: TreeDisplayFilterState,
-  showEt2DotFiles: boolean,
-): boolean {
-  for (const child of node.children ?? []) {
-    if (child.kind === 'directory') {
-      if (!shouldShowDirectoryInTree(child.path, showEt2DotFiles)) continue
-      if (directoryHasNavigableContent(child, showEt2DotFiles)) return true
-    } else if (shouldShowFileInTree(child.path, filter, showEt2DotFiles)) {
+    } else if (isIndexedFileInTree(child.path, showEt2DotFiles)) {
       return true
     }
   }
@@ -52,33 +31,28 @@ function parentPathOf(path: string): string {
   return i < 0 ? '' : path.slice(0, i)
 }
 
-function visibleChildren(
-  node: IndexNode,
-  filter: TreeDisplayFilterState,
-  showEt2DotFiles: boolean,
-): IndexNode[] {
-  return (node.children ?? []).filter((child) =>
-    child.kind === 'directory'
-      ? shouldShowDirectoryInTree(child.path, showEt2DotFiles) &&
-        directoryHasNavigableContent(child, showEt2DotFiles)
-      : shouldShowFileInTree(child.path, filter, showEt2DotFiles),
+function visibleDirectoryChildren(node: IndexNode, showEt2DotFiles: boolean): IndexNode[] {
+  return (node.children ?? []).filter(
+    (child) =>
+      child.kind === 'directory' &&
+      shouldShowDirectoryInTree(child.path, showEt2DotFiles) &&
+      directoryHasNavigableContent(child, showEt2DotFiles),
   )
 }
 
-/** Sichtbare Zeilen in Tiefenfirst-Reihenfolge (für Tastatur ↑↓). */
+/** Sichtbare Ordnerzeilen in Tiefenfirst-Reihenfolge (für Tastatur ↑↓). */
 export function flattenVisibleTree(
   root: IndexNode,
   expandedPaths: Set<string>,
-  filter: TreeDisplayFilterState,
   showEt2DotFiles: boolean,
 ): VisibleTreeRow[] {
   const rows: VisibleTreeRow[] = []
 
   function walkDir(node: IndexNode): void {
-    const kids = visibleChildren(node, filter, showEt2DotFiles)
+    const kids = visibleDirectoryChildren(node, showEt2DotFiles)
     const hasChildren = kids.length > 0
     const isRoot = node.path === ''
-    if (!isRoot && !hasChildren) return
+    if (!isRoot && !directoryHasNavigableContent(node, showEt2DotFiles)) return
 
     const expanded = expandedPaths.has(node.path)
     rows.push({
@@ -94,19 +68,7 @@ export function flattenVisibleTree(
 
     if (!expanded) return
     for (const child of kids) {
-      if (child.kind === 'directory') walkDir(child)
-      else if (shouldShowFileInTree(child.path, filter, showEt2DotFiles)) {
-        rows.push({
-          id: child.id,
-          path: child.path,
-          parentPath: node.path,
-          kind: 'file',
-          hasChildren: false,
-          expanded: false,
-          depth: child.depth,
-          node: child,
-        })
-      }
+      walkDir(child)
     }
   }
 

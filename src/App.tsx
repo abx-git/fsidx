@@ -38,7 +38,6 @@ import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
-import { useTreeDisplayFilters } from './hooks/useTreeDisplayFilters'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
@@ -98,8 +97,6 @@ function App() {
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
   const { visible: detailMetadataVisible, setVisible: setDetailMetadataVisible } =
     useDetailMetadataVisible()
-  const { filter: treeFilter, setShowFiles: setTreeShowFiles, setShowTasks: setTreeShowTasks } =
-    useTreeDisplayFilters()
   const {
     expanded: viewerExpanded,
     setExpanded: setViewerExpanded,
@@ -163,15 +160,7 @@ function App() {
   )
 
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
-  const et2TasksForTree = useEt2TaskSummaries(indexedPathList, '', fileSources)
 
-  const taskTitleByPath = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const t of et2TasksForTree.tasks) {
-      map.set(t.relativePath, t.title)
-    }
-    return map
-  }, [et2TasksForTree.tasks])
   const activeTskPath = useMemo(() => {
     if (selectedNode?.kind !== 'file' || !isTskJsonPath(selectedNode.path)) return null
     return selectedNode.path
@@ -800,18 +789,9 @@ function App() {
               rootName={manifest.rootName}
               currentPath={currentPath}
               selectedId={selectedId}
-              filter={treeFilter}
-              onFilterShowFiles={setTreeShowFiles}
-              onFilterShowTasks={setTreeShowTasks}
               showEt2DotFiles={showEt2DotFiles}
               onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
-              onSelectFile={(path, id) => {
-                const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
-                setCurrentPath(parent)
-                setSelectedId(id)
-              }}
               indexedFilePaths={indexedPathList}
-              taskTitleByPath={taskTitleByPath}
               onContextMenu={setContextMenu}
             />
           </div>

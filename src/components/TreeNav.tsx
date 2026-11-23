@@ -2,7 +2,8 @@ import { ChevronDown, ChevronRight, CheckSquare, File, Folder } from 'lucide-rea
 import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { shouldShowFileInTree, type TreeDisplayFilterState } from '../lib/tree-display-filter'
-import { useCallback, useState } from 'react'
+import { dirHasVisibleDescendants, flattenVisibleTree } from '../lib/tree-flat'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
 
 const TREE_EXPANDED_KEY = 'fsidx.treeExpanded'
@@ -47,10 +48,14 @@ interface TreeNodeProps {
   node: IndexNode
   currentPath: string
   selectedId: string | null
+  focusedId: string | null
   filter: TreeDisplayFilterState
   showEt2DotFiles: boolean
   onSelectPath: (path: string, nodeId: string) => void
   onSelectFile: (path: string, nodeId: string) => void
+  onTreeKeyDown: (e: React.KeyboardEvent, nodeId: string) => void
+  onFocusItem: (nodeId: string) => void
+  registerItemRef: (nodeId: string, el: HTMLElement | null) => void
   indexedFilePaths?: string[]
   taskTitleByPath?: Map<string, string>
   expandedPaths: Set<string>
@@ -58,29 +63,18 @@ interface TreeNodeProps {
   depthOffset: number
 }
 
-function dirHasVisibleDescendants(
-  node: IndexNode,
-  filter: TreeDisplayFilterState,
-  showEt2DotFiles: boolean,
-): boolean {
-  for (const child of node.children ?? []) {
-    if (child.kind === 'directory') {
-      if (dirHasVisibleDescendants(child, filter, showEt2DotFiles)) return true
-    } else if (shouldShowFileInTree(child.path, filter, showEt2DotFiles)) {
-      return true
-    }
-  }
-  return false
-}
-
 function TreeNode({
   node,
   currentPath,
   selectedId,
+  focusedId,
   filter,
   showEt2DotFiles,
   onSelectPath,
   onSelectFile,
+  onTreeKeyDown,
+  onFocusItem,
+  registerItemRef,
   indexedFilePaths,
   taskTitleByPath,
   expandedPaths,
@@ -88,6 +82,8 @@ function TreeNode({
   depthOffset,
 }: TreeNodeProps) {
   const indent = Math.max(0, node.depth - depthOffset) * 12 + 4
+  const isFocused = focusedId === node.id
+  const focusClass = isFocused ? 'ring-2 ring-emerald-500/50 ring-inset' : ''
 
   if (node.kind === 'file') {
     if (!shouldShowFileInTree(node.path, filter, showEt2DotFiles)) return null
@@ -97,14 +93,19 @@ function TreeNode({
       : node.name
     const selected = selectedId === node.id
     return (
-      <button
-        type="button"
+      <div
+        role="treeitem"
+        tabIndex={isFocused ? 0 : -1}
+        ref={(el) => registerItemRef(node.id, el)}
+        aria-selected={selected}
+        onFocus={() => onFocusItem(node.id)}
+        onKeyDown={(e) => onTreeKeyDown(e, node.id)}
         onClick={() => onSelectFile(node.path, node.id)}
-        className={`flex w-full items-center gap-1 rounded-md py-1 pr-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+        className={`flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
           selected
             ? 'bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
             : 'text-zinc-700 dark:text-zinc-300'
-        }`}
+        } ${focusClass}`}
         style={{ paddingLeft: `${indent + 28}px` }}
       >
         {isTask ? (
@@ -113,7 +114,7 @@ function TreeNode({
           <File className="h-3.5 w-3.5 shrink-0 text-sky-500" />
         )}
         <span className="truncate">{label}</span>
-      </button>
+      </div>
     )
   }
 
@@ -137,7 +138,7 @@ function TreeNode({
   if (!isRoot && !hasChildren) return null
 
   return (
-    <div className="select-none">
+    <div className="select-none" role="group">
       <div
         className={`flex w-full items-center gap-0.5 rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
           isActive
@@ -150,7 +151,8 @@ function TreeNode({
           <button
             type="button"
             aria-label={open ? 'Einklappen' : 'Aufklappen'}
-            aria-expanded={open}
+            aria-hidden
+            tabIndex={-1}
             onClick={(e) => {
               e.stopPropagation()
               onToggleExpanded(node.path)
@@ -166,10 +168,16 @@ function TreeNode({
         ) : (
           <span className="inline-block w-7" />
         )}
-        <button
-          type="button"
+        <div
+          role="treeitem"
+          tabIndex={isFocused ? 0 : -1}
+          ref={(el) => registerItemRef(node.id, el)}
+          aria-expanded={hasChildren ? open : undefined}
+          aria-selected={isActive}
+          onFocus={() => onFocusItem(node.id)}
+          onKeyDown={(e) => onTreeKeyDown(e, node.id)}
           onClick={() => onSelectPath(node.path, node.id)}
-          className="flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 pr-2 text-left"
+          className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
         >
           <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span className="truncate">{node.name || '(root)'}</span>
@@ -182,7 +190,7 @@ function TreeNode({
               {taskCount}
             </span>
           )}
-        </button>
+        </div>
       </div>
       {open &&
         visibleChildren.map((child) => (
@@ -191,10 +199,14 @@ function TreeNode({
             node={child}
             currentPath={currentPath}
             selectedId={selectedId}
+            focusedId={focusedId}
             filter={filter}
             showEt2DotFiles={showEt2DotFiles}
             onSelectPath={onSelectPath}
             onSelectFile={onSelectFile}
+            onTreeKeyDown={onTreeKeyDown}
+            onFocusItem={onFocusItem}
+            registerItemRef={registerItemRef}
             indexedFilePaths={indexedFilePaths}
             taskTitleByPath={taskTitleByPath}
             expandedPaths={expandedPaths}
@@ -221,6 +233,9 @@ export function TreeNav({
   taskTitleByPath,
 }: TreeNavProps) {
   const [expandedPaths, setExpandedPaths] = useState(() => readExpandedPaths(rootName))
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+  const itemRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const treeScrollRef = useRef<HTMLDivElement>(null)
 
   const onToggleExpanded = useCallback(
     (path: string) => {
@@ -234,6 +249,107 @@ export function TreeNav({
     },
     [rootName],
   )
+
+  const flatRows = useMemo(
+    () => flattenVisibleTree(root, expandedPaths, filter, showEt2DotFiles),
+    [root, expandedPaths, filter, showEt2DotFiles],
+  )
+
+  const registerItemRef = useCallback((nodeId: string, el: HTMLElement | null) => {
+    if (el) itemRefs.current.set(nodeId, el)
+    else itemRefs.current.delete(nodeId)
+  }, [])
+
+  const focusRow = useCallback((id: string) => {
+    setFocusedId(id)
+    const el = itemRefs.current.get(id)
+    if (el) {
+      el.focus({ preventScroll: false })
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [])
+
+  const activateRow = useCallback(
+    (row: (typeof flatRows)[0]) => {
+      if (row.kind === 'directory') {
+        onSelectPath(row.path, row.id)
+      } else {
+        onSelectFile(row.path, row.id)
+      }
+    },
+    [onSelectPath, onSelectFile],
+  )
+
+  const onTreeKeyDown = useCallback(
+    (e: React.KeyboardEvent, nodeId: string) => {
+      const idx = flatRows.findIndex((r) => r.id === nodeId)
+      if (idx < 0) return
+      const row = flatRows[idx]
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          if (idx < flatRows.length - 1) focusRow(flatRows[idx + 1].id)
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          if (idx > 0) focusRow(flatRows[idx - 1].id)
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          if (row.kind === 'directory' && row.hasChildren) {
+            if (!row.expanded) onToggleExpanded(row.path)
+            else if (idx < flatRows.length - 1) focusRow(flatRows[idx + 1].id)
+          }
+          break
+        case 'ArrowLeft':
+          e.preventDefault()
+          if (row.kind === 'directory' && row.expanded) {
+            onToggleExpanded(row.path)
+          } else if (row.parentPath !== row.path) {
+            const parent = flatRows.find(
+              (r) => r.kind === 'directory' && r.path === row.parentPath,
+            )
+            if (parent) focusRow(parent.id)
+          }
+          break
+        case 'Enter':
+        case ' ':
+          e.preventDefault()
+          activateRow(row)
+          break
+        case 'Home':
+          e.preventDefault()
+          if (flatRows[0]) focusRow(flatRows[0].id)
+          break
+        case 'End':
+          e.preventDefault()
+          if (flatRows.length > 0) focusRow(flatRows[flatRows.length - 1].id)
+          break
+        default:
+          break
+      }
+    },
+    [flatRows, focusRow, onToggleExpanded, activateRow],
+  )
+
+  useEffect(() => {
+    if (focusedId && !flatRows.some((r) => r.id === focusedId)) {
+      setFocusedId(flatRows[0]?.id ?? null)
+    }
+  }, [flatRows, focusedId])
+
+  const onTreeContainerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== treeScrollRef.current) return
+    if (e.key === 'ArrowDown' || e.key === 'Down' || e.key === 'Enter') {
+      e.preventDefault()
+      const start =
+        flatRows.find((r) => r.kind === 'directory' && r.path === currentPath)?.id ??
+        flatRows.find((r) => r.id === selectedId)?.id ??
+        flatRows[0]?.id
+      if (start) focusRow(start)
+    }
+  }
 
   const showAll = !filter.showFiles && !filter.showTasks
 
@@ -275,16 +391,30 @@ export function TreeNav({
                 ? 'Nur normale Dateien (keine Aufgaben).'
                 : 'Nur Aufgaben (.task.md).'}
         </p>
+        <p className="px-1 text-[10px] text-zinc-400">
+          Tastatur: ↑↓ navigieren · → aufklappen · ← zuklappen · Eingabe wählen
+        </p>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+      <div
+        ref={treeScrollRef}
+        role="tree"
+        tabIndex={0}
+        aria-label="Ordner und Dateien"
+        onKeyDown={onTreeContainerKeyDown}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 outline-none focus:ring-1 focus:ring-inset focus:ring-emerald-500/40"
+      >
         <TreeNode
           node={root}
           currentPath={currentPath}
           selectedId={selectedId}
+          focusedId={focusedId}
           filter={filter}
           showEt2DotFiles={showEt2DotFiles}
           onSelectPath={onSelectPath}
           onSelectFile={onSelectFile}
+          onTreeKeyDown={onTreeKeyDown}
+          onFocusItem={setFocusedId}
+          registerItemRef={registerItemRef}
           indexedFilePaths={indexedFilePaths}
           taskTitleByPath={taskTitleByPath}
           expandedPaths={expandedPaths}

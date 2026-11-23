@@ -10,6 +10,7 @@ import { canWriteToStore, writeTextToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
 import { Header, type CenterPaneMode } from './components/Header'
 import { Et2TaskPanel } from './components/et2/Et2TaskPanel'
+import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
 import {
@@ -20,6 +21,7 @@ import {
 import { taskContainerDir } from './lib/workspace-scope'
 import { folderMetaRelative } from './lib/et2/paths'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
+import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
 import { DetailPanel } from './components/DetailPanel'
@@ -60,6 +62,7 @@ function App() {
   const [showEt2DotFiles, setShowEt2DotFiles] = useState(false)
   const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
   const [selectedEt2TaskPath, setSelectedEt2TaskPath] = useState<string | null>(null)
+  const [newEt2TaskTarget, setNewEt2TaskTarget] = useState<string | null>(null)
 
   const {
     manifest,
@@ -159,6 +162,7 @@ function App() {
   }, [manifest])
 
   const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
+  const et2TaskEditor = useEt2TaskEditor(selectedEt2TaskPath, fileSources)
 
   const scopeNode = useMemo(() => {
     if (!manifest) return null
@@ -436,40 +440,67 @@ function App() {
     openViewer,
   ])
 
-  const handleEt2NewTask = useCallback(
-    async (dirPath: string) => {
+  const openNewEt2TaskDialog = useCallback(
+    (dirPath: string) => {
       if (!fileSources || !canWrite) {
         window.alert('ET2-Aufgabe: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.')
         return
       }
-      const title = window.prompt('Titel der neuen Aufgabe:', 'Neue Aufgabe')
-      if (title === null || !title.trim()) return
-      try {
-        const { row } = await createEt2TaskOnDisk(fileSources, { dirPath, title: title.trim() })
-        const id = registerSidecarFile(row)
-        if (!id) {
-          window.alert(
-            'Aufgabe wurde geschrieben, aber der Index wurde nicht aktualisiert. Ordner neu indexieren.',
-          )
-        }
-        clearMarkdownDrafts()
-        et2Tasks.reload()
-        setCenterMode('tasks')
-        setSelectedEt2TaskPath(row.relativePath)
-        if (id) {
-          openViewer('markdown', row.relativePath, row.name, id, row.size)
-        }
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
-      }
+      setCenterMode('tasks')
+      setNewEt2TaskTarget(dirPath)
     },
-    [fileSources, canWrite, registerSidecarFile, openViewer, et2Tasks],
+    [fileSources, canWrite],
   )
 
+  const submitNewEt2Task = useCallback(
+    async (title: string, body: string) => {
+      if (!fileSources || !newEt2TaskTarget) {
+        throw new Error('Ordner nicht verbunden.')
+      }
+      const { row } = await createEt2TaskOnDisk(fileSources, {
+        dirPath: newEt2TaskTarget,
+        title,
+        body,
+      })
+      const id = registerSidecarFile(row)
+      if (!id) {
+        window.alert(
+          'Aufgabe wurde geschrieben, aber der Index wurde nicht aktualisiert. Ordner neu indexieren.',
+        )
+      } else {
+        setSelectedId(id)
+      }
+      clearMarkdownDrafts()
+      et2Tasks.reload()
+      setCenterMode('tasks')
+      setSelectedEt2TaskPath(row.relativePath)
+    },
+    [fileSources, newEt2TaskTarget, registerSidecarFile, et2Tasks],
+  )
+
+  const handleSaveEt2TaskContent = useCallback(async () => {
+    if (!selectedEt2TaskPath) return
+    try {
+      const stats = await et2TaskEditor.save()
+      if (stats) {
+        const name = selectedEt2TaskPath.split('/').pop() ?? selectedEt2TaskPath
+        registerSidecarFile({
+          relativePath: selectedEt2TaskPath,
+          name,
+          kind: 'file',
+          size: stats.size,
+          lastModified: stats.lastModified,
+        })
+        et2Tasks.reload()
+      }
+    } catch {
+      // Fehler im Hook gesetzt
+    }
+  }, [selectedEt2TaskPath, et2TaskEditor, registerSidecarFile, et2Tasks])
+
   const handleNewEt2TaskFromChrome = useCallback(() => {
-    setCenterMode('tasks')
-    void handleEt2NewTask(currentPath)
-  }, [handleEt2NewTask, currentPath])
+    openNewEt2TaskDialog(currentPath)
+  }, [openNewEt2TaskDialog, currentPath])
 
   const handleEt2FolderMeta = useCallback(
     async (dirPath: string) => {
@@ -593,7 +624,18 @@ function App() {
         openViewer('markdown', relativePath, name, id)
         setSelectedEt2TaskPath(relativePath)
       }}
-      onNewTask={() => void handleEt2NewTask(currentPath)}
+      onNewTask={() => openNewEt2TaskDialog(currentPath)}
+      taskEditor={{
+        title: et2TaskEditor.title,
+        body: et2TaskEditor.body,
+        onTitleChange: et2TaskEditor.updateTitle,
+        onBodyChange: et2TaskEditor.updateBody,
+        onSave: handleSaveEt2TaskContent,
+        loading: et2TaskEditor.loading,
+        saving: et2TaskEditor.saving,
+        dirty: et2TaskEditor.dirty,
+        error: et2TaskEditor.error,
+      }}
       onNewSubtask={() => void handleEt2Subtask()}
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
@@ -751,6 +793,13 @@ function App() {
         </div>
       )}
 
+      <Et2NewTaskDialog
+        open={newEt2TaskTarget !== null}
+        onClose={() => setNewEt2TaskTarget(null)}
+        onSubmit={submitNewEt2Task}
+        scopeLabel={newEt2TaskTarget ?? currentPath}
+      />
+
       <FileContextMenu
         target={contextMenu}
         onClose={() => setContextMenu(null)}
@@ -775,7 +824,7 @@ function App() {
         }}
         onEt2NewTask={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
-          void handleEt2NewTask(contextMenu.path)
+          openNewEt2TaskDialog(contextMenu.path)
         }}
         onEt2FolderMeta={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return

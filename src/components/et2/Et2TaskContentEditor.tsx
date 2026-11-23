@@ -1,0 +1,130 @@
+import { Loader2, Save } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { useState } from 'react'
+
+interface Et2TaskContentEditorProps {
+  title: string
+  body: string
+  onTitleChange: (v: string) => void
+  onBodyChange: (v: string) => void
+  onSave: () => Promise<void>
+  loading: boolean
+  saving: boolean
+  dirty: boolean
+  error: string | null
+  canWrite: boolean
+  taskPath: string | null
+  onOpenFullEditor?: () => void
+}
+
+export function Et2TaskContentEditor({
+  title,
+  body,
+  onTitleChange,
+  onBodyChange,
+  onSave,
+  loading,
+  saving,
+  dirty,
+  error,
+  canWrite,
+  taskPath,
+  onOpenFullEditor,
+}: Et2TaskContentEditorProps) {
+  const [tab, setTab] = useState<'edit' | 'preview'>('edit')
+
+  if (!taskPath) {
+    return (
+      <p className="border-t border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800">
+        Aufgabe in der Liste wählen, um Titel und Inhalt zu bearbeiten.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col border-t border-violet-200 bg-violet-50/30 dark:border-violet-900/50 dark:bg-violet-950/20">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100 px-3 py-2 dark:border-violet-900/40">
+        <span className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+          Inhalt
+        </span>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md border border-zinc-200 p-0.5 text-[11px] dark:border-zinc-700">
+            <button
+              type="button"
+              onClick={() => setTab('edit')}
+              className={`rounded px-2 py-0.5 ${tab === 'edit' ? 'bg-white shadow dark:bg-zinc-800' : ''}`}
+            >
+              Bearbeiten
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('preview')}
+              className={`rounded px-2 py-0.5 ${tab === 'preview' ? 'bg-white shadow dark:bg-zinc-800' : ''}`}
+            >
+              Vorschau
+            </button>
+          </div>
+          {onOpenFullEditor && (
+            <button
+              type="button"
+              onClick={onOpenFullEditor}
+              className="text-[11px] text-violet-700 underline dark:text-violet-300"
+            >
+              Voller Editor
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!canWrite || !dirty || saving || loading}
+            onClick={() => void onSave()}
+            className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+            Speichern
+          </button>
+        </div>
+      </div>
+      {loading ? (
+        <p className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Lade Aufgabe…
+        </p>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            disabled={!canWrite}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium dark:border-zinc-600 dark:bg-zinc-950"
+            placeholder="Titel"
+          />
+          {tab === 'edit' ? (
+            <textarea
+              value={body}
+              onChange={(e) => onBodyChange(e.target.value)}
+              disabled={!canWrite}
+              placeholder="Markdown: Beschreibung, Listen, Links …"
+              className="min-h-[min(40vh,320px)] flex-1 resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-sm leading-relaxed dark:border-zinc-600 dark:bg-zinc-950"
+            />
+          ) : (
+            <div className="markdown-preview min-h-[120px] rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+              {body.trim() ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+              ) : (
+                <p className="text-zinc-400">Noch kein Inhalt.</p>
+              )}
+            </div>
+          )}
+          {dirty && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">Ungespeicherte Änderungen</p>
+          )}
+          {error && (
+            <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">{error}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

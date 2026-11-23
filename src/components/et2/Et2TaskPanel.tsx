@@ -3,6 +3,19 @@ import { ScopeCreateActions } from '../ScopeCreateActions'
 import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import { normalizeScopePath } from '../../lib/workspace-scope'
+import { Et2TaskContentEditor } from './Et2TaskContentEditor'
+
+interface TaskEditorSlice {
+  title: string
+  body: string
+  onTitleChange: (v: string) => void
+  onBodyChange: (v: string) => void
+  onSave: () => Promise<void>
+  loading: boolean
+  saving: boolean
+  dirty: boolean
+  error: string | null
+}
 
 interface Et2TaskPanelProps {
   rootName: string
@@ -19,6 +32,7 @@ interface Et2TaskPanelProps {
   onNewFolder?: () => void
   onNewMarkdown?: () => void
   taskPathToEntryId: Map<string, string>
+  taskEditor: TaskEditorSlice
 }
 
 export function Et2TaskPanel({
@@ -36,6 +50,7 @@ export function Et2TaskPanel({
   onNewFolder,
   onNewMarkdown,
   taskPathToEntryId,
+  taskEditor,
 }: Et2TaskPanelProps) {
   const scope = normalizeScopePath(scopePath)
 
@@ -66,26 +81,25 @@ export function Et2TaskPanel({
             Unteraufgabe
           </button>
         </div>
-
         <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
-        <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
-        <span>
-          Alle Aufgaben im Teilbaum unter dem Scope (<strong className="font-medium">.et2/tasks</strong>)
-        </span>
-        {loading && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
+          <CheckSquare className="h-3.5 w-3.5 text-violet-500" />
+          <span>
+            Wähle eine Aufgabe · Inhalt unten bearbeiten (Markdown)
+          </span>
+          {loading && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
         </div>
       </div>
 
       {!canWrite && (
-        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+        <p className="shrink-0 border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
           Aufgaben speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex max-h-[38%] min-h-[120px] shrink-0 flex-col overflow-y-auto overscroll-contain border-b border-zinc-200 dark:border-zinc-800">
         {tasks.length === 0 && !loading ? (
-          <p className="px-4 py-8 text-center text-sm text-zinc-500">
-            Keine Aufgaben im aktuellen Teilbaum. Leg eine Aufgabe im Scope-Ordner an oder wechsle den Scope.
+          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+            Keine Aufgaben im Teilbaum. Über „Anlegen → Aufgabe“ starten.
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -95,13 +109,15 @@ export function Et2TaskPanel({
               const folder = task.folderWithinScope
               const folderScopePath =
                 folder && folder !== '.'
-                  ? scope ? `${scope}/${folder}` : folder
+                  ? scope
+                    ? `${scope}/${folder}`
+                    : folder
                   : scope
               return (
                 <li key={task.relativePath}>
                   <button
                     type="button"
-                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${
+                    className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${
                       selected ? 'bg-violet-50 dark:bg-violet-950/30' : ''
                     }`}
                     onClick={() => onSelectTask(task.relativePath, entryId)}
@@ -112,7 +128,6 @@ export function Et2TaskPanel({
                       {folder && (
                         <span
                           className="rounded bg-zinc-100 px-1 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                          title="Ordner im Scope — Klick springt dorthin"
                           onClick={(e) => {
                             e.stopPropagation()
                             onSelectScope(folderScopePath)
@@ -123,20 +138,6 @@ export function Et2TaskPanel({
                           📁 {folder === '.' ? '(Scope)' : folder}
                         </span>
                       )}
-                      {task.kind && <span>{task.kind}</span>}
-                      {task.dueDate && (
-                        <span>
-                          Fällig{' '}
-                          {Number.isNaN(Date.parse(task.dueDate))
-                            ? task.dueDate
-                            : new Date(task.dueDate).toLocaleDateString()}
-                        </span>
-                      )}
-                      {task.tags?.slice(0, 3).map((t) => (
-                        <span key={t} className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">
-                          {t}
-                        </span>
-                      ))}
                     </span>
                   </button>
                 </li>
@@ -145,6 +146,29 @@ export function Et2TaskPanel({
           </ul>
         )}
       </div>
+
+      <Et2TaskContentEditor
+        taskPath={selectedTaskPath}
+        title={taskEditor.title}
+        body={taskEditor.body}
+        onTitleChange={taskEditor.onTitleChange}
+        onBodyChange={taskEditor.onBodyChange}
+        onSave={taskEditor.onSave}
+        loading={taskEditor.loading}
+        saving={taskEditor.saving}
+        dirty={taskEditor.dirty}
+        error={taskEditor.error}
+        canWrite={canWrite}
+        onOpenFullEditor={
+          selectedTaskPath
+            ? () => {
+                const entryId = taskPathToEntryId.get(selectedTaskPath) ?? null
+                const task = tasks.find((t) => t.relativePath === selectedTaskPath)
+                onOpenTask(selectedTaskPath, task?.title ?? taskEditor.title, entryId)
+              }
+            : undefined
+        }
+      />
     </section>
   )
 }

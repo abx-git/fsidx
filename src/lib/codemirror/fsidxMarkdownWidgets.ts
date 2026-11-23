@@ -55,20 +55,20 @@ export class MarkdownPreviewWidget extends WidgetType {
   }
 
   toDOM(view: EditorView) {
-    const wrap = document.createElement('div')
-    wrap.className =
+    const shell = document.createElement('div')
+    shell.className =
       this.kind === 'line'
         ? 'cm-md-rendered-chunk cm-md-rendered-line cursor-text'
         : 'cm-md-rendered-chunk cm-md-rendered-block cursor-text'
-    wrap.title = 'Klicken zum Bearbeiten'
-    wrap.addEventListener('mousedown', (e) => {
+    shell.title = 'Klicken zum Bearbeiten'
+    shell.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
       activateFromPreviewClick(view, e, this.blockFrom, this.blockTo)
     })
-    renderMarkdownInto(wrap, this.content, this.ctx, this.kind)
-    return wrap
+    renderMarkdownInto(shell, this.content, this.ctx, this.kind)
+    return shell
   }
 }
 

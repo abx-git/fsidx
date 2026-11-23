@@ -23,6 +23,7 @@
     "@rjsf/validator-ajv8": "^6.11.1",
     "@uiw/react-codemirror": "^4.25.12",
     "lucide-react": "^1.77.0",
+    "marked": "^15.0.12",
     "mermaid": "^12.3.0",
     "plantuml-encoder": "^1.4.0",
     "react": "^19.3.1",

@@ -1,12 +1,20 @@
 import { createRoot, type Root } from 'react-dom/client'
 import { MarkdownContent } from '../../components/markdown/MarkdownContent'
-import { MarkdownLineContent } from '../../components/markdown/MarkdownLineContent'
 import type { MarkdownWidgetContext } from './fsidxMarkdownWidgets'
+import { markdownToPreviewHtml } from './fsidxMarkdownHtmlPreview'
 
 export type MarkdownPreviewKind = 'line' | 'block'
 
 const roots = new WeakMap<HTMLElement, Root>()
-const scheduled = new WeakMap<HTMLElement, number>()
+
+/** Bilder / Mermaid: weiter React, sonst HTML. */
+function needsRichPreview(content: string): boolean {
+  return (
+    /!\[/.test(content) ||
+    /```mermaid/.test(content) ||
+    /@startuml/i.test(content)
+  )
+}
 
 export function renderMarkdownInto(
   el: HTMLElement,
@@ -14,55 +22,60 @@ export function renderMarkdownInto(
   ctx: MarkdownWidgetContext,
   kind: MarkdownPreviewKind = 'line',
 ) {
-  const prior = scheduled.get(el)
-  if (prior != null) cancelAnimationFrame(prior)
+  const wrapClass =
+    kind === 'line'
+      ? 'markdown-preview cm-md-line-render text-left text-inherit'
+      : 'markdown-preview cm-md-block-render text-left text-inherit'
 
-  const frame = requestAnimationFrame(() => {
-    scheduled.delete(el)
-    if (!el.isConnected) return
+  let inner = el.querySelector<HTMLElement>(':scope > .fsidx-md-preview-inner')
+  if (!inner) {
+    inner = document.createElement('div')
+    inner.className = `fsidx-md-preview-inner ${wrapClass}`
+    el.replaceChildren(inner)
+  } else {
+    inner.className = `fsidx-md-preview-inner ${wrapClass}`
+  }
 
-    let root = roots.get(el)
+  if (needsRichPreview(content)) {
+    let root = roots.get(inner)
     if (!root) {
-      root = createRoot(el)
-      roots.set(el, root)
+      root = createRoot(inner)
+      roots.set(inner, root)
     }
-
-    const wrapClass =
-      kind === 'line'
-        ? 'markdown-preview cm-md-line-render text-left text-inherit'
-        : 'markdown-preview cm-md-block-render text-left text-inherit'
-
     root.render(
-      <div className={wrapClass}>
-        {kind === 'line' ? (
-          <MarkdownLineContent
-            content={content}
-            docPath={ctx.docPath}
-            fileSources={ctx.fileSources}
-          />
-        ) : (
-          <MarkdownContent
-            content={content}
-            docPath={ctx.docPath}
-            fileSources={ctx.fileSources}
-          />
-        )}
-      </div>,
+      <MarkdownContent
+        content={content}
+        docPath={ctx.docPath}
+        fileSources={ctx.fileSources}
+        className="cm-md-compact"
+      />,
     )
-  })
-  scheduled.set(el, frame)
+    el.dataset.fsidxMdMode = 'react'
+    return
+  }
+
+  const existing = roots.get(inner)
+  if (existing) {
+    queueMicrotask(() => {
+      existing.unmount()
+      roots.delete(inner)
+    })
+  }
+
+  el.dataset.fsidxMdMode = 'html'
+  inner.innerHTML = markdownToPreviewHtml(content)
 }
 
 export function unmountMarkdown(el: HTMLElement) {
-  const prior = scheduled.get(el)
-  if (prior != null) cancelAnimationFrame(prior)
-  scheduled.delete(el)
-
-  const root = roots.get(el)
-  if (root) {
-    queueMicrotask(() => {
-      root.unmount()
-      roots.delete(el)
-    })
+  const inner = el.querySelector<HTMLElement>(':scope > .fsidx-md-preview-inner')
+  if (el.dataset.fsidxMdMode === 'react' && inner) {
+    const root = roots.get(inner)
+    if (root) {
+      queueMicrotask(() => {
+        root.unmount()
+        roots.delete(inner)
+      })
+    }
   }
+  delete el.dataset.fsidxMdMode
 }

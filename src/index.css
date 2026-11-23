@@ -228,6 +228,17 @@ body {
   margin-bottom: 0;
 }
 
+.fsidx-md-editor-shell .cm-md-line-render p,
+.fsidx-md-editor-shell .cm-md-block-render p,
+.fsidx-md-editor-shell .cm-md-compact p {
+  margin: 0 !important;
+}
+
+.fsidx-md-editor-shell .cm-md-line-render br + br,
+.fsidx-md-editor-shell .cm-md-block-render br + br {
+  display: none;
+}
+
 .fsidx-md-editor-shell .cm-md-blank-line {
   min-height: 0.35em;
 }

@@ -12,8 +12,16 @@ import { MarkdownAssetImage } from './MarkdownAssetImage'
 function buildMdComponents(
   docPath: string | undefined,
   fileSources: FileSourceStore | null,
+  compact: boolean,
 ): Components {
   return {
+  ...(compact
+    ? {
+        p: ({ children }: { children?: React.ReactNode }) => (
+          <p className="cm-md-flow my-0">{children}</p>
+        ),
+      }
+    : {}),
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className ?? '')
     const lang = match?.[1]?.toLowerCase()
@@ -81,10 +89,11 @@ export function MarkdownContent({
   docPath,
   fileSources = null,
 }: MarkdownContentProps) {
+  const compact = className?.includes('cm-md-compact') ?? false
   const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
   const components = useMemo(
-    () => buildMdComponents(docPath, fileSources ?? null),
-    [docPath, fileSources],
+    () => buildMdComponents(docPath, fileSources ?? null, compact),
+    [docPath, fileSources, compact],
   )
 
   return (

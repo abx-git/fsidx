@@ -161,6 +161,16 @@ export function tableAtCursor(state: EditorState, head: number): DocRange | null
   return null
 }
 
+/** Stabiler Schlüssel für „gleicher Bearbeitungskontext“ (kein Neuzeichnen bei Cursor in der Zeile). */
+export function activeRegionKey(state: EditorState): string {
+  const head = state.selection.main.head
+  const fence = fencedCodeAtCursor(state, head)
+  if (fence) return `fence:${state.doc.lineAt(fence.from).number}`
+  const table = tableAtCursor(state, head)
+  if (table) return `table:${state.doc.lineAt(table.from).number}`
+  return `line:${state.doc.lineAt(head).number}`
+}
+
 /** Obsidian: eine Zeile Quelltext — außer Tabelle/Code, dann der ganze Block. */
 export function activeEditRegion(state: EditorState): DocRange {
   const head = state.selection.main.head

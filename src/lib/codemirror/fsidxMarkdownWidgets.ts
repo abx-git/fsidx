@@ -17,7 +17,7 @@ export interface MarkdownWidgetContext {
 function focusRange(view: EditorView, from: number) {
   view.dispatch({
     selection: { anchor: from },
-    scrollIntoView: true,
+    scrollIntoView: false,
   })
   view.focus()
 }

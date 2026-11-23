@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import {
   activeEditRegion,
+  activeRegionKey,
   findParagraphRanges,
   findTableRanges,
   isTableLine,
@@ -31,6 +32,16 @@ describe('activeEditRegion', () => {
     const active = activeEditRegion(state)
     expect(state.doc.sliceString(active.from, active.to)).toBe('| H1 | H2 |\n| --- | --- |\n| a | b |')
     expect(findTableRanges(state).length).toBe(1)
+  })
+})
+
+describe('activeRegionKey', () => {
+  it('bleibt bei Cursor-Bewegung in derselben Zeile gleich', () => {
+    const doc = 'Hallo Welt'
+    const state = EditorState.create({ doc, selection: { anchor: 3 } })
+    const state2 = state.update({ selection: { anchor: 8 } }).state
+    expect(activeRegionKey(state)).toBe('line:1')
+    expect(activeRegionKey(state2)).toBe('line:1')
   })
 })
 

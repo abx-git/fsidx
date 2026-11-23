@@ -1,4 +1,4 @@
-import type { EditorState, Extension } from '@codemirror/state'
+import type { EditorState, Extension, Transaction } from '@codemirror/state'
 import { RangeSetBuilder, StateField } from '@codemirror/state'
 import {
   Decoration,
@@ -7,6 +7,7 @@ import {
 } from '@codemirror/view'
 import {
   activeEditRegion,
+  activeRegionKey,
   eachLineInRange,
   findFencedCodeRanges,
   findParagraphRanges,
@@ -154,16 +155,40 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   }
 }
 
+/** Nur Änderungen innerhalb des aktiven Blocks (Zeile/Tabelle/Code) — Vorschau bleibt stabil. */
+function editsContainedInActiveRegion(tr: Transaction, state: EditorState): boolean {
+  const active = activeEditRegion(state)
+  let contained = true
+  tr.changes.iterChanges((_fromA, _toA, fromB, _toB, inserted) => {
+    const endB = fromB + inserted.length
+    if (fromB < active.from || endB > active.to) contained = false
+  })
+  return contained
+}
+
+function shouldRebuildDecorations(tr: Transaction): boolean {
+  const keyBefore = activeRegionKey(tr.startState)
+  const keyAfter = activeRegionKey(tr.state)
+  if (keyBefore !== keyAfter) return true
+  if (tr.docChanged) {
+    return !editsContainedInActiveRegion(tr, tr.state)
+  }
+  return false
+}
+
 export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
       return buildDecorations(state, ctx)
     },
     update(decorations, tr) {
-      if (tr.docChanged || !tr.startState.selection.eq(tr.state.selection)) {
+      if (shouldRebuildDecorations(tr)) {
         return buildDecorations(tr.state, ctx)
       }
-      return decorations.map(tr.changes)
+      if (tr.docChanged) {
+        return decorations.map(tr.changes)
+      }
+      return decorations
     },
     provide: (f) => [
       EditorView.decorations.from(f),

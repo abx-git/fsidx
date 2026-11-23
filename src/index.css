@@ -135,34 +135,17 @@ body {
   height: auto;
 }
 
-.markdown-block-flow .markdown-block + .markdown-block {
-  margin-top: 0;
+.obsidian-live-shell .cm-editor {
+  height: auto;
+  min-height: min(70vh, 720px);
 }
 
-.markdown-block-flow .markdown-block .markdown-block-preview > :first-child,
-.markdown-block-flow .markdown-block .markdown-block-preview > div > :first-child {
-  margin-top: 0;
+.obsidian-live-shell .cm-scroller {
+  overflow: auto !important;
 }
 
-.markdown-block-flow .markdown-block:last-child .markdown-block-preview > :last-child,
-.markdown-block-flow .markdown-block:last-child .markdown-block-preview > div > :last-child {
-  margin-bottom: 0;
-}
-
-.markdown-block-source {
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1.65;
-  color: inherit;
-  field-sizing: content;
-}
-
-.markdown-block-source::placeholder {
-  color: #a1a1aa;
-}
-
-.markdown-block-preview {
-  min-height: 1.65em;
+.obsidian-live-editor.cm-content {
+  max-width: 48rem;
 }
 
 .metadata-form .rjsf > .form-group {

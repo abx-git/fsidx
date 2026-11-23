@@ -6,7 +6,7 @@ import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { useEt2Autosave } from './useEt2Autosave'
 
-/** Lesen mit Blockbearbeitung (Standard) oder Roh-Quelltext. */
+/** Live-Vorschau (CodeMirror, Obsidian-ähnlich) oder Roh-Quelltext. */
 export type MarkdownViewMode = 'reading' | 'source'
 
 const draftCache = new Map<string, string>()

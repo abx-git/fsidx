@@ -1,9 +1,14 @@
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import { Suspense, lazy } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
-import { BlockMarkdownView } from './markdown/BlockMarkdownView'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { CollapsibleSection } from './ui/CollapsibleSection'
+const ObsidianLiveMarkdownEditor = lazy(() =>
+  import('./markdown/ObsidianLiveMarkdownEditor').then((m) => ({
+    default: m.ObsidianLiveMarkdownEditor,
+  })),
+)
 
 interface MarkdownEditorProps {
   fileName: string
@@ -91,7 +96,7 @@ export function MarkdownEditor({
                   viewMode === 'reading' ? 'bg-sky-100 dark:bg-sky-950/50' : ''
                 }`}
               >
-                Lesen
+                Live-Vorschau
               </button>
               {canWrite && (
                 <button
@@ -116,8 +121,8 @@ export function MarkdownEditor({
             </div>
             {canWrite && (
               <p className="mt-1 text-[10px] text-zinc-400">
-                Wie in Obsidian: formatierte Ansicht, Klick in den Absatz zum Bearbeiten · Enter am
-                Zeilenende neuer Absatz · Escape beendet den Fokus · automatisch gespeichert
+                Obsidian-ähnliche Live-Vorschau: Syntax sichtbar am Cursor, sonst formatiert ·
+                Mermaid/Bilder gerendert · Quelltext im Modus „Quelltext“ · automatisch gespeichert
               </p>
             )}
           </CollapsibleSection>
@@ -142,13 +147,23 @@ export function MarkdownEditor({
           </p>
         )}
         {!loading && !error && viewMode === 'reading' && (
-          <BlockMarkdownView
-            content={content}
-            onChange={onChange}
-            canWrite={canWrite}
-            docPath={filePath}
-            fileSources={fileSources}
-          />
+          <Suspense
+            fallback={
+              <p className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Live-Editor wird geladen…
+              </p>
+            }
+          >
+            <ObsidianLiveMarkdownEditor
+              content={content}
+              onChange={onChange}
+              canWrite={canWrite}
+              docPath={filePath}
+              fileSources={fileSources}
+              editorKey={filePath}
+            />
+          </Suspense>
         )}
         {!loading && !error && viewMode === 'source' && (
           <textarea

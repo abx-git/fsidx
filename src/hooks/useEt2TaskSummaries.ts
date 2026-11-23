@@ -20,18 +20,25 @@ export function useEt2TaskSummaries(
 ): {
   tasks: Et2TaskSummary[]
   loading: boolean
-  reload: () => void
+  reload: (opts?: { silent?: boolean }) => Promise<void>
+  patchTask: (relativePath: string, patch: Partial<Et2TaskSummary>) => void
 } {
   const [tasks, setTasks] = useState<Et2TaskSummary[]>([])
   const [loading, setLoading] = useState(false)
 
-  const load = useCallback(async () => {
+  const patchTask = useCallback((relativePath: string, patch: Partial<Et2TaskSummary>) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.relativePath === relativePath ? { ...t, ...patch } : t)),
+    )
+  }, [])
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     const legacyBase = scanSubtreeLegacyTasks(indexedPaths, dirPath)
     if (!fileSources) {
       setTasks(legacyBase)
       return
     }
-    setLoading(true)
+    if (!opts?.silent) setLoading(true)
     try {
       const bundlePaths = scanSubtreeTaskBundles(indexedPaths, dirPath)
       const bundledSummaries: Et2TaskSummary[] = []
@@ -97,7 +104,7 @@ export function useEt2TaskSummaries(
       })
       setTasks(merged)
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [indexedPaths, dirPath, fileSources])
 
@@ -105,7 +112,7 @@ export function useEt2TaskSummaries(
     void load()
   }, [load])
 
-  return { tasks, loading, reload: load }
+  return { tasks, loading, reload: load, patchTask }
 }
 
 export async function readTasksBundleAt(

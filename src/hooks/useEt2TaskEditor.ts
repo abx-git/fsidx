@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { ensureWritePermission, readTextFromStore, writeTextToStore } from '../lib/file-sources'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
@@ -12,6 +12,12 @@ import { syncDoneStatusWithTags } from '../lib/et2/task-tags'
 import type { Et2EffortUnit, Et2TaskStatus } from '../types/et2-tasks-bundle'
 import { loadEt2TaskRecord, updateEt2TaskInBundle } from '../lib/et2/tasks-bundle'
 import { getEffortUnit } from '../lib/et2/task-effort'
+import type { Et2TaskSummary } from '../types/et2-task'
+
+export type Et2TaskEditorPersisted = Pick<
+  Et2TaskSummary,
+  'title' | 'body' | 'status' | 'tags' | 'dueDate' | 'reminderDate' | 'link' | 'command' | 'effort' | 'effortUnit'
+>
 
 export function useEt2TaskEditor(taskPath: string | null, fileSources: FileSourceStore | null) {
   const [title, setTitle] = useState('')
@@ -30,6 +36,31 @@ export function useEt2TaskEditor(taskPath: string | null, fileSources: FileSourc
   const [dirty, setDirty] = useState(false)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [isBundled, setIsBundled] = useState(false)
+
+  const draftRef = useRef({
+    title,
+    body,
+    status,
+    tags,
+    dueDate,
+    reminderDate,
+    link,
+    command,
+    effort,
+    effortUnit,
+  })
+  draftRef.current = {
+    title,
+    body,
+    status,
+    tags,
+    dueDate,
+    reminderDate,
+    link,
+    command,
+    effort,
+    effortUnit,
+  }
 
   const markDirty = useCallback(() => setDirty(true), [])
 
@@ -182,36 +213,65 @@ export function useEt2TaskEditor(taskPath: string | null, fileSources: FileSourc
     markDirty()
   }, [markDirty])
 
-  const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {
+  const save = useCallback(async (): Promise<{
+    size: number
+    lastModified: number
+    persisted: Et2TaskEditorPersisted
+  } | null> => {
     if (!taskPath || !fileSources || !taskId) return null
     if (!(await ensureWritePermission(fileSources))) {
       throw new Error('Schreibzugriff verweigert.')
     }
+    const snapshot = { ...draftRef.current }
     setSaving(true)
     setError(null)
     try {
       const lastModified = Date.now()
-      const titleSaved = title.trim() || DEFAULT_NEW_TASK_TITLE
-      const synced = syncDoneStatusWithTags(status, tags)
+      const titleSaved = snapshot.title.trim() || DEFAULT_NEW_TASK_TITLE
+      const synced = syncDoneStatusWithTags(snapshot.status, snapshot.tags)
       const patch = {
         title: titleSaved,
-        body,
+        body: snapshot.body,
         status: synced.status,
         tags: synced.tags,
-        dueDate,
-        reminderDate,
-        link: normalizeTaskLink(link),
-        command: normalizeTaskCommand(command),
-        effort: Math.max(0, effort),
-        effortUnit,
+        dueDate: snapshot.dueDate,
+        reminderDate: snapshot.reminderDate,
+        link: normalizeTaskLink(snapshot.link),
+        command: normalizeTaskCommand(snapshot.command),
+        effort: Math.max(0, snapshot.effort),
+        effortUnit: snapshot.effortUnit,
+      }
+      const displayTitle = humanTaskTitle(patch.title, patch.body, taskId)
+
+      const tagsEqual = (a: string[], b: string[]) =>
+        a.length === b.length && a.every((t, i) => t === b[i])
+
+      const draftUnchanged = () => {
+        const c = draftRef.current
+        return (
+          c.title === snapshot.title &&
+          c.body === snapshot.body &&
+          c.status === snapshot.status &&
+          tagsEqual(c.tags, snapshot.tags) &&
+          c.dueDate === snapshot.dueDate &&
+          c.reminderDate === snapshot.reminderDate &&
+          c.link === snapshot.link &&
+          c.command === snapshot.command &&
+          c.effort === snapshot.effort &&
+          c.effortUnit === snapshot.effortUnit
+        )
       }
 
       if (isBundled) {
         const ref = taskRefFromPath(taskPath)
         if (!ref) throw new Error('Ungültige Aufgabenreferenz')
         const { row } = await updateEt2TaskInBundle(fileSources, ref.bundlePath, ref.taskId, patch)
-        setDirty(false)
-        return { size: row.size ?? 0, lastModified }
+        if (draftUnchanged()) setDirty(false)
+        return {
+          size: row.size ?? 0,
+          lastModified,
+          persisted: { ...patch, title: displayTitle },
+        }
       }
 
       const id = taskIdFromPath(taskPath) ?? taskId
@@ -228,11 +288,15 @@ export function useEt2TaskEditor(taskPath: string | null, fileSources: FileSourc
           effort: patch.effort,
           effortUnit: patch.effortUnit,
         },
-        body,
+        body: snapshot.body,
       })
       await writeTextToStore(fileSources, taskPath, text)
-      setDirty(false)
-      return { size: new Blob([text]).size, lastModified }
+      if (draftUnchanged()) setDirty(false)
+      return {
+        size: new Blob([text]).size,
+        lastModified,
+        persisted: { ...patch, title: displayTitle, status: 'open' },
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
       setError(message)
@@ -240,22 +304,7 @@ export function useEt2TaskEditor(taskPath: string | null, fileSources: FileSourc
     } finally {
       setSaving(false)
     }
-  }, [
-    taskPath,
-    fileSources,
-    taskId,
-    title,
-    body,
-    status,
-    tags,
-    dueDate,
-    reminderDate,
-    link,
-    command,
-    effort,
-    effortUnit,
-    isBundled,
-  ])
+  }, [taskPath, fileSources, taskId, isBundled])
 
   return {
     title,

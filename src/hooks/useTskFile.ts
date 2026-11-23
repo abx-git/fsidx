@@ -12,13 +12,19 @@ export function useTskFile(tskPath: string | null, fileSources: FileSourceStore 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
+  const patchTask = useCallback((taskId: string, patch: Partial<Et2TaskSummary>) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.taskId === taskId ? { ...t, ...patch } : t)),
+    )
+  }, [])
+
+  const reload = useCallback(async (opts?: { silent?: boolean }) => {
     if (!tskPath || !fileSources) {
       setTasks([])
       setError(null)
       return
     }
-    setLoading(true)
+    if (!opts?.silent) setLoading(true)
     setError(null)
     try {
       const text = await readTextFromStore(fileSources, tskPath)
@@ -48,7 +54,7 @@ export function useTskFile(tskPath: string | null, fileSources: FileSourceStore 
       setTasks([])
       setError(err instanceof Error ? err.message : 'Aufgaben-Datei konnte nicht gelesen werden')
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [tskPath, fileSources])
 
@@ -56,5 +62,5 @@ export function useTskFile(tskPath: string | null, fileSources: FileSourceStore 
     void reload()
   }, [reload])
 
-  return { tasks, loading, error, reload }
+  return { tasks, loading, error, reload, patchTask }
 }

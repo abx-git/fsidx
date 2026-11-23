@@ -128,11 +128,7 @@ export function TskDetailPanel({
             Unteraufgabe
           </button>
           <span className="ml-auto text-[10px] text-zinc-500">
-            {editorSaving
-              ? 'Speichern…'
-              : editorDirty
-                ? 'Änderungen werden gleich gespeichert'
-                : 'Gespeichert'}
+            {editorSaving ? 'Speichern…' : editorDirty ? 'Wird gespeichert…' : 'Gespeichert'}
           </span>
         </div>
         {canWrite && (
@@ -180,11 +176,6 @@ export function TskDetailPanel({
           </p>
         ) : (
           <>
-            {editorDirty && (
-              <p className="shrink-0 px-3 py-1 text-[10px] text-amber-700 dark:text-amber-300">
-                Nicht gespeichert
-              </p>
-            )}
             {editorError && (
               <p className="mx-3 mb-2 shrink-0 rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">
                 {editorError}

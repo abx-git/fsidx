@@ -34,6 +34,7 @@ import { taskContainerDir } from './lib/workspace-scope'
 import { looksLikeOpaqueId } from './lib/et2/display-title'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
+import { useEt2Autosave } from './hooks/useEt2Autosave'
 import { useTskFile } from './hooks/useTskFile'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
@@ -619,51 +620,53 @@ function App() {
     if (!selectedTskTaskRef) return
     try {
       const stats = await et2TaskEditor.save()
-      if (stats) {
-        const ref = taskRefFromPath(selectedTskTaskRef)
-        const rel = ref?.bundlePath ?? activeTskPath
-        if (!rel) return
-        const name = rel.split('/').pop() ?? rel
-        registerSidecarFile({
-          relativePath: rel,
-          name,
-          kind: 'file',
-          size: stats.size,
-          lastModified: stats.lastModified,
-        })
-        et2Tasks.reload()
-        await tskFile.reload()
+      if (!stats) return
+      const ref = taskRefFromPath(selectedTskTaskRef)
+      const rel = ref?.bundlePath ?? activeTskPath
+      if (!rel) return
+      const name = rel.split('/').pop() ?? rel
+      registerSidecarFile({
+        relativePath: rel,
+        name,
+        kind: 'file',
+        size: stats.size,
+        lastModified: stats.lastModified,
+      })
+      if (ref?.taskId) {
+        tskFile.patchTask(ref.taskId, stats.persisted)
+        et2Tasks.patchTask(selectedTskTaskRef, stats.persisted)
       }
     } catch {
       // Fehler im Hook gesetzt
     }
-  }, [selectedTskTaskRef, et2TaskEditor, registerSidecarFile, et2Tasks, activeTskPath, tskFile])
-
-  useEffect(() => {
-    if (!activeTskPath || !selectedTskTaskRef || !et2TaskEditor.dirty) return
-    if (et2TaskEditor.loading || et2TaskEditor.saving) return
-    const timer = window.setTimeout(() => {
-      void handleSaveEt2TaskContent()
-    }, 800)
-    return () => window.clearTimeout(timer)
   }, [
-    activeTskPath,
     selectedTskTaskRef,
-    et2TaskEditor.dirty,
-    et2TaskEditor.loading,
-    et2TaskEditor.saving,
-    et2TaskEditor.title,
-    et2TaskEditor.body,
-    et2TaskEditor.status,
-    et2TaskEditor.tags,
-    et2TaskEditor.dueDate,
-    et2TaskEditor.reminderDate,
-    et2TaskEditor.link,
-    et2TaskEditor.command,
-    et2TaskEditor.effort,
-    et2TaskEditor.effortUnit,
-    handleSaveEt2TaskContent,
+    et2TaskEditor,
+    registerSidecarFile,
+    activeTskPath,
+    tskFile,
+    et2Tasks,
   ])
+
+  useEt2Autosave({
+    enabled: Boolean(activeTskPath && selectedTskTaskRef),
+    dirty: et2TaskEditor.dirty,
+    loading: et2TaskEditor.loading,
+    save: handleSaveEt2TaskContent,
+    debounceMs: 400,
+    watch: [
+      et2TaskEditor.title,
+      et2TaskEditor.body,
+      et2TaskEditor.status,
+      et2TaskEditor.tags,
+      et2TaskEditor.dueDate,
+      et2TaskEditor.reminderDate,
+      et2TaskEditor.link,
+      et2TaskEditor.command,
+      et2TaskEditor.effort,
+      et2TaskEditor.effortUnit,
+    ],
+  })
 
   const reloadTskBundleOnDisk = useCallback(
     async (bundlePath: string, row: { size?: number; lastModified?: number }) => {

@@ -106,7 +106,7 @@ export function MarkdownEditor({
           {viewMode === 'live' ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
               <Eye className="h-3.5 w-3.5" />
-              Live
+              Bearbeiten
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
@@ -132,7 +132,7 @@ export function MarkdownEditor({
                 onClick={() => onViewModeChange(viewMode === 'live' ? 'source' : 'live')}
                 className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600"
               >
-                {viewMode === 'live' ? 'Quelltext' : 'Live-Ansicht'}
+                {viewMode === 'live' ? 'Quelltext' : 'WYSIWYG'}
               </button>
               <button
                 type="button"
@@ -144,7 +144,7 @@ export function MarkdownEditor({
                 Download
               </button>
             </div>
-            <p className="mt-1 text-[10px] text-zinc-400">Tastenkürzel: Strg+E zwischen Live und Quelle</p>
+            <p className="mt-1 text-[10px] text-zinc-400">Tastenkürzel: Strg+E zwischen WYSIWYG und Quelle</p>
           </CollapsibleSection>
         </div>
       </header>
@@ -167,7 +167,12 @@ export function MarkdownEditor({
           </p>
         )}
         {!loading && !error && viewMode === 'live' && (
-          <LivePreviewMarkdown content={content} onChange={onChange} canWrite={canWrite} />
+          <LivePreviewMarkdown
+            content={content}
+            onChange={onChange}
+            canWrite={canWrite}
+            editorKey={filePath}
+          />
         )}
         {!loading && !error && viewMode === 'source' && (
           <textarea

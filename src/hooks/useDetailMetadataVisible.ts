@@ -5,7 +5,7 @@ const STORAGE_KEY = 'fsidx.detailMetadataVisible'
 function readVisible(): boolean {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
-    if (v === null) return true
+    if (v === null) return false
     return v === '1'
   } catch {
     return true

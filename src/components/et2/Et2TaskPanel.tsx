@@ -1,4 +1,5 @@
 import { GitBranch, Loader2, ListTodo } from 'lucide-react'
+import { CollapsibleSection } from '../ui/CollapsibleSection'
 import { ScopeCreateActions } from '../ScopeCreateActions'
 import { ScopeBar } from '../ScopeBar'
 import type { Et2TaskSummary } from '../../types/et2-task'
@@ -66,32 +67,35 @@ export function Et2TaskPanel({
           onNewTask={onNewTask}
           compact
         />
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
           <p className="flex items-center gap-1.5 text-xs text-zinc-500">
             <ListTodo className="h-3.5 w-3.5 text-violet-500" />
             {loading ? (
               <>
-                Aufgaben laden…
+                Laden…
                 <Loader2 className="h-3 w-3 animate-spin" />
               </>
             ) : (
               <span>
                 {tasks.length === 0
-                  ? 'Noch keine Aufgaben hier'
+                  ? 'Keine Aufgaben'
                   : `${tasks.length} Aufgabe${tasks.length === 1 ? '' : 'n'}`}
               </span>
             )}
           </p>
-          <button
-            type="button"
-            disabled={!canWrite || !onNewSubtask || !selectedTaskPath}
-            onClick={onNewSubtask}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 px-2.5 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40"
-            title="Unteraufgabe zur gewählten Aufgabe"
-          >
-            <GitBranch className="h-3.5 w-3.5" />
-            Unteraufgabe
-          </button>
+          {onNewSubtask && (
+            <CollapsibleSection summary="Erweitert">
+              <button
+                type="button"
+                disabled={!canWrite || !selectedTaskPath}
+                onClick={onNewSubtask}
+                className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 px-2 py-1 text-[11px] font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200"
+              >
+                <GitBranch className="h-3 w-3" />
+                Unteraufgabe anlegen
+              </button>
+            </CollapsibleSection>
+          )}
         </div>
       </div>
 

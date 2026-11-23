@@ -9,6 +9,7 @@ import {
 import { useEffect } from 'react'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { LivePreviewMarkdown } from './markdown/LivePreviewMarkdown'
+import { CollapsibleSection } from './ui/CollapsibleSection'
 
 interface MarkdownEditorProps {
   fileName: string
@@ -98,34 +99,17 @@ export function MarkdownEditor({
               Ungespeichert
             </span>
           )}
-          <div className="inline-flex rounded-lg border border-zinc-300 p-0.5 dark:border-zinc-700">
-            <button
-              type="button"
-              onClick={() => onViewModeChange('live')}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
-                viewMode === 'live'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-              }`}
-              title="Live-Vorschau wie Obsidian"
-            >
+          {viewMode === 'live' ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
               <Eye className="h-3.5 w-3.5" />
               Live
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange('source')}
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
-                viewMode === 'source'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-              }`}
-              title="Gesamte Quelle bearbeiten"
-            >
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
               <Code2 className="h-3.5 w-3.5" />
-              Quelle
-            </button>
-          </div>
+              Quelltext
+            </span>
+          )}
           {canWrite && onSave && (
             <button
               type="button"
@@ -137,18 +121,27 @@ export function MarkdownEditor({
               {saving ? 'Speichern…' : 'Speichern'}
             </button>
           )}
-          <button
-            type="button"
-            onClick={downloadEdited}
-            disabled={!content}
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download
-          </button>
-          <span className="hidden text-[10px] text-zinc-400 sm:inline">
-            Strg+E umschalten
-          </span>
+          <CollapsibleSection summary="Mehr" className="py-0.5">
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => onViewModeChange(viewMode === 'live' ? 'source' : 'live')}
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600"
+              >
+                {viewMode === 'live' ? 'Quelltext' : 'Live-Ansicht'}
+              </button>
+              <button
+                type="button"
+                onClick={downloadEdited}
+                disabled={!content}
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] disabled:opacity-50 dark:border-zinc-600"
+              >
+                <Download className="h-3 w-3" />
+                Download
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] text-zinc-400">Tastenkürzel: Strg+E zwischen Live und Quelle</p>
+          </CollapsibleSection>
         </div>
       </header>
 

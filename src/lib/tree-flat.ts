@@ -1,3 +1,4 @@
+import { isEt2InternalPath } from './et2/is-et2-internal'
 import type { IndexNode } from '../types'
 import {
   shouldShowDirectoryInTree,
@@ -16,6 +17,19 @@ export interface VisibleTreeRow {
   node: IndexNode
 }
 
+/** Ordner im Baum, auch wenn Dateien ausgeblendet sind (Navigation über SCOPE). */
+export function directoryHasNavigableContent(node: IndexNode, showEt2DotFiles: boolean): boolean {
+  for (const child of node.children ?? []) {
+    if (child.kind === 'directory') {
+      if (!shouldShowDirectoryInTree(child.path, showEt2DotFiles)) continue
+      if (directoryHasNavigableContent(child, showEt2DotFiles)) return true
+    } else if (!isEt2InternalPath(child.path, showEt2DotFiles)) {
+      return true
+    }
+  }
+  return false
+}
+
 export function dirHasVisibleDescendants(
   node: IndexNode,
   filter: TreeDisplayFilterState,
@@ -24,7 +38,7 @@ export function dirHasVisibleDescendants(
   for (const child of node.children ?? []) {
     if (child.kind === 'directory') {
       if (!shouldShowDirectoryInTree(child.path, showEt2DotFiles)) continue
-      if (dirHasVisibleDescendants(child, filter, showEt2DotFiles)) return true
+      if (directoryHasNavigableContent(child, showEt2DotFiles)) return true
     } else if (shouldShowFileInTree(child.path, filter, showEt2DotFiles)) {
       return true
     }
@@ -46,7 +60,7 @@ function visibleChildren(
   return (node.children ?? []).filter((child) =>
     child.kind === 'directory'
       ? shouldShowDirectoryInTree(child.path, showEt2DotFiles) &&
-        dirHasVisibleDescendants(child, filter, showEt2DotFiles)
+        directoryHasNavigableContent(child, showEt2DotFiles)
       : shouldShowFileInTree(child.path, filter, showEt2DotFiles),
   )
 }

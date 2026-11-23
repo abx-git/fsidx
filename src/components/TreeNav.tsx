@@ -7,7 +7,7 @@ import {
   shouldShowFileInTree,
   type TreeDisplayFilterState,
 } from '../lib/tree-display-filter'
-import { dirHasVisibleDescendants, flattenVisibleTree } from '../lib/tree-flat'
+import { directoryHasNavigableContent, flattenVisibleTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
 import type { ContextMenuTarget } from './FileContextMenu'
@@ -156,13 +156,13 @@ function TreeNode({
   const children = node.children ?? []
   const visibleChildren = children.filter((child) =>
     child.kind === 'directory'
-      ? dirHasVisibleDescendants(child, filter, showEt2DotFiles)
+      ? directoryHasNavigableContent(child, showEt2DotFiles)
       : shouldShowFileInTree(child.path, filter, showEt2DotFiles),
   )
   const hasChildren = visibleChildren.length > 0
   const isRoot = node.path === ''
 
-  if (!isRoot && !hasChildren) return null
+  if (!isRoot && !directoryHasNavigableContent(node, showEt2DotFiles)) return null
 
   return (
     <div className="select-none" role="group">
@@ -209,7 +209,7 @@ function TreeNode({
         >
           <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span className="truncate">{node.name || '(root)'}</span>
-          {taskCount > 0 && !filter.showFiles && !filter.showTasks && (
+          {taskCount > 0 && !filter.showTasks && (
             <span
               className="ml-auto inline-flex items-center gap-0.5 rounded bg-violet-100 px-1 text-[10px] font-medium text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
               title={`${taskCount} Aufgaben im Teilbaum`}
@@ -381,7 +381,7 @@ export function TreeNav({
     }
   }
 
-  const showAll = !filter.showFiles && !filter.showTasks
+  const foldersOnly = !filter.showFiles && !filter.showTasks
 
   return (
     <nav
@@ -412,21 +412,21 @@ export function TreeNav({
             Aufgaben
           </label>
         </div>
-        {!showAll && (
-          <p className="px-1 text-[10px] text-zinc-500">
-            {filter.showTasks && !filter.showFiles
-              ? 'Nur Aufgaben-Dateien (*.tsk.json …)'
+        <p className="px-1 text-[10px] text-zinc-500">
+          {foldersOnly
+            ? 'Nur Ordner — Dateien in der Liste (Mitte)'
+            : filter.showTasks && !filter.showFiles
+              ? 'Zusätzlich Aufgaben-Dateien (*.tsk.json …)'
               : filter.showFiles && !filter.showTasks
-                ? 'Ohne Aufgaben-Dateien'
-                : 'Filter aktiv'}
-          </p>
-        )}
+                ? 'Zusätzlich Dateien, ohne Aufgaben'
+                : 'Ordner und alle Dateien im Baum'}
+        </p>
       </div>
       <div
         ref={treeScrollRef}
         role="tree"
         tabIndex={0}
-        aria-label="Ordner und Dateien"
+        aria-label={foldersOnly ? 'Ordner' : 'Ordner und Dateien'}
         onKeyDown={onTreeContainerKeyDown}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 outline-none focus:ring-1 focus:ring-inset focus:ring-emerald-500/40"
       >

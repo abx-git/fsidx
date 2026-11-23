@@ -9,25 +9,28 @@ export interface TreeDisplayFilterState {
   showTasks: boolean
 }
 
-/** Beide aus → alles anzeigen; sonst nur die aktiven Kategorien. */
+/** Beide aus → keine Dateien im Baum (nur Ordner); sonst nur die aktiven Kategorien. */
 export function shouldShowFileInTree(
   relativePath: string,
   filter: TreeDisplayFilterState,
   showEt2DotFiles: boolean,
 ): boolean {
+  if (isEt2InternalPath(relativePath, showEt2DotFiles)) {
+    return false
+  }
+
   const isTask = isTaskFilePath(relativePath) || isTskJsonPath(relativePath)
 
   if (!filter.showFiles && !filter.showTasks) {
-    if (isTask) return true
-    return !isEt2InternalPath(relativePath, showEt2DotFiles)
+    return false
+  }
+
+  if (filter.showFiles && filter.showTasks) {
+    return true
   }
 
   if (isTask) {
     return filter.showTasks
-  }
-
-  if (isEt2InternalPath(relativePath, showEt2DotFiles)) {
-    return false
   }
 
   return filter.showFiles

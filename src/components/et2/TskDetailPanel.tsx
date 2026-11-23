@@ -1,4 +1,4 @@
-import { GitBranch, Loader2, ListTodo, Save } from 'lucide-react'
+import { GitBranch, Loader2, ListTodo } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
@@ -17,6 +17,10 @@ interface TskDetailPanelProps {
   onNewSubtask: (parentTaskId?: string) => void
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
+  onNestTask?: (taskId: string, newParentId: string | null) => void
+  onMoveSibling?: (taskId: string, direction: 'up' | 'down') => void
+  onIndentTask?: (taskId: string) => void
+  onOutdentTask?: (taskId: string) => void
   canWrite: boolean
   title: string
   body: string
@@ -38,7 +42,6 @@ interface TskDetailPanelProps {
   onCommandChange: (v: string) => void
   onEffortChange: (v: number) => void
   onEffortUnitChange: (v: Et2EffortUnit) => void
-  onSave: () => Promise<void>
   onDeleteFromDetail: () => void
   editorLoading: boolean
   editorSaving: boolean
@@ -59,6 +62,10 @@ export function TskDetailPanel({
   onNewSubtask,
   onDeleteTask,
   onReparentTask,
+  onNestTask,
+  onMoveSibling,
+  onIndentTask,
+  onOutdentTask,
   canWrite,
   title,
   body,
@@ -80,7 +87,6 @@ export function TskDetailPanel({
   onCommandChange,
   onEffortChange,
   onEffortUnitChange,
-  onSave,
   onDeleteFromDetail,
   editorLoading,
   editorSaving,
@@ -121,16 +127,19 @@ export function TskDetailPanel({
             <GitBranch className="h-3 w-3" />
             Unteraufgabe
           </button>
-          <button
-            type="button"
-            disabled={!canWrite || !selectedTaskRef || !editorDirty || editorSaving}
-            onClick={() => void onSave()}
-            className="inline-flex items-center gap-1 rounded bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-violet-500 disabled:opacity-40"
-          >
-            {editorSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-            Speichern
-          </button>
+          <span className="ml-auto text-[10px] text-zinc-500">
+            {editorSaving
+              ? 'Speichern…'
+              : editorDirty
+                ? 'Änderungen werden gleich gespeichert'
+                : 'Gespeichert'}
+          </span>
         </div>
+        {canWrite && (
+          <p className="mt-1 text-[10px] text-zinc-500">
+            Liste: ziehen = unter Ziel einordnen · Alt+↑↓ Reihenfolge · Alt+←/→ Ein-/Ausrücken
+          </p>
+        )}
       </div>
 
       {loadError && (
@@ -155,6 +164,10 @@ export function TskDetailPanel({
             onAddSubtask={(parentId) => onNewSubtask(parentId)}
             onDeleteTask={onDeleteTask}
             onReparentTask={onReparentTask}
+            onNestTask={onNestTask}
+            onMoveSibling={onMoveSibling}
+            onIndentTask={onIndentTask}
+            onOutdentTask={onOutdentTask}
             canWrite={canWrite}
           />
         )}

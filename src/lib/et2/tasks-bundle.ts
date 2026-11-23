@@ -8,7 +8,14 @@ import {
   type Et2TaskEditableFields,
   type Et2TaskStatus,
 } from '../../types/et2-tasks-bundle'
-import { deleteTaskSubtree, idsToRemoveForTaskSubtree, reparentTaskInList } from './task-bundle-ops'
+import {
+  deleteTaskSubtree,
+  idsToRemoveForTaskSubtree,
+  indentTaskInTree,
+  moveTaskAmongSiblings,
+  outdentTaskInTree,
+  reparentTaskInList,
+} from './task-bundle-ops'
 import type { Et2TaskKind } from '../../types/et2-task'
 import { DEFAULT_NEW_TASK_TITLE } from './constants'
 import {
@@ -241,6 +248,56 @@ export async function setEt2TaskOrder(
   order: number,
 ): Promise<{ row: RawFileRow }> {
   return updateEt2TaskInBundle(store, bundleFilePath, taskId, { order })
+}
+
+async function mutateTasksBundleFile(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  mutate: (tasks: Et2TaskRecord[]) => Et2TaskRecord[],
+): Promise<{ row: RawFileRow }> {
+  const bundle = await readTasksBundleFile(store, bundleFilePath)
+  if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
+  bundle.tasks = mutate(bundle.tasks)
+  const { row } = await writeTasksBundleFile(store, bundleFilePath, bundle)
+  return { row }
+}
+
+export async function moveEt2TaskSibling(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+  direction: 'up' | 'down',
+): Promise<{ row: RawFileRow }> {
+  return mutateTasksBundleFile(store, bundleFilePath, (tasks) =>
+    moveTaskAmongSiblings(tasks, taskId, direction),
+  )
+}
+
+export async function nestEt2TaskUnder(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+  newParentId: string | null,
+): Promise<{ row: RawFileRow }> {
+  return mutateTasksBundleFile(store, bundleFilePath, (tasks) =>
+    reparentTaskInList(tasks, taskId, newParentId),
+  )
+}
+
+export async function indentEt2Task(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+): Promise<{ row: RawFileRow }> {
+  return mutateTasksBundleFile(store, bundleFilePath, (tasks) => indentTaskInTree(tasks, taskId))
+}
+
+export async function outdentEt2Task(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+): Promise<{ row: RawFileRow }> {
+  return mutateTasksBundleFile(store, bundleFilePath, (tasks) => outdentTaskInTree(tasks, taskId))
 }
 
 export async function loadEt2TaskRecord(

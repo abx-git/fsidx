@@ -69,8 +69,7 @@ export function Et2TaskPanel({
           canWrite={canWrite}
           onNewFolder={onNewFolder ?? (() => {})}
           onNewMarkdown={onNewMarkdown ?? (() => {})}
-          onNewTask={onNewTask}
-          onNewTaskWithDialog={onNewTaskWithDialog}
+          onNewTskFile={onNewTaskWithDialog ?? onNewTask}
           compact
         />
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">

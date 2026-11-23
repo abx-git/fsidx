@@ -34,8 +34,7 @@ interface FileBrowserProps {
   canWrite: boolean
   onNewFolder: () => void
   onNewMarkdown: () => void
-  onNewTask: () => void
-  onNewTaskWithDialog?: () => void
+  onNewTskFile?: () => void
 }
 
 type Row = {
@@ -65,8 +64,7 @@ export function FileBrowser({
   canWrite,
   onNewFolder,
   onNewMarkdown,
-  onNewTask,
-  onNewTaskWithDialog,
+  onNewTskFile,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
 
@@ -111,8 +109,7 @@ export function FileBrowser({
             canWrite={canWrite}
             onNewFolder={onNewFolder}
             onNewMarkdown={onNewMarkdown}
-            onNewTask={onNewTask}
-            onNewTaskWithDialog={onNewTaskWithDialog}
+            onNewTskFile={onNewTskFile}
           />
         )}
         {inSearch && (
@@ -136,7 +133,7 @@ export function FileBrowser({
               ? 'Keine Treffer.'
               : isHiddenEt2Scope(scopePath, showEt2DotFiles)
                 ? 'Legacy-Systemordner (.et2) — in der Scope-Leiste einen Ordner darüber wählen oder *.tsk.json anlegen.'
-                : 'Keine Einträge. Oben „.tsk.json“ oder Ordner anlegen.'}
+                : 'Keine Einträge. Oben „Aufgaben-Datei“ oder Ordner anlegen.'}
           </li>
         )}
         {listing.map((row) => {

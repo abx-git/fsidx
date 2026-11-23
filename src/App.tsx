@@ -15,8 +15,14 @@ import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
 import {
   deleteEt2TaskFromBundle,
+  indentEt2Task,
+  moveEt2TaskSibling,
+  nestEt2TaskUnder,
+  outdentEt2Task,
   reparentEt2Task,
 } from './lib/et2/tasks-bundle'
+import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
+import { tskFileName } from './lib/et2/tsk-paths'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
@@ -573,10 +579,14 @@ function App() {
       if (!fileSources) {
         throw new Error('Ordner nicht verbunden. Bitte oben „Ordner verbinden“.')
       }
+      const trimmedTitle = title.trim()
+      const effectiveTitle = trimmedTitle || DEFAULT_NEW_TASK_TITLE
+      const fileStem = trimmedTitle || 'Aufgaben'
       const { row, bundlePath, taskId } = await createEt2TaskOnDisk(fileSources, {
         dirPath,
-        title,
+        title: effectiveTitle,
         body,
+        tskFileName: tskFileName(fileStem),
         indexedPaths: indexedPathList,
       })
       const entryId = registerSidecarFile(row)
@@ -586,16 +596,6 @@ function App() {
       setSelectedTskTaskRef(makeBundledTaskRef(bundlePath, taskId))
     },
     [fileSources, registerSidecarFile, et2Tasks, indexedPathList, setSelectedId],
-  )
-
-  const createEt2TaskQuick = useCallback(
-    (dirPath: string) => {
-      if (!fileSources || !canWrite) return
-      void finalizeNewEt2Task(dirPath, '', '').catch((err) => {
-        window.alert(err instanceof Error ? err.message : 'Aufgaben-Datei konnte nicht angelegt werden')
-      })
-    },
-    [fileSources, canWrite, finalizeNewEt2Task],
   )
 
   const openNewEt2TaskWithDialog = useCallback(
@@ -639,9 +639,98 @@ function App() {
     }
   }, [selectedTskTaskRef, et2TaskEditor, registerSidecarFile, et2Tasks, activeTskPath, tskFile])
 
-  const handleNewEt2TaskFromChrome = useCallback(() => {
-    createEt2TaskQuick(currentPath)
-  }, [createEt2TaskQuick, currentPath])
+  useEffect(() => {
+    if (!activeTskPath || !selectedTskTaskRef || !et2TaskEditor.dirty) return
+    if (et2TaskEditor.loading || et2TaskEditor.saving) return
+    const timer = window.setTimeout(() => {
+      void handleSaveEt2TaskContent()
+    }, 800)
+    return () => window.clearTimeout(timer)
+  }, [
+    activeTskPath,
+    selectedTskTaskRef,
+    et2TaskEditor.dirty,
+    et2TaskEditor.loading,
+    et2TaskEditor.saving,
+    et2TaskEditor.title,
+    et2TaskEditor.body,
+    et2TaskEditor.status,
+    et2TaskEditor.tags,
+    et2TaskEditor.dueDate,
+    et2TaskEditor.reminderDate,
+    et2TaskEditor.link,
+    et2TaskEditor.command,
+    et2TaskEditor.effort,
+    et2TaskEditor.effortUnit,
+    handleSaveEt2TaskContent,
+  ])
+
+  const reloadTskBundleOnDisk = useCallback(
+    async (bundlePath: string, row: { size?: number; lastModified?: number }) => {
+      registerSidecarFile({
+        relativePath: bundlePath,
+        name: bundlePath.split('/').pop() ?? bundlePath,
+        kind: 'file',
+        size: row.size,
+        lastModified: row.lastModified ?? Date.now(),
+      })
+      et2Tasks.reload()
+      await tskFile.reload()
+    },
+    [registerSidecarFile, et2Tasks, tskFile],
+  )
+
+  const handleEt2NestTask = useCallback(
+    async (taskId: string, newParentId: string | null) => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row } = await nestEt2TaskUnder(fileSources, activeTskPath, taskId, newParentId)
+        await reloadTskBundleOnDisk(activeTskPath, row)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
+  )
+
+  const handleEt2MoveSibling = useCallback(
+    async (taskId: string, direction: 'up' | 'down') => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row } = await moveEt2TaskSibling(fileSources, activeTskPath, taskId, direction)
+        await reloadTskBundleOnDisk(activeTskPath, row)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
+  )
+
+  const handleEt2Indent = useCallback(
+    async (taskId: string) => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row } = await indentEt2Task(fileSources, activeTskPath, taskId)
+        await reloadTskBundleOnDisk(activeTskPath, row)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Einrücken fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
+  )
+
+  const handleEt2Outdent = useCallback(
+    async (taskId: string) => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row } = await outdentEt2Task(fileSources, activeTskPath, taskId)
+        await reloadTskBundleOnDisk(activeTskPath, row)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Ausrücken fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
+  )
 
   const handleOpenContextInScope = useCallback(() => {
     if (!contextMenu) return
@@ -802,8 +891,7 @@ function App() {
       canWrite={canWrite}
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
-      onNewTask={handleNewEt2TaskFromChrome}
-      onNewTaskWithDialog={() => openNewEt2TaskWithDialog(currentPath)}
+      onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
     />
   )
 
@@ -907,7 +995,7 @@ function App() {
                   fileName={selectedNode.name}
                   canWrite={canWrite}
                   onCreateTsk={() =>
-                    createEt2TaskQuick(taskContainerDir(selectedNode.path) || currentPath)
+                    openNewEt2TaskWithDialog(taskContainerDir(selectedNode.path) || currentPath)
                   }
                   onOpenAsMarkdown={() =>
                     openViewer(
@@ -934,6 +1022,10 @@ function App() {
                   onNewSubtask={(parentId) => void handleEt2Subtask(parentId)}
                   onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
                   onReparentTask={(taskId) => setReparentTaskId(taskId)}
+                  onNestTask={(taskId, parentId) => void handleEt2NestTask(taskId, parentId)}
+                  onMoveSibling={(taskId, dir) => void handleEt2MoveSibling(taskId, dir)}
+                  onIndentTask={(taskId) => void handleEt2Indent(taskId)}
+                  onOutdentTask={(taskId) => void handleEt2Outdent(taskId)}
                   canWrite={canWrite}
                   title={et2TaskEditor.title}
                   body={et2TaskEditor.body}
@@ -955,7 +1047,6 @@ function App() {
                   onCommandChange={et2TaskEditor.updateCommand}
                   onEffortChange={et2TaskEditor.updateEffort}
                   onEffortUnitChange={et2TaskEditor.updateEffortUnit}
-                  onSave={handleSaveEt2TaskContent}
                   onDeleteFromDetail={() => {
                     const ref = selectedTskTaskRef ? taskRefFromPath(selectedTskTaskRef) : null
                     if (ref) void handleEt2DeleteTask(ref.taskId)
@@ -1036,7 +1127,7 @@ function App() {
         }}
         onEt2NewTask={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
-          createEt2TaskQuick(contextMenu.path)
+          openNewEt2TaskWithDialog(contextMenu.path)
         }}
         onNewSubfolder={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return

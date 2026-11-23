@@ -55,9 +55,11 @@ export function Et2NewTaskDialog({
         <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <div>
             <h2 id="et2-new-task-title" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              Aufgabe mit Textvorlage
+              Neue Aufgaben-Datei
             </h2>
-            <p className="text-xs text-zinc-500">Speichern in: {scopeLabel}</p>
+            <p className="text-xs text-zinc-500">
+              Ordner: {scopeLabel} · Dateiname aus dem Titel (<code className="text-[10px]">*.tsk.json</code>)
+            </p>
           </div>
           <button type="button" onClick={onClose} className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <X className="h-4 w-4" />

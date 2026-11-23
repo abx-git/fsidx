@@ -1,6 +1,7 @@
 import {
   ChevronRight,
   ExternalLink,
+  GripVertical,
   ListPlus,
   MoreHorizontal,
   Terminal,
@@ -16,7 +17,8 @@ import { formatEffortDisplay } from '../../lib/et2/task-effort'
 import { getTaskCommand } from '../../lib/et2/task-command'
 import { isTaskMarkedDone, tagChipClass, tagsWithoutCompletedTag } from '../../lib/et2/task-tags'
 import { taskLinkHref } from '../../lib/et2/task-link'
-import { taskHasChildren } from '../../lib/et2/task-bundle-ops'
+import { collectDescendantTaskIds, taskHasChildren } from '../../lib/et2/task-bundle-ops'
+import { taskRefFromPath } from '../../lib/et2/paths'
 import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
 const COLLAPSE_KEY = 'fsidx.tskCollapsed'
@@ -56,6 +58,10 @@ interface Et2TaskListProps {
   onAddSubtask: (parentTaskId: string) => void
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
+  onNestTask?: (taskId: string, newParentId: string | null) => void
+  onMoveSibling?: (taskId: string, direction: 'up' | 'down') => void
+  onIndentTask?: (taskId: string) => void
+  onOutdentTask?: (taskId: string) => void
   canWrite: boolean
 }
 
@@ -70,12 +76,19 @@ export function Et2TaskList({
   onAddSubtask,
   onDeleteTask,
   onReparentTask,
+  onNestTask,
+  onMoveSibling,
+  onIndentTask,
+  onOutdentTask,
   canWrite,
 }: Et2TaskListProps) {
   const [collapsedIds, setCollapsedIds] = useState(() => readCollapsed(tskPath))
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | 'root' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
     setCollapsedIds(readCollapsed(tskPath))
@@ -117,8 +130,73 @@ export function Et2TaskList({
     setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 })
   }
 
+  const selectedTaskId = useMemo(() => {
+    if (!selectedTaskRef) return null
+    return taskRefFromPath(selectedTaskRef)?.taskId ?? null
+  }, [selectedTaskRef])
+
+  useEffect(() => {
+    if (!canWrite || !selectedTaskId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        onMoveSibling?.(selectedTaskId, 'up')
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        onMoveSibling?.(selectedTaskId, 'down')
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        onOutdentTask?.(selectedTaskId)
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        onIndentTask?.(selectedTaskId)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canWrite, selectedTaskId, onMoveSibling, onIndentTask, onOutdentTask])
+
+  const canDropOn = useCallback(
+    (targetId: string) => {
+      if (!dragId || dragId === targetId) return false
+      const descendants = collectDescendantTaskIds(records, dragId)
+      return !descendants.has(targetId)
+    },
+    [dragId, records],
+  )
+
   return (
-    <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+    <ul
+      ref={listRef}
+      className="divide-y divide-zinc-100 dark:divide-zinc-800"
+      onDragOver={(e) => {
+        if (!dragId) return
+        if (e.target === listRef.current) {
+          e.preventDefault()
+          setDropTargetId('root')
+        }
+      }}
+      onDragLeave={() => setDropTargetId(null)}
+      onDrop={(e) => {
+        if (!dragId || dropTargetId !== 'root') return
+        e.preventDefault()
+        onNestTask?.(dragId, null)
+        setDragId(null)
+        setDropTargetId(null)
+      }}
+    >
+      {canWrite && dragId && (
+        <li
+          className={`px-3 py-1 text-[10px] ${
+            dropTargetId === 'root' ? 'bg-violet-100 text-violet-900' : 'text-zinc-400'
+          }`}
+        >
+          Hier ablegen → Wurzelebene
+        </li>
+      )}
       {visible.map((task) => {
         const selected = selectedTaskRef === task.relativePath
         const depth = task.depth ?? 0
@@ -133,14 +211,48 @@ export function Et2TaskList({
         const effortLabel = formatEffortDisplay(task.effort, task.effortUnit)
         const visibleTags = tagsWithoutCompletedTag(task.tags ?? []).slice(0, 4)
 
+        const dropHighlight = dropTargetId === task.taskId
         return (
-          <li key={task.relativePath}>
+          <li
+            key={task.relativePath}
+            onDragOver={(e) => {
+              if (!dragId || !canDropOn(task.taskId)) return
+              e.preventDefault()
+              e.stopPropagation()
+              setDropTargetId(task.taskId)
+            }}
+            onDrop={(e) => {
+              if (!dragId || !canDropOn(task.taskId)) return
+              e.preventDefault()
+              e.stopPropagation()
+              onNestTask?.(dragId, task.taskId)
+              setDragId(null)
+              setDropTargetId(null)
+            }}
+          >
             <div
               className={`group flex items-stretch gap-0.5 text-left text-xs hover:bg-violet-50 dark:hover:bg-violet-950/30 ${
                 selected ? 'bg-violet-100/80 dark:bg-violet-950/40' : ''
-              }`}
+              } ${dropHighlight ? 'ring-2 ring-inset ring-violet-400' : ''}`}
               style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
             >
+              {canWrite && (
+                <span
+                  draggable
+                  title="Verschieben"
+                  className="mt-2 flex h-5 w-4 shrink-0 cursor-grab items-center text-zinc-400 active:cursor-grabbing"
+                  onDragStart={(e) => {
+                    setDragId(task.taskId)
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null)
+                    setDropTargetId(null)
+                  }}
+                >
+                  <GripVertical className="h-3.5 w-3.5" />
+                </span>
+              )}
               {hasKids ? (
                 <button
                   type="button"

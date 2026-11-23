@@ -62,3 +62,60 @@ export function reparentTaskInList(
 export function taskHasChildren(taskId: string, tasks: Et2TaskRecord[]): boolean {
   return tasks.some((t) => (t.parentId ?? null) === taskId)
 }
+
+function siblingsOf(tasks: Et2TaskRecord[], parentId: string | null): Et2TaskRecord[] {
+  return tasks
+    .filter((t) => (t.parentId ?? null) === parentId)
+    .sort((a, b) => {
+      const oa = a.order ?? 0
+      const ob = b.order ?? 0
+      if (oa !== ob) return oa - ob
+      return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+    })
+}
+
+/** Geschwisterreihenfolge tauschen (↑/↓). */
+export function moveTaskAmongSiblings(
+  tasks: Et2TaskRecord[],
+  taskId: string,
+  direction: 'up' | 'down',
+): Et2TaskRecord[] {
+  const task = tasks.find((t) => t.id === taskId)
+  if (!task) return tasks
+  const parentId = task.parentId ?? null
+  const sibs = siblingsOf(tasks, parentId)
+  const idx = sibs.findIndex((s) => s.id === taskId)
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+  if (idx < 0 || swapIdx < 0 || swapIdx >= sibs.length) return tasks
+  const a = sibs[idx]
+  const b = sibs[swapIdx]
+  const orderA = a.order ?? idx
+  const orderB = b.order ?? swapIdx
+  return tasks.map((t) => {
+    if (t.id === a.id) return { ...t, order: orderB }
+    if (t.id === b.id) return { ...t, order: orderA }
+    return t
+  })
+}
+
+/** Eine Ebene einrücken (Unteraufgabe des vorherigen Geschwisters). */
+export function indentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2TaskRecord[] {
+  const task = tasks.find((t) => t.id === taskId)
+  if (!task) return tasks
+  const sibs = siblingsOf(tasks, task.parentId ?? null)
+  const idx = sibs.findIndex((s) => s.id === taskId)
+  if (idx <= 0) return tasks
+  const newParentId = sibs[idx - 1].id
+  if (wouldCreateTaskCycle(tasks, taskId, newParentId)) return tasks
+  return reparentTaskInList(tasks, taskId, newParentId)
+}
+
+/** Eine Ebene ausrücken. */
+export function outdentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2TaskRecord[] {
+  const task = tasks.find((t) => t.id === taskId)
+  if (!task?.parentId) return tasks
+  const parent = tasks.find((t) => t.id === task.parentId)
+  const newParentId = parent?.parentId ?? null
+  if (wouldCreateTaskCycle(tasks, taskId, newParentId)) return tasks
+  return reparentTaskInList(tasks, taskId, newParentId)
+}

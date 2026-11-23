@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { TextareaEditResult } from '../../lib/markdown-textarea-edit'
+import { MarkdownBlockToolbar } from './MarkdownBlockToolbar'
 import type { FileSourceStore } from '../../lib/file-sources'
 import {
   joinMarkdownBlocks,
@@ -25,13 +27,30 @@ export function BlockMarkdownView({
   const blocks = useMemo(() => splitMarkdownBlocks(content), [content])
   const [activeBlock, setActiveBlock] = useState<number | null>(null)
   const areaRefs = useRef<Map<number, HTMLTextAreaElement>>(new Map())
+  const pendingSelection = useRef<TextareaEditResult | null>(null)
 
   useEffect(() => {
     setActiveBlock(null)
   }, [docPath])
 
+  const resizeArea = useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(el.scrollHeight, 48)}px`
+  }, [])
+
+  const [activeTextarea, setActiveTextarea] = useState<HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    if (activeBlock === null) {
+      setActiveTextarea(null)
+      return
+    }
+    setActiveTextarea(areaRefs.current.get(activeBlock) ?? null)
+  }, [activeBlock, blocks])
+
   useEffect(() => {
     if (activeBlock === null) return
+    if (pendingSelection.current) return
     const el = areaRefs.current.get(activeBlock)
     if (!el) return
     el.focus()
@@ -39,16 +58,30 @@ export function BlockMarkdownView({
     el.setSelectionRange(len, len)
   }, [activeBlock])
 
-  const resizeArea = useCallback((el: HTMLTextAreaElement) => {
-    el.style.height = 'auto'
-    el.style.height = `${Math.max(el.scrollHeight, 48)}px`
-  }, [])
+  useLayoutEffect(() => {
+    if (activeBlock === null || !pendingSelection.current) return
+    const el = areaRefs.current.get(activeBlock)
+    const pending = pendingSelection.current
+    pendingSelection.current = null
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(pending.selectionStart, pending.selectionEnd)
+    resizeArea(el)
+  }, [blocks, activeBlock, resizeArea])
 
   const handleBlockChange = useCallback(
     (index: number, value: string) => {
       onChange(replaceMarkdownBlock(blocks, index, value))
     },
     [blocks, onChange],
+  )
+
+  const applyToolbarEdit = useCallback(
+    (index: number, result: TextareaEditResult) => {
+      pendingSelection.current = result
+      handleBlockChange(index, result.value)
+    },
+    [handleBlockChange],
   )
 
   const empty = blocks.length === 1 && !blocks[0].trim()
@@ -88,6 +121,11 @@ export function BlockMarkdownView({
               }}
             >
               {editing ? (
+                <>
+                <MarkdownBlockToolbar
+                  textarea={activeBlock === index ? activeTextarea : null}
+                  onApply={(result) => applyToolbarEdit(index, result)}
+                />
                 <textarea
                   ref={(el) => {
                     if (el) {
@@ -110,6 +148,7 @@ export function BlockMarkdownView({
                     }
                   }}
                 />
+                </>
               ) : showPlaceholder ? (
                 <p className="px-3 py-2 text-sm italic text-zinc-400">Leerer Block</p>
               ) : (

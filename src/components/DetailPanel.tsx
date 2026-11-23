@@ -54,7 +54,7 @@ export function DetailPanel({
   const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail && !showLegacyNotice
 
   return (
-    <aside className="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
+    <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
       {onSidebarWidthChange && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}
@@ -89,10 +89,13 @@ export function DetailPanel({
         </CollapsibleSection>
       </div>
 
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showViewer && (
         <div
           className={`flex min-h-0 flex-col border-b border-zinc-200 dark:border-zinc-800 ${
-            viewerExpanded || !metadataVisible ? 'min-h-0 flex-1' : 'h-[min(38vh,360px)] shrink-0'
+            viewerExpanded || !showTskDetail
+              ? 'min-h-0 flex-1'
+              : 'h-[min(32vh,320px)] shrink-0'
           }`}
         >
           {onViewerExpandedChange && (
@@ -111,12 +114,13 @@ export function DetailPanel({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {showLegacyNotice && <div className="shrink-0">{legacyNoticeSlot}</div>}
-        {showTskDetail && <div className="flex min-h-0 flex-1 flex-col">{tskDetailSlot}</div>}
+        {showTskDetail && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{tskDetailSlot}</div>
+        )}
 
         {showFileMetadata && (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
             {node?.kind === 'directory' && onDirectoryReadme && (
               <div className="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
                 <button
@@ -166,11 +170,11 @@ export function DetailPanel({
                 {jsonPreview}
               </pre>
             </CollapsibleSection>
-          </>
+          </div>
         )}
 
         {!showTskDetail && !showLegacyNotice && !showFileMetadata && !showViewer && (
-          <p className="px-3 py-6 text-center text-xs text-zinc-500">
+          <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-zinc-500">
             Optional: Index-Metadaten unter „Seitenleiste einstellen“ aktivieren.
           </p>
         )}

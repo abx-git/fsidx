@@ -110,7 +110,7 @@ export function TskDetailPanel({
   return (
     <div
       data-tsk-panel=""
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-violet-50/20 dark:bg-violet-950/10"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-violet-50/20 dark:bg-violet-950/10"
     >
       <div className="shrink-0 border-b border-violet-200 px-3 py-2 dark:border-violet-900/50">
         <p className="flex items-center gap-1.5 text-xs font-medium text-violet-900 dark:text-violet-100">
@@ -134,7 +134,7 @@ export function TskDetailPanel({
         </p>
       )}
 
-      <div className="max-h-[38%] shrink-0 overflow-y-auto border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex min-h-0 flex-[0_1_40%] flex-col overflow-y-auto border-b border-zinc-200 dark:border-zinc-800">
         {loading ? (
           <p className="flex items-center gap-2 px-3 py-4 text-xs text-zinc-500">
             <Loader2 className="h-3 w-3 animate-spin" /> Laden…

@@ -65,7 +65,7 @@ export class MarkdownPreviewWidget extends WidgetType {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
-      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo)
+      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo, shell)
     })
     renderMarkdownInto(shell, this.content, this.ctx, this.kind)
     return shell
@@ -107,7 +107,7 @@ export class FencedCodePreviewWidget extends WidgetType {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
-      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo)
+      activateFromPreviewClick(view, e, this.blockFrom, this.blockTo, wrap)
     })
 
     const trimmed = this.code.trim()

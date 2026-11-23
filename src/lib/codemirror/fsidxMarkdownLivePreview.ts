@@ -159,7 +159,7 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
     addBlockPreview(items, hiddenLines, state, table.from, table.to, ctx)
   }
 
-  const activeLineNo = state.doc.lineAt(active.from).number
+  const activeLineNo = state.doc.lineAt(state.selection.main.head).number
 
   for (const paragraph of findParagraphRanges(state, skipRanges)) {
     if (!rangesOverlap(paragraph, active)) {

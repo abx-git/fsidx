@@ -1,7 +1,29 @@
-import { EditorSelection } from '@codemirror/state'
+import { EditorSelection, type EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
-function caretAtClick(view: EditorView, x: number, y: number, from: number, to: number): boolean {
+/** Vertikaler Klick in Vorschau → Zeilenanfang in diesem Dokumentbereich. */
+export function lineStartFromBlockClick(
+  state: EditorState,
+  blockFrom: number,
+  blockTo: number,
+  clientY: number,
+  rect: DOMRect,
+): number {
+  const first = state.doc.lineAt(blockFrom).number
+  const last = state.doc.lineAt(blockTo).number
+  const count = Math.max(1, last - first + 1)
+  const ratio = Math.min(1, Math.max(0, (clientY - rect.top) / Math.max(rect.height, 1)))
+  const lineNo = first + Math.min(count - 1, Math.floor(ratio * count))
+  return state.doc.line(lineNo).from
+}
+
+function caretAtClick(
+  view: EditorView,
+  x: number,
+  y: number,
+  from: number,
+  to: number,
+): boolean {
   const hit = view.posAndSideAtCoords({ x, y }, false)
   if (hit.pos >= from && hit.pos <= to) {
     view.dispatch({
@@ -21,22 +43,29 @@ function caretAtClick(view: EditorView, x: number, y: number, from: number, to: 
   return false
 }
 
-/** Vorschau-Zeile aktivieren, dann Marke exakt an Mausposition (nach Neuzeichnen). */
 export function activateFromPreviewClick(
   view: EditorView,
   e: MouseEvent,
-  rangeFrom: number,
-  rangeTo: number,
+  blockFrom: number,
+  blockTo: number,
+  previewEl: HTMLElement,
 ) {
   const x = e.clientX
   const y = e.clientY
-  const safeTo = Math.min(rangeTo, view.state.doc.length)
+  const lineFrom = lineStartFromBlockClick(
+    view.state,
+    blockFrom,
+    blockTo,
+    y,
+    previewEl.getBoundingClientRect(),
+  )
+  const line = view.state.doc.lineAt(lineFrom)
   const head = view.state.selection.main.head
-  const onTargetLine = head >= rangeFrom && head <= safeTo
+  const onTargetLine = head >= line.from && head <= line.to
 
   if (!onTargetLine) {
     view.dispatch({
-      selection: EditorSelection.cursor(Math.max(0, rangeFrom)),
+      selection: EditorSelection.cursor(lineFrom),
       scrollIntoView: false,
     })
   }
@@ -44,7 +73,7 @@ export function activateFromPreviewClick(
   view.focus()
 
   const attempt = (left: number) => {
-    if (caretAtClick(view, x, y, rangeFrom, safeTo)) return
+    if (caretAtClick(view, x, y, line.from, line.to)) return
     if (left > 0) requestAnimationFrame(() => attempt(left - 1))
   }
   requestAnimationFrame(() => attempt(4))

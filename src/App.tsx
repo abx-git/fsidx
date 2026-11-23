@@ -8,7 +8,12 @@ import {
 } from './lib/directory-readme'
 import { canWriteToStore, writeTextToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
-import { Header } from './components/Header'
+import { Header, type CenterPaneMode } from './components/Header'
+import { Et2TaskPanel } from './components/et2/Et2TaskPanel'
+import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
+import { createEt2TaskOnDisk } from './lib/et2/create-task'
+import { folderMetaRelative } from './lib/et2/paths'
+import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
 import { DetailPanel } from './components/DetailPanel'
@@ -44,6 +49,10 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [markdownSaveError, setMarkdownSaveError] = useState<string | null>(null)
   const [markdownSaving, setMarkdownSaving] = useState(false)
+  const [centerMode, setCenterMode] = useState<CenterPaneMode>('files')
+  const [showEt2DotFiles, setShowEt2DotFiles] = useState(false)
+  const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
+  const [selectedEt2TaskPath, setSelectedEt2TaskPath] = useState<string | null>(null)
 
   const {
     manifest,
@@ -123,6 +132,24 @@ function App() {
   )
 
   const canWrite = canWriteToStore(fileSources)
+
+  const indexedPathList = useMemo(
+    () => (manifest ? manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path) : []),
+    [manifest],
+  )
+
+  const taskPathToEntryId = useMemo(() => {
+    const map = new Map<string, string>()
+    if (!manifest) return map
+    for (const e of manifest.entries) {
+      if (e.kind === 'file' && e.path.includes('/.et2/tasks/')) {
+        map.set(e.path, e.id)
+      }
+    }
+    return map
+  }, [manifest])
+
+  const et2Tasks = useEt2TaskSummaries(indexedPathList, currentPath, fileSources)
 
   const inspectNode = useMemo(() => {
     if (!manifest) return null
@@ -315,6 +342,77 @@ function App() {
     await indexFromPicker()
   }, [indexFromPicker])
 
+  const handleEt2NewTask = useCallback(
+    async (dirPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('ET2-Aufgabe: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.')
+        return
+      }
+      const title = window.prompt('Titel der neuen Aufgabe:', 'Neue Aufgabe')
+      if (title === null) return
+      const { row } = await createEt2TaskOnDisk(fileSources, { dirPath, title })
+      const id = registerSidecarFile(row)
+      clearMarkdownDrafts()
+      et2Tasks.reload()
+      if (id) {
+        openViewer('markdown', row.relativePath, row.name, id, row.size)
+      }
+      setCenterMode('tasks')
+    },
+    [fileSources, canWrite, registerSidecarFile, openViewer, et2Tasks],
+  )
+
+  const handleEt2FolderMeta = useCallback(
+    async (dirPath: string) => {
+      if (!manifest || !fileSources || !canWrite) {
+        window.alert('folder.json: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.')
+        return
+      }
+      const rel = folderMetaRelative(dirPath)
+      const existing = manifest.entries.find((e) => e.path === rel)
+      if (!existing) {
+        const dirNode = findNodeByPath(manifest.tree, dirPath)
+        const body = `${JSON.stringify(
+          {
+            format: 'et2-folder-v1',
+            version: 1,
+            title: dirNode?.name ?? dirPath.split('/').pop() ?? '',
+          },
+          null,
+          2,
+        )}\n`
+        await writeTextToStore(fileSources, rel, body)
+        const id = registerSidecarFile({
+          relativePath: rel,
+          name: 'folder.json',
+          kind: 'file',
+          size: new Blob([body]).size,
+          lastModified: Date.now(),
+        })
+        if (id) openViewer('json', rel, 'folder.json', id)
+        return
+      }
+      openViewer('json', rel, 'folder.json', existing.id, existing.size)
+    },
+    [manifest, fileSources, canWrite, registerSidecarFile, openViewer],
+  )
+
+  const handleEt2MigrateFile = useCallback(
+    async (relativePath: string, content: string, size: number) => {
+      if (!fileSources) throw new Error('Keine Dateiquelle')
+      await writeTextToStore(fileSources, relativePath, content)
+      const name = relativePath.split('/').pop() ?? relativePath
+      registerSidecarFile({
+        relativePath,
+        name,
+        kind: 'file',
+        size,
+        lastModified: Date.now(),
+      })
+    },
+    [fileSources, registerSidecarFile],
+  )
+
   const handleSaveMetadata = useCallback(async () => {
     setSaveError(null)
     try {
@@ -367,6 +465,28 @@ function App() {
       markdown={markdownEditorProps}
       size={fileView.size}
     />
+  ) : centerMode === 'tasks' ? (
+    <Et2TaskPanel
+      rootName={manifest.rootName}
+      currentPath={currentPath}
+      onNavigate={(path) => navigateToPath(path, null)}
+      tasks={et2Tasks.tasks}
+      loading={et2Tasks.loading}
+      canWrite={canWrite}
+      selectedTaskPath={selectedEt2TaskPath}
+      onSelectTask={(relativePath, entryId) => {
+        setSelectedEt2TaskPath(relativePath)
+        if (entryId) setSelectedId(entryId)
+      }}
+      onOpenTask={(relativePath, _title, entryId) => {
+        const name = relativePath.split('/').pop() ?? relativePath
+        const id = entryId ?? taskPathToEntryId.get(relativePath) ?? relativePath
+        openViewer('markdown', relativePath, name, id)
+        setSelectedEt2TaskPath(relativePath)
+      }}
+      onNewTask={() => void handleEt2NewTask(currentPath)}
+      taskPathToEntryId={taskPathToEntryId}
+    />
   ) : (
     <FileBrowser
       rootName={manifest.rootName}
@@ -381,6 +501,7 @@ function App() {
       hasSidecar={hasSidecar}
       onOpenViewer={openViewer}
       onFileContextMenu={setContextMenu}
+      showEt2DotFiles={showEt2DotFiles}
     />
   )
 
@@ -414,6 +535,19 @@ function App() {
         manifest={manifest}
         supportsFsPicker={supportsFsPicker}
         indexing={indexing}
+        centerMode={centerMode}
+        onCenterModeChange={setCenterMode}
+        showEt2DotFiles={showEt2DotFiles}
+        onShowEt2DotFilesChange={setShowEt2DotFiles}
+        onEt2Migrate={() => setEt2MigrateOpen(true)}
+      />
+
+      <Et2MigrateDialog
+        open={et2MigrateOpen && Boolean(manifest)}
+        onClose={() => setEt2MigrateOpen(false)}
+        canWrite={canWrite}
+        onApplyFile={handleEt2MigrateFile}
+        onApplied={() => et2Tasks.reload()}
       />
 
       {needsFolderReconnect && manifest && (
@@ -452,6 +586,7 @@ function App() {
             root={manifest.tree}
             currentPath={currentPath}
             onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
+            indexedFilePaths={indexedPathList}
           />
           {centerPane}
           <DetailPanel
@@ -509,6 +644,14 @@ function App() {
         onDirectoryReadme={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           void handleDirectoryReadme(contextMenu.path, contextMenu.id)
+        }}
+        onEt2NewTask={() => {
+          if (!contextMenu || contextMenu.kind !== 'directory') return
+          void handleEt2NewTask(contextMenu.path)
+        }}
+        onEt2FolderMeta={() => {
+          if (!contextMenu || contextMenu.kind !== 'directory') return
+          void handleEt2FolderMeta(contextMenu.path)
         }}
       />
     </div>

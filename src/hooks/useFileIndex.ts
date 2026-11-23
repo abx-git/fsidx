@@ -10,6 +10,7 @@ import {
 import type { FileSourceStore } from '../lib/file-sources'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
+import { listEt2TaskPathsFromEntries, searchEt2Tasks } from '../lib/et2/et2-search'
 import type { FileIndexManifest, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
 import { appendFileToManifest } from '../lib/manifest-append'
@@ -70,10 +71,34 @@ export function useFileIndex() {
     return node
   }, [manifest, currentPath])
 
+  const et2TaskHits = useMemo(() => {
+    if (!manifest) return []
+    return listEt2TaskPathsFromEntries(manifest.entries)
+  }, [manifest])
+
   const searchResults = useMemo(() => {
     if (!manifest || !searchQuery.trim()) return []
-    return searchEntries(manifest.entries, { query: searchQuery })
-  }, [manifest, searchQuery])
+    const fileResults = searchEntries(manifest.entries, { query: searchQuery })
+    const et2Hits = searchEt2Tasks(et2TaskHits, searchQuery)
+    const seen = new Set(fileResults.map((e) => e.path))
+    const fromTasks = et2Hits
+      .filter((h) => !seen.has(h.relativePath))
+      .map((h) => {
+        const existing = manifest.entries.find((e) => e.path === h.relativePath)
+        if (existing) return existing
+        return {
+          id: `et2-search-${h.relativePath}`,
+          kind: 'file' as const,
+          name: `${h.titleHint}.task.md`,
+          path: h.relativePath,
+          parentPath: h.parentPath,
+          depth: h.relativePath.split('/').length,
+          extension: 'md',
+          searchText: `et2 task ${h.titleHint} ${h.relativePath}`,
+        }
+      })
+    return [...fileResults, ...fromTasks]
+  }, [manifest, searchQuery, et2TaskHits])
 
   const indexedFilePaths = useMemo(() => {
     if (!manifest) return new Set<string>()

@@ -42,6 +42,8 @@ interface FileContextMenuProps {
   onOpenViewer: (kind: FileViewerKind) => void
   hasDirectoryReadme: boolean
   onDirectoryReadme: () => void
+  onEt2NewTask?: () => void
+  onEt2FolderMeta?: () => void
 }
 
 export function FileContextMenu({
@@ -53,6 +55,8 @@ export function FileContextMenu({
   onOpenViewer,
   hasDirectoryReadme,
   onDirectoryReadme,
+  onEt2NewTask,
+  onEt2FolderMeta,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -101,6 +105,34 @@ export function FileContextMenu({
               : `${DIRECTORY_README_NAME} anlegen`}
           </span>
         </button>
+        {onEt2NewTask && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onEt2NewTask()
+              onClose()
+            }}
+          >
+            <Pencil className="h-4 w-4 shrink-0 text-violet-500" />
+            <span>ET2-Aufgabe anlegen</span>
+          </button>
+        )}
+        {onEt2FolderMeta && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onEt2FolderMeta()
+              onClose()
+            }}
+          >
+            <FileJson className="h-4 w-4 shrink-0 text-violet-500" />
+            <span>Ordner-Metadaten (.et2/folder.json)</span>
+          </button>
+        )}
         {!canWrite && (
           <p className="border-t border-zinc-100 px-3 py-2 text-[11px] text-amber-700 dark:border-zinc-800 dark:text-amber-300">
             Anlegen/Speichern: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.

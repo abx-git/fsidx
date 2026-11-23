@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/et2-folder.v1.schema.json",
+  "title": "fsidx ET2 folder metadata",
+  "type": "object",
+  "required": ["format", "version"],
+  "properties": {
+    "format": { "const": "et2-folder-v1" },
+    "version": { "const": 1 },
+    "title": { "type": "string" },
+    "summary": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "et2": {
+      "type": "object",
+      "properties": {
+        "legacyId": { "type": "string" },
+        "legacyPath": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

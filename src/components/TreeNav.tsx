@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, CheckSquare, File, Folder } from 'lucide-react'
+import { scanFolderTasks } from '../lib/et2/scan-folder-tasks'
 import { useState } from 'react'
 import type { IndexNode } from '../types'
 
@@ -6,6 +7,7 @@ interface TreeNavProps {
   root: IndexNode
   currentPath: string
   onSelectPath: (path: string, nodeId: string) => void
+  indexedFilePaths?: string[]
 }
 
 function TreeNode({
@@ -13,12 +15,18 @@ function TreeNode({
   currentPath,
   onSelectPath,
   defaultOpen,
+  indexedFilePaths,
 }: {
   node: IndexNode
   currentPath: string
   onSelectPath: (path: string, nodeId: string) => void
   defaultOpen?: boolean
+  indexedFilePaths?: string[]
 }) {
+  const taskCount =
+    indexedFilePaths && node.path !== undefined
+      ? scanFolderTasks(indexedFilePaths, node.path).length
+      : 0
   const isDir = node.kind === 'directory'
   const [open, setOpen] = useState(defaultOpen ?? node.depth < 2)
   const isActive = currentPath === node.path
@@ -60,6 +68,15 @@ function TreeNode({
         >
           <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span className="truncate">{node.name || '(root)'}</span>
+          {taskCount > 0 && (
+            <span
+              className="ml-auto inline-flex items-center gap-0.5 rounded bg-violet-100 px-1 text-[10px] font-medium text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+              title={`${taskCount} ET2-Aufgaben`}
+            >
+              <CheckSquare className="h-2.5 w-2.5" />
+              {taskCount}
+            </span>
+          )}
         </button>
       </div>
       {open &&
@@ -70,6 +87,7 @@ function TreeNode({
               node={child}
               currentPath={currentPath}
               onSelectPath={onSelectPath}
+              indexedFilePaths={indexedFilePaths}
             />
           ) : null,
         )}
@@ -77,10 +95,16 @@ function TreeNode({
   )
 }
 
-export function TreeNav({ root, currentPath, onSelectPath }: TreeNavProps) {
+export function TreeNav({ root, currentPath, onSelectPath, indexedFilePaths }: TreeNavProps) {
   return (
     <nav className="h-full overflow-auto border-r border-zinc-200 p-2 dark:border-zinc-800" aria-label="Folder tree">
-      <TreeNode node={root} currentPath={currentPath} onSelectPath={onSelectPath} defaultOpen />
+      <TreeNode
+        node={root}
+        currentPath={currentPath}
+        onSelectPath={onSelectPath}
+        defaultOpen
+        indexedFilePaths={indexedFilePaths}
+      />
     </nav>
   )
 }

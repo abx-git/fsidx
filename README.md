@@ -13,8 +13,27 @@ A **browser-only** single-page app that indexes every file in a folder you choos
 4. **Double-click `.md` files** to open an Obsidian-style viewer: **Reading** (rendered preview, default) or **Source** (raw markdown editor). Toggle with the toolbar or **Ctrl+E** (Cmd+E on Mac). Edits stay in the browser session; use **Download** to save a copy.
 5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, Datei-Info. Doppelklick öffnet den Standard-Viewer für den Typ.
 6. **Metadaten-JSON** weiterhin im Kontextmenü: Sidecar `datei.json` mit Schema-Editor (`file-metadata.v1`).
+7. **ET2-Aufgaben** (optional): Umschalter **Dateien / Aufgaben**, eine Aufgabe pro `.et2/tasks/<id>.task.md` (YAML-Frontmatter + Markdown). Import eines [ET2](https://github.com/abx-git/ET2)-Boards (`hierarchical-task-manager`) über **ET2 import** in die Ordnerstruktur.
 
 Nothing is uploaded; metadata stays in memory unless you export it.
+
+## ET2 on disk
+
+Pro Ordner (parallel zu normalen Dateien und `README.md`):
+
+```text
+projekt/phase/
+  README.md
+  .et2/
+    folder.json          # et2-folder-v1
+    tasks/
+      abc123.task.md     # et2-task-v1 (Frontmatter + Beschreibung)
+    relations.json         # optional, Geschwister-Relationen nach Migration
+```
+
+- Schemas: [`public/schemas/et2-task.v1.schema.json`](public/schemas/et2-task.v1.schema.json), [`et2-folder.v1.schema.json`](public/schemas/et2-folder.v1.schema.json)
+- Mapping Monolith → Dateien: [`docs/et2-mapping.md`](docs/et2-mapping.md)
+- Im Datei-Modus sind `.et2/`-Pfade standardmäßig ausgeblendet („**.et2 anzeigen**“ im Header).
 
 ## Sidecar-Metadaten (JSON Schema)
 

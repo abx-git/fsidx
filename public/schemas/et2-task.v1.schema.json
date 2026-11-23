@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/et2-task.v1.schema.json",
+  "title": "fsidx ET2 task file (YAML frontmatter)",
+  "type": "object",
+  "required": ["format", "version", "id", "title"],
+  "properties": {
+    "format": { "const": "et2-task-v1" },
+    "version": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["card", "note", "symbol"] },
+    "title": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "link": { "type": "string" },
+    "command": { "type": "string" },
+    "dueDate": { "type": ["string", "null"] },
+    "reminderDate": { "type": ["string", "null"] },
+    "effort": { "type": "number" },
+    "effortUnit": { "enum": ["hours", "minutes", "workdays"] },
+    "et2": {
+      "type": "object",
+      "properties": {
+        "legacyId": { "type": "string" },
+        "migratedAt": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

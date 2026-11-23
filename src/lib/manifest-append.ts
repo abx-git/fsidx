@@ -19,12 +19,84 @@ function findNode(manifest: FileIndexManifest, path: string): IndexNode | null {
   return current
 }
 
+function joinPath(parent: string, segment: string): string {
+  return parent ? `${parent}/${segment}` : segment
+}
+
+function buildSearchText(parts: {
+  name: string
+  path: string
+  extension?: string
+  kind: string
+  extra?: string
+}): string {
+  return [parts.name, parts.path, parts.extension ?? '', parts.kind, parts.extra ?? '']
+    .join(' ')
+    .toLowerCase()
+}
+
 export function appendFileToManifest(
   manifest: FileIndexManifest,
   row: RawFileRow,
 ): FileIndexManifest {
   if (manifest.entries.some((e) => e.path === row.relativePath)) {
     return manifest
+  }
+
+  let next = manifest
+  const parts = row.relativePath.split('/').filter(Boolean)
+  if (parts.length === 0) return manifest
+
+  let parentPath = ''
+  for (let i = 0; i < parts.length - 1; i++) {
+    const segment = parts[i]
+    const dirPath = joinPath(parentPath, segment)
+    if (!next.entries.some((e) => e.path === dirPath)) {
+      next = appendFileToManifest(next, {
+        relativePath: dirPath,
+        name: segment,
+        kind: 'directory',
+      })
+    }
+    parentPath = dirPath
+  }
+
+  if (row.kind === 'directory') {
+    if (next.entries.some((e) => e.path === row.relativePath)) return next
+    const node: IndexNode = {
+      id: nextNodeId(),
+      kind: 'directory',
+      name: row.name,
+      path: row.relativePath,
+      depth: parts.length,
+      children: [],
+    }
+    const parent = findNode(next, parentPathOf(row.relativePath))
+    if (parent?.children) {
+      parent.children.push(node)
+      parent.children.sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      })
+    }
+    const entry: IndexEntry = {
+      id: node.id,
+      kind: 'directory',
+      name: node.name,
+      path: node.path,
+      parentPath: parentPathOf(row.relativePath),
+      depth: node.depth,
+      searchText: buildSearchText({ name: node.name, path: node.path, kind: 'directory' }),
+    }
+    return {
+      ...next,
+      indexedAt: new Date().toISOString(),
+      entries: [...next.entries, entry],
+      stats: {
+        ...next.stats,
+        directories: next.stats.directories + 1,
+      },
+    }
   }
 
   const ext = extensionFromName(row.name)
@@ -40,7 +112,7 @@ export function appendFileToManifest(
     lastModified: row.lastModified,
   }
 
-  const parent = findNode(manifest, parentPathOf(row.relativePath))
+  const parent = findNode(next, parentPathOf(row.relativePath))
   if (parent?.children) {
     parent.children.push(node)
     parent.children.sort((a, b) => {
@@ -49,6 +121,7 @@ export function appendFileToManifest(
     })
   }
 
+  const taskTag = row.relativePath.includes('/.et2/tasks/') ? 'et2 task' : ''
   const entry: IndexEntry = {
     id: node.id,
     kind: 'file',
@@ -59,19 +132,25 @@ export function appendFileToManifest(
     extension: node.extension,
     size: node.size,
     lastModified: node.lastModified,
-    searchText: [node.name, node.path, node.extension ?? '', 'file'].join(' ').toLowerCase(),
+    searchText: buildSearchText({
+      name: node.name,
+      path: node.path,
+      extension: node.extension,
+      kind: 'file',
+      extra: taskTag,
+    }),
   }
 
-  const entries = [...manifest.entries, entry]
-  let files = manifest.stats.files + 1
-  const totalBytes = manifest.stats.totalBytes + (row.size ?? 0)
+  const entries = [...next.entries, entry]
+  const files = next.stats.files + 1
+  const totalBytes = next.stats.totalBytes + (row.size ?? 0)
 
   return {
-    ...manifest,
+    ...next,
     indexedAt: new Date().toISOString(),
     entries,
     stats: {
-      ...manifest.stats,
+      ...next.stats,
       files,
       totalBytes,
     },

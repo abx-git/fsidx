@@ -4,6 +4,7 @@ import { formatBytes, formatDate } from '../lib/format'
 import { defaultViewerForFile } from '../lib/file-viewers'
 import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
+import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
 import { pathBreadcrumbs } from './TreeNav'
 import type { ContextMenuTarget } from './FileContextMenu'
 
@@ -26,6 +27,7 @@ interface FileBrowserProps {
     size?: number,
   ) => void
   onFileContextMenu: (target: ContextMenuTarget) => void
+  showEt2DotFiles?: boolean
 }
 
 type Row = {
@@ -51,6 +53,7 @@ export function FileBrowser({
   hasSidecar,
   onOpenViewer,
   onFileContextMenu,
+  showEt2DotFiles = false,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
   const crumbs = pathBreadcrumbs(currentPath, rootName)
@@ -74,10 +77,12 @@ export function FileBrowser({
         lastModified: child.lastModified,
         extension: child.extension,
       }))
-  ).filter(
-    (row) =>
-      row.kind === 'directory' || !isSidecarForIndexedFile(row.path, indexedFilePaths),
-  )
+  ).filter((row) => {
+    if (row.kind === 'directory') return true
+    if (isSidecarForIndexedFile(row.path, indexedFilePaths)) return false
+    if (isEt2InternalPath(row.path, showEt2DotFiles)) return false
+    return true
+  })
 
   return (
     <section className="flex h-full min-h-0 flex-col">

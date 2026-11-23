@@ -6,8 +6,8 @@ import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { useEt2Autosave } from './useEt2Autosave'
 
-/** Live-Vorschau (CodeMirror, Obsidian-ähnlich) oder Roh-Quelltext. */
-export type MarkdownViewMode = 'reading' | 'source'
+/** Gerenderte Vorschau oder Bearbeiten mit Markdown-Toolbar. */
+export type MarkdownViewMode = 'view' | 'edit'
 
 const draftCache = new Map<string, string>()
 
@@ -22,7 +22,7 @@ export function useMarkdownDocument(
   const onPersistedRef = useRef(options?.onPersisted)
   onPersistedRef.current = options?.onPersisted
   const [content, setContent] = useState('')
-  const [viewMode, setViewMode] = useState<MarkdownViewMode>('reading')
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>('view')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -34,7 +34,7 @@ export function useMarkdownDocument(
       setContent('')
       setError(null)
       setDirty(false)
-      setViewMode('reading')
+      setViewMode('view')
       setSaveError(null)
       return
     }
@@ -43,7 +43,7 @@ export function useMarkdownDocument(
     if (cached != null) {
       setContent(cached)
       setDirty(true)
-      setViewMode('reading')
+      setViewMode('view')
       setError(null)
       return
     }
@@ -52,14 +52,14 @@ export function useMarkdownDocument(
       setContent('')
       setError('Re-open the folder to read this file. Imported JSON indexes do not include file contents.')
       setDirty(false)
-      setViewMode('reading')
+      setViewMode('view')
       return
     }
 
     let cancelled = false
     setLoading(true)
     setError(null)
-    setViewMode('reading')
+    setViewMode('view')
     setDirty(false)
     setSaveError(null)
 
@@ -140,7 +140,7 @@ export function useMarkdownDocument(
   })
 
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => (m === 'reading' ? 'source' : 'reading'))
+    setViewMode((m) => (m === 'view' ? 'edit' : 'view'))
   }, [])
 
   return {

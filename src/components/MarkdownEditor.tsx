@@ -1,13 +1,9 @@
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
-import { Suspense, lazy } from 'react'
+import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
-import { CollapsibleSection } from './ui/CollapsibleSection'
-
-const FsidxMarkdownEditor = lazy(() =>
-  import('./markdown/FsidxMarkdownEditor').then((m) => ({ default: m.FsidxMarkdownEditor })),
-)
+import { MarkdownContent } from './markdown/MarkdownContent'
+import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
 
 interface MarkdownEditorProps {
   fileName: string
@@ -52,8 +48,6 @@ export function MarkdownEditor({
     URL.revokeObjectURL(url)
   }
 
-  const editorMode = viewMode === 'reading' ? 'live' : 'source'
-
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
@@ -88,45 +82,51 @@ export function MarkdownEditor({
               Speichern…
             </span>
           )}
-          <CollapsibleSection summary="Mehr" className="py-0.5">
-            <div className="flex flex-wrap gap-1.5">
+          <div
+            className="inline-flex rounded-lg border border-zinc-300 p-0.5 dark:border-zinc-600"
+            role="tablist"
+            aria-label="Markdown-Ansicht"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === 'view'}
+              onClick={() => onViewModeChange('view')}
+              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                viewMode === 'view'
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Ansicht
+            </button>
+            {canWrite && (
               <button
                 type="button"
-                onClick={() => onViewModeChange('reading')}
-                className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
-                  viewMode === 'reading' ? 'bg-sky-100 dark:bg-sky-950/50' : ''
+                role="tab"
+                aria-selected={viewMode === 'edit'}
+                onClick={() => onViewModeChange('edit')}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                  viewMode === 'edit'
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                 }`}
               >
-                Live-Vorschau
+                <Pencil className="h-3.5 w-3.5" />
+                Bearbeiten
               </button>
-              {canWrite && (
-                <button
-                  type="button"
-                  onClick={() => onViewModeChange('source')}
-                  className={`inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600 ${
-                    viewMode === 'source' ? 'bg-zinc-200 dark:bg-zinc-700' : ''
-                  }`}
-                >
-                  Quelltext
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={downloadEdited}
-                disabled={!content}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] disabled:opacity-50 dark:border-zinc-600"
-              >
-                <Download className="h-3 w-3" />
-                Download
-              </button>
-            </div>
-            {canWrite && (
-              <p className="mt-1 text-[10px] text-zinc-400">
-                Nur die Zeile mit der Schreibmarke als Markdown — keine Hervorhebung, Klick setzt die
-                Marke. Quelltext-Modus: alles Roh.
-              </p>
             )}
-          </CollapsibleSection>
+          </div>
+          <button
+            type="button"
+            onClick={downloadEdited}
+            disabled={!content}
+            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs disabled:opacity-50 dark:border-zinc-600"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </button>
         </div>
       </header>
 
@@ -147,25 +147,25 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
-        {!loading && !error && (
-          <Suspense
-            fallback={
-              <p className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Editor wird geladen…
-              </p>
-            }
-          >
-            <FsidxMarkdownEditor
-              content={content}
+        {!loading && !error && viewMode === 'view' && (
+          <article className="markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100">
+            {content.trim() ? (
+              <MarkdownContent content={content} docPath={filePath} fileSources={fileSources} />
+            ) : (
+              <p className="text-sm text-zinc-400">Kein Inhalt.</p>
+            )}
+          </article>
+        )}
+        {!loading && !error && viewMode === 'edit' && canWrite && (
+          <div className="mx-auto max-w-3xl px-3 py-4">
+            <MarkdownTextareaWithToolbar
+              value={content}
               onChange={onChange}
-              canWrite={canWrite}
-              mode={editorMode}
-              docPath={filePath}
-              fileSources={fileSources}
-              editorKey={`${filePath}:${editorMode}`}
+              disabled={!canWrite}
+              minHeightClass="min-h-[min(70vh,720px)]"
+              placeholder="Markdown…"
             />
-          </Suspense>
+          </div>
         )}
       </div>
     </section>

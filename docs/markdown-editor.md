@@ -4,24 +4,21 @@
 
 | Komponente | Rolle |
 |-----------|--------|
-| `FsidxMarkdownEditor` | Einzige Editor-UI (`.md`-Dateien, ET2-Beschreibungen) |
-| `buildFsidxMarkdownExtensions` | CodeMirror-Extensions: `live` oder `source` |
-| `fsidxMarkdownLivePreview` | StateField: zeilenweise Vorschau-Widgets |
-| `MarkdownContent` / `MarkdownLineContent` | React-Rendering in Widgets + Lesemodus |
-| `MarkdownTextareaWithToolbar` | Nur ET2 `simple`-Felder (kleine Beschreibungen) |
+| `MarkdownEditor` | `.md`-Dateien: **Ansicht** oder **Bearbeiten** |
+| `MarkdownContent` | Gerenderte Vorschau (react-markdown) |
+| `MarkdownTextareaWithToolbar` | Bearbeiten mit Menüzeile (Formatierung) |
+| `LivePreviewMarkdown` | Dünner Wrapper für ET2-Beschreibungsfelder |
 
 ## Modi
 
-- **live** (`viewMode: reading`): Fließtext zeilenweise als Roh-Markdown; **gesamte** Codeblöcke (``` und eingerückt) sowie **ganze Tabellen** beim Bearbeiten. Pfeiltasten zeilenweise, Tab zum Einrücken.
-- **source** (`viewMode: source`): voller CodeMirror-Quelltext, Zeilennummern, ohne Vorschau.
+- **Ansicht** (`viewMode: view`): formatiertes Markdown, Diagramme und Bilder aus dem Workspace.
+- **Bearbeiten** (`viewMode: edit`): Monospace-Textarea mit Toolbar (nur wenn Schreibrecht).
 
-## Entfernt (Legacy)
+## Entfernt
 
-- `@mdxeditor/editor` (WYSIWYG)
-- Block-Editor (`markdown-blocks`, `BlockMarkdownView`)
-- separater `ObsidianLiveMarkdownEditor` / `WysiwygMarkdownEditor`
-- eigene Maus-Overrides (`fsidxMarkdownPointer`)
+- CodeMirror Live-Vorschau (Obsidian-Zeile-für-Zeile)
+- `@mdxeditor/editor`, Block-Editor, MDX-Pipelines
 
 ## Regeln
 
-Keine zweite Editor-Pipeline einführen — Erweiterungen über `buildFsidxMarkdownExtensions` und `fsidxMarkdownLivePreview`.
+Keine zweite Rendering-Pipeline: Vorschau nur über `MarkdownContent`, Bearbeiten nur über `MarkdownTextareaWithToolbar`.

@@ -50,7 +50,7 @@ export function MarkdownEditor({
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <header className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95">
         <div className="flex min-w-0 items-center gap-2">
           {showBackButton && (
             <button
@@ -130,40 +130,42 @@ export function MarkdownEditor({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {saveError && (
-          <p className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          <p className="mx-4 mt-2 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
             {saveError}
           </p>
         )}
         {loading && (
-          <p className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
+          <p className="flex flex-1 items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" />
             Markdown wird geladen…
           </p>
         )}
         {!loading && error && (
-          <p className="mx-4 my-8 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          <p className="mx-4 my-8 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
             {error}
           </p>
         )}
         {!loading && !error && viewMode === 'view' && (
-          <article className="markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100">
-            {content.trim() ? (
-              <MarkdownContent content={content} docPath={filePath} fileSources={fileSources} />
-            ) : (
-              <p className="text-sm text-zinc-400">Kein Inhalt.</p>
-            )}
-          </article>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <article className="markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100">
+              {content.trim() ? (
+                <MarkdownContent content={content} docPath={filePath} fileSources={fileSources} />
+              ) : (
+                <p className="text-sm text-zinc-400">Kein Inhalt.</p>
+              )}
+            </article>
+          </div>
         )}
         {!loading && !error && viewMode === 'edit' && canWrite && (
-          <div className="mx-auto max-w-3xl px-3 py-4">
+          <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-3 py-2">
             <MarkdownTextareaWithToolbar
               value={content}
               onChange={onChange}
               disabled={!canWrite}
-              minHeightClass="min-h-[min(70vh,720px)]"
               placeholder="Markdown…"
+              stickyToolbar
             />
           </div>
         )}

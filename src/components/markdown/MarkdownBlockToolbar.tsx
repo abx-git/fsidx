@@ -42,6 +42,7 @@ interface MarkdownBlockToolbarProps {
   textarea: HTMLTextAreaElement | null
   onApply: (result: TextareaEditResult) => void
   disabled?: boolean
+  className?: string
 }
 
 function readSelection(textarea: HTMLTextAreaElement | null): {
@@ -133,7 +134,12 @@ function ToolbarButton({
   )
 }
 
-export function MarkdownBlockToolbar({ textarea, onApply, disabled }: MarkdownBlockToolbarProps) {
+export function MarkdownBlockToolbar({
+  textarea,
+  onApply,
+  disabled,
+  className = '',
+}: MarkdownBlockToolbarProps) {
   const fire = (action: MarkdownToolbarAction) => {
     const result = runAction(textarea, action)
     if (result) onApply(result)
@@ -141,7 +147,7 @@ export function MarkdownBlockToolbar({ textarea, onApply, disabled }: MarkdownBl
 
   return (
     <div
-      className="flex flex-wrap items-center gap-0.5 border-b border-violet-200/80 bg-white/90 px-2 py-1 dark:border-violet-900/50 dark:bg-zinc-900/90"
+      className={`flex flex-wrap items-center gap-0.5 border-b border-violet-200/80 bg-white/95 px-2 py-1 backdrop-blur-sm dark:border-violet-900/50 dark:bg-zinc-950/95 ${className}`}
       role="toolbar"
       aria-label="Markdown formatieren"
     >

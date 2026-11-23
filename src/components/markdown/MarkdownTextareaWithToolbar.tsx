@@ -9,6 +9,8 @@ interface MarkdownTextareaWithToolbarProps {
   placeholder?: string
   className?: string
   minHeightClass?: string
+  /** Toolbar bleibt beim Scrollen sichtbar (Vollbild-Editor). */
+  stickyToolbar?: boolean
 }
 
 export function MarkdownTextareaWithToolbar({
@@ -18,6 +20,7 @@ export function MarkdownTextareaWithToolbar({
   placeholder,
   className = '',
   minHeightClass = 'min-h-[7.5rem]',
+  stickyToolbar = false,
 }: MarkdownTextareaWithToolbarProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const pendingSelection = useRef<TextareaEditResult | null>(null)
@@ -48,26 +51,51 @@ export function MarkdownTextareaWithToolbar({
     onChange(result.value)
   }
 
+  const toolbar =
+    !disabled ? (
+      <MarkdownBlockToolbar
+        textarea={textareaEl}
+        onApply={applyEdit}
+        disabled={disabled}
+        className={stickyToolbar ? 'sticky top-0 z-20 shrink-0' : undefined}
+      />
+    ) : null
+
+  const textarea = (
+    <textarea
+      ref={(el) => {
+        ref.current = el
+        setTextareaEl(el)
+      }}
+      value={value}
+      disabled={disabled}
+      onChange={(e) => {
+        onChange(e.target.value)
+        resize()
+      }}
+      placeholder={placeholder}
+      spellCheck
+      className={`w-full border-0 bg-white px-3 py-2 font-mono text-sm leading-relaxed text-zinc-900 outline-none focus:ring-2 focus:ring-inset focus:ring-violet-500/25 disabled:opacity-60 dark:bg-zinc-950 dark:text-zinc-100 ${
+        stickyToolbar ? 'min-h-[min(60vh,480px)] resize-none' : `resize-y ${minHeightClass}`
+      } ${className}`}
+    />
+  )
+
+  if (stickyToolbar) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {toolbar}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-b-lg border border-t-0 border-zinc-300 dark:border-zinc-600">
+          {textarea}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-zinc-300 dark:border-zinc-600">
-      {!disabled && (
-        <MarkdownBlockToolbar textarea={textareaEl} onApply={applyEdit} disabled={disabled} />
-      )}
-      <textarea
-        ref={(el) => {
-          ref.current = el
-          setTextareaEl(el)
-        }}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => {
-          onChange(e.target.value)
-          resize()
-        }}
-        placeholder={placeholder}
-        spellCheck
-        className={`w-full resize-y border-0 bg-white px-3 py-2 font-mono text-sm leading-relaxed text-zinc-900 outline-none focus:ring-2 focus:ring-inset focus:ring-violet-500/25 disabled:opacity-60 dark:bg-zinc-950 dark:text-zinc-100 ${minHeightClass} ${className}`}
-      />
+      {toolbar}
+      {textarea}
     </div>
   )
 }

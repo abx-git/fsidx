@@ -121,8 +121,8 @@ export function MarkdownEditor({
             </div>
             {canWrite && (
               <p className="mt-1 text-[10px] text-zinc-400">
-                Obsidian-ähnliche Live-Vorschau: Syntax sichtbar am Cursor, sonst formatiert ·
-                Mermaid/Bilder gerendert · Quelltext im Modus „Quelltext“ · automatisch gespeichert
+                Wie Obsidian Live Preview: nur die aktuelle Zeile (ganze Tabelle im Tabellenmodus)
+                als Markdown · Rest gerendert · Quelltext unter „Quelltext“
               </p>
             )}
           </CollapsibleSection>

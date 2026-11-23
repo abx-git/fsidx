@@ -3,6 +3,7 @@ import type { EditorView } from '@codemirror/view'
 import { readBlobFromStore, type FileSourceStore } from '../file-sources'
 import { resolveAssetPathCandidates } from '../markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../plantuml'
+import { renderMarkdownInto, unmountMarkdown } from './fsidxMarkdownWidgetMount'
 
 export interface MarkdownWidgetContext {
   docPath: string
@@ -15,6 +16,47 @@ function focusRange(view: EditorView, from: number) {
     scrollIntoView: true,
   })
   view.focus()
+}
+
+export class MarkdownPreviewWidget extends WidgetType {
+  readonly content: string
+  readonly focusAt: number
+  readonly ctx: MarkdownWidgetContext
+
+  constructor(content: string, focusAt: number, ctx: MarkdownWidgetContext) {
+    super()
+    this.content = content
+    this.focusAt = focusAt
+    this.ctx = ctx
+  }
+
+  eq(other: MarkdownPreviewWidget) {
+    return (
+      other.content === this.content &&
+      other.focusAt === this.focusAt &&
+      other.ctx.docPath === this.ctx.docPath
+    )
+  }
+
+  ignoreEvent() {
+    return false
+  }
+
+  destroy(dom: HTMLElement) {
+    unmountMarkdown(dom)
+  }
+
+  toDOM(view: EditorView) {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-md-rendered-chunk cursor-text'
+    wrap.title = 'Klicken zum Bearbeiten'
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      focusRange(view, this.focusAt)
+    })
+    renderMarkdownInto(wrap, this.content, this.ctx)
+    return wrap
+  }
 }
 
 async function loadWorkspaceImageBlob(

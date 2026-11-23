@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, CheckSquare, Folder } from 'lucide-react'
 import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
-import { directoryHasNavigableContent, flattenVisibleTree } from '../lib/tree-flat'
+import { flattenVisibleTree, isDirectoryVisibleInTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
 import { fsidxFileDragMime, parseFsidxFileDrag } from '../lib/move-workspace'
@@ -111,7 +111,7 @@ function TreeNode({
   const isActive = currentPath === node.path
   const children = node.children ?? []
   const visibleChildren = children.filter(
-    (child) => child.kind === 'directory' && directoryHasNavigableContent(child, showEt2DotFiles),
+    (child) => child.kind === 'directory' && isDirectoryVisibleInTree(child, showEt2DotFiles),
   )
   const hasChildren = visibleChildren.length > 0
   const isRoot = node.path === ''
@@ -122,7 +122,7 @@ function TreeNode({
     return e.dataTransfer.types.includes(fsidxFileDragMime())
   }
 
-  if (!isRoot && !directoryHasNavigableContent(node, showEt2DotFiles)) return null
+  if (!isRoot && !isDirectoryVisibleInTree(node, showEt2DotFiles)) return null
 
   return (
     <div className="select-none" role="group">

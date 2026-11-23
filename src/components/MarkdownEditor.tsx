@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
 import {
   lineNumberAtOffset,
@@ -85,15 +85,25 @@ export function MarkdownEditor({
     [content, onViewModeChange],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (viewMode !== 'view' || viewHighlightLine == null) return
     const scrollEl = viewScrollRef.current
     const article = previewArticleRef.current
     if (!scrollEl || !article) return
-    const id = requestAnimationFrame(() => {
+
+    const apply = () =>
       scrollContainerToSourceLine(scrollEl, article, viewHighlightLine, SCROLL_ANCHOR_PX)
+
+    apply()
+    const id = requestAnimationFrame(() => {
+      apply()
+      requestAnimationFrame(apply)
     })
-    return () => cancelAnimationFrame(id)
+    const t = window.setTimeout(apply, 60)
+    return () => {
+      cancelAnimationFrame(id)
+      window.clearTimeout(t)
+    }
   }, [viewMode, viewHighlightLine, content])
 
   useEffect(() => {

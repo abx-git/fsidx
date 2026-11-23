@@ -36,8 +36,21 @@ export function MarkdownTextareaWithToolbar({
   onScrollToLineApplied,
 }: MarkdownTextareaWithToolbarProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const scrollWrapRef = useRef<HTMLDivElement>(null)
   const pendingSelection = useRef<TextareaEditResult | null>(null)
   const [textareaEl, setTextareaEl] = useState<HTMLTextAreaElement | null>(null)
+
+  const scrollToSourceLine = useCallback(
+    (line: number) => {
+      const el = ref.current
+      if (!el) return
+      const scrollParent = stickyToolbar ? scrollWrapRef.current : null
+      const run = () => scrollTextareaToLine(el, line, SCROLL_ANCHOR_PX, undefined, scrollParent)
+      run()
+      requestAnimationFrame(run)
+    },
+    [stickyToolbar],
+  )
 
   const resize = useCallback(() => {
     const el = ref.current
@@ -66,19 +79,18 @@ export function MarkdownTextareaWithToolbar({
     const end = Math.min(Math.max(start, focusRange.end), el.value.length)
     el.focus()
     el.setSelectionRange(start, end)
-    const line =
-      focusRange.line ??
-      el.value.slice(0, start).split('\n').length
-    scrollTextareaToLine(el, line, SCROLL_ANCHOR_PX)
     resize()
+    const line =
+      focusRange.line ?? el.value.slice(0, start).split('\n').length
+    scrollToSourceLine(line)
     onFocusRangeApplied?.()
-  }, [focusRange, onFocusRangeApplied, resize])
+  }, [focusRange, onFocusRangeApplied, resize, scrollToSourceLine])
 
   useLayoutEffect(() => {
     if (scrollToLine == null || !ref.current) return
-    scrollTextareaToLine(ref.current, scrollToLine, SCROLL_ANCHOR_PX)
+    scrollToSourceLine(scrollToLine)
     onScrollToLineApplied?.()
-  }, [scrollToLine, onScrollToLineApplied])
+  }, [scrollToLine, onScrollToLineApplied, scrollToSourceLine])
 
   const applyEdit = (result: TextareaEditResult) => {
     pendingSelection.current = result
@@ -125,7 +137,10 @@ export function MarkdownTextareaWithToolbar({
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {toolbar}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-b-lg border border-t-0 border-zinc-300 dark:border-zinc-600">
+        <div
+          ref={scrollWrapRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-b-lg border border-t-0 border-zinc-300 dark:border-zinc-600"
+        >
           {textarea}
         </div>
       </div>

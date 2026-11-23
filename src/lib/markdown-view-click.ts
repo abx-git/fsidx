@@ -232,12 +232,32 @@ export function scrollTextareaToSourceLine(
   scrollTextareaToLine(textarea, safeLine, paddingPx, lineHeight)
 }
 
+/** Scrollt eine Zeile in einem äußeren Overflow-Container (Auto-Height-Textarea). */
+export function scrollTextareaInContainer(
+  scrollEl: HTMLElement,
+  textarea: HTMLTextAreaElement,
+  line: number,
+  paddingPx = 96,
+): void {
+  const style = window.getComputedStyle(textarea)
+  const lh = Number.parseFloat(style.lineHeight) || 20
+  const pt = Number.parseFloat(style.paddingTop) || 0
+  const safeLine = Math.max(1, line)
+  const lineTop = (safeLine - 1) * lh + pt
+  scrollEl.scrollTop = Math.max(0, lineTop - paddingPx)
+}
+
 export function scrollTextareaToLine(
   textarea: HTMLTextAreaElement,
   line: number,
   paddingPx = 96,
   lineHeight?: number,
+  scrollParent?: HTMLElement | null,
 ): void {
+  if (scrollParent) {
+    scrollTextareaInContainer(scrollParent, textarea, line, paddingPx)
+    return
+  }
   const lh =
     lineHeight ??
     (Number.parseFloat(window.getComputedStyle(textarea).lineHeight) || 20)

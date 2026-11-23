@@ -11,6 +11,9 @@ interface MarkdownTextareaWithToolbarProps {
   minHeightClass?: string
   /** Toolbar bleibt beim Scrollen sichtbar (Vollbild-Editor). */
   stickyToolbar?: boolean
+  /** Einmal Caret setzen (z. B. nach Doppelklick in der Vorschau). */
+  focusAt?: number | null
+  onFocusAtApplied?: () => void
 }
 
 export function MarkdownTextareaWithToolbar({
@@ -21,6 +24,8 @@ export function MarkdownTextareaWithToolbar({
   className = '',
   minHeightClass = 'min-h-[7.5rem]',
   stickyToolbar = false,
+  focusAt = null,
+  onFocusAtApplied,
 }: MarkdownTextareaWithToolbarProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const pendingSelection = useRef<TextareaEditResult | null>(null)
@@ -45,6 +50,20 @@ export function MarkdownTextareaWithToolbar({
     ref.current.setSelectionRange(pending.selectionStart, pending.selectionEnd)
     resize()
   }, [value, resize])
+
+  useLayoutEffect(() => {
+    if (focusAt == null || !ref.current) return
+    const el = ref.current
+    const pos = Math.min(Math.max(0, focusAt), el.value.length)
+    el.focus()
+    el.setSelectionRange(pos, pos)
+    const style = window.getComputedStyle(el)
+    const lineHeight = Number.parseFloat(style.lineHeight) || 20
+    const linesAbove = el.value.slice(0, pos).split('\n').length
+    el.scrollTop = Math.max(0, (linesAbove - 4) * lineHeight)
+    resize()
+    onFocusAtApplied?.()
+  }, [focusAt, onFocusAtApplied, resize])
 
   const applyEdit = (result: TextareaEditResult) => {
     pendingSelection.current = result

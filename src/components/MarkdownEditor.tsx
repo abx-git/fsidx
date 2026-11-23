@@ -1,4 +1,6 @@
+import { useCallback, useState } from 'react'
 import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
+import { sourceOffsetFromPreviewClick } from '../lib/markdown-view-click'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
@@ -38,6 +40,19 @@ export function MarkdownEditor({
   saveError,
   fileSources,
 }: MarkdownEditorProps) {
+  const [editCaret, setEditCaret] = useState<number | null>(null)
+
+  const handlePreviewDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (!canWrite || viewMode !== 'view') return
+      e.preventDefault()
+      const offset = sourceOffsetFromPreviewClick(content, e.currentTarget, e.clientX, e.clientY)
+      setEditCaret(offset)
+      onViewModeChange('edit')
+    },
+    [canWrite, viewMode, content, onViewModeChange],
+  )
+
   const downloadEdited = () => {
     const blob = new Blob([content], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
@@ -149,9 +164,23 @@ export function MarkdownEditor({
         )}
         {!loading && !error && viewMode === 'view' && (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <article className="markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100">
+            <article
+              className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
+                canWrite ? 'cursor-text' : ''
+              }`}
+              title={canWrite ? 'Doppelklick zum Bearbeiten' : undefined}
+              onDoubleClick={handlePreviewDoubleClick}
+            >
               {content.trim() ? (
                 <MarkdownContent content={content} docPath={filePath} fileSources={fileSources} />
+              ) : canWrite ? (
+                <p
+                  className="text-sm text-zinc-400"
+                  data-md-source-start="1"
+                  data-md-source-end="1"
+                >
+                  Doppelklick zum Schreiben…
+                </p>
               ) : (
                 <p className="text-sm text-zinc-400">Kein Inhalt.</p>
               )}
@@ -166,6 +195,8 @@ export function MarkdownEditor({
               disabled={!canWrite}
               placeholder="Markdown…"
               stickyToolbar
+              focusAt={editCaret}
+              onFocusAtApplied={() => setEditCaret(null)}
             />
           </div>
         )}

@@ -1,27 +1,64 @@
 import { useMemo } from 'react'
+import type { Element as HastElement } from 'hast'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { FileSourceStore } from '../../lib/file-sources'
+import { mdBlockDataAttrs } from '../../lib/markdown-view-click'
 import { preprocessObsidianEmbeds } from '../../lib/markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../../lib/plantuml'
 import { MermaidDiagram } from './diagrams/MermaidDiagram'
 import { PlantUmlDiagram } from './diagrams/PlantUmlDiagram'
 import { MarkdownAssetImage } from './MarkdownAssetImage'
 
+function blockAttrs(node: HastElement | undefined): Record<string, string> | undefined {
+  const start = node?.position?.start?.line
+  const end = node?.position?.end?.line ?? start
+  return mdBlockDataAttrs({ startLine: start, endLine: end })
+}
+
 function buildMdComponents(
   docPath: string | undefined,
   fileSources: FileSourceStore | null,
   compact: boolean,
 ): Components {
+  const pClass = compact ? 'cm-md-flow my-0' : undefined
+
   return {
-  ...(compact
-    ? {
-        p: ({ children }: { children?: React.ReactNode }) => (
-          <p className="cm-md-flow my-0">{children}</p>
-        ),
-      }
-    : {}),
+  p({ node, children, ...props }) {
+    return (
+      <p className={pClass} {...props} {...blockAttrs(node)}>
+        {children}
+      </p>
+    )
+  },
+  h1: ({ node, children, ...props }) => (
+    <h1 {...props} {...blockAttrs(node)}>{children}</h1>
+  ),
+  h2: ({ node, children, ...props }) => (
+    <h2 {...props} {...blockAttrs(node)}>{children}</h2>
+  ),
+  h3: ({ node, children, ...props }) => (
+    <h3 {...props} {...blockAttrs(node)}>{children}</h3>
+  ),
+  h4: ({ node, children, ...props }) => (
+    <h4 {...props} {...blockAttrs(node)}>{children}</h4>
+  ),
+  h5: ({ node, children, ...props }) => (
+    <h5 {...props} {...blockAttrs(node)}>{children}</h5>
+  ),
+  h6: ({ node, children, ...props }) => (
+    <h6 {...props} {...blockAttrs(node)}>{children}</h6>
+  ),
+  li: ({ node, children, ...props }) => (
+    <li {...props} {...blockAttrs(node)}>{children}</li>
+  ),
+  blockquote: ({ node, children, ...props }) => (
+    <blockquote {...props} {...blockAttrs(node)}>{children}</blockquote>
+  ),
+  pre: ({ node, children, ...props }) => (
+    <pre className="markdown-pre" {...props} {...blockAttrs(node)}>{children}</pre>
+  ),
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className ?? '')
     const lang = match?.[1]?.toLowerCase()
@@ -46,9 +83,6 @@ function buildMdComponents(
         {children}
       </code>
     )
-  },
-  pre({ children }) {
-    return <pre className="markdown-pre">{children}</pre>
   },
     img({ src, alt, title }) {
       if (docPath && fileSources && src && !/^(https?:|data:|blob:)/i.test(src)) {

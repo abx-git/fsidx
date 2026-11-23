@@ -39,6 +39,7 @@ import {
   makeBundledTaskRef,
   taskRefFromPath,
 } from './lib/et2/paths'
+import { workspaceHasLegacyEt2 } from './lib/et2/is-et2-internal'
 import { sanitizeScopePath } from './lib/scope-sanitize'
 import { LegacyTaskNotice } from './components/et2/LegacyTaskNotice'
 import { taskContainerDir } from './lib/workspace-scope'
@@ -199,6 +200,15 @@ function App() {
     () => (manifest ? manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path) : []),
     [manifest],
   )
+
+  const hasLegacyEt2 = useMemo(
+    () => (manifest ? workspaceHasLegacyEt2(manifest.entries.map((e) => e.path)) : false),
+    [manifest],
+  )
+
+  useEffect(() => {
+    if (!hasLegacyEt2) setShowEt2DotFiles(false)
+  }, [hasLegacyEt2])
 
   const [aggregateTasksDir, setAggregateTasksDir] = useState<string | null>(null)
 
@@ -1138,6 +1148,7 @@ function App() {
         indexing={indexing}
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
+        hasLegacyEt2={hasLegacyEt2}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
       />
       </div>

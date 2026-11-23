@@ -25,6 +25,8 @@ interface HeaderProps {
   indexing: boolean
   showEt2DotFiles: boolean
   onShowEt2DotFilesChange: (value: boolean) => void
+  /** Nur wenn der Workspace alte `.et2/`-Strukturen enthält. */
+  hasLegacyEt2?: boolean
   onEt2Migrate: () => void
 }
 
@@ -42,6 +44,7 @@ export function Header({
   indexing,
   showEt2DotFiles,
   onShowEt2DotFilesChange,
+  hasLegacyEt2 = false,
   onEt2Migrate,
 }: HeaderProps) {
   return (
@@ -117,15 +120,20 @@ export function Header({
                   ET2-Import
                 </button>
               </div>
-              <label className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={showEt2DotFiles}
-                  onChange={(e) => onShowEt2DotFilesChange(e.target.checked)}
-                  className="rounded border-zinc-300"
-                />
-                Versteckte Legacy-Ordner <code className="text-[10px]">.et2</code> anzeigen
-              </label>
+              {(hasLegacyEt2 || showEt2DotFiles) && (
+                <label
+                  className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400"
+                  title="Altes ET2-Format (.et2/tasks/, tasks.json). Neu: *.tsk.json im normalen Ordner — nur zum Migrieren oder Lesen einblenden."
+                >
+                  <input
+                    type="checkbox"
+                    checked={showEt2DotFiles}
+                    onChange={(e) => onShowEt2DotFilesChange(e.target.checked)}
+                    className="rounded border-zinc-300"
+                  />
+                  Legacy-Ordner <code className="text-[10px]">.et2</code> im Baum anzeigen
+                </label>
+              )}
               {manifest && (
                 <p className="flex flex-wrap gap-3 text-[10px] text-zinc-500">
                   <span className="inline-flex items-center gap-1">

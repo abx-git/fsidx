@@ -2,7 +2,11 @@ import { ChevronDown, ChevronRight, CheckSquare, File, Folder } from 'lucide-rea
 import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
-import { shouldShowFileInTree, type TreeDisplayFilterState } from '../lib/tree-display-filter'
+import {
+  shouldShowDirectoryInTree,
+  shouldShowFileInTree,
+  type TreeDisplayFilterState,
+} from '../lib/tree-display-filter'
 import { dirHasVisibleDescendants, flattenVisibleTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IndexNode } from '../types'
@@ -141,6 +145,7 @@ function TreeNode({
   }
 
   if (node.kind !== 'directory') return null
+  if (!shouldShowDirectoryInTree(node.path, showEt2DotFiles)) return null
 
   const taskCount =
     indexedFilePaths && node.path !== undefined
@@ -407,18 +412,15 @@ export function TreeNav({
             Aufgaben
           </label>
         </div>
-        <p className="px-1 text-[10px] leading-snug text-zinc-500">
-          {showAll
-            ? 'Kein Filter aktiv — Ordner und alle Dateien sichtbar.'
-            : filter.showFiles && filter.showTasks
-              ? 'Nur Dateien und Aufgaben im Baum.'
-              : filter.showFiles
-                ? 'Nur normale Dateien (keine Aufgaben).'
-                : 'Nur Aufgaben (.tsk.json / .task.md).'}
-        </p>
-        <p className="px-1 text-[10px] text-zinc-400">
-          Rechtsklick: Kontextmenü · Tastatur: ↑↓ · →/← · Eingabe
-        </p>
+        {!showAll && (
+          <p className="px-1 text-[10px] text-zinc-500">
+            {filter.showTasks && !filter.showFiles
+              ? 'Nur Aufgaben-Dateien (*.tsk.json …)'
+              : filter.showFiles && !filter.showTasks
+                ? 'Ohne Aufgaben-Dateien'
+                : 'Filter aktiv'}
+          </p>
+        )}
       </div>
       <div
         ref={treeScrollRef}

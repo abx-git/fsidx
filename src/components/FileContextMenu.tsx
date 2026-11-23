@@ -48,7 +48,6 @@ interface FileContextMenuProps {
   hasDirectoryReadme: boolean
   onDirectoryReadme: () => void
   onEt2NewTask?: () => void
-  onEt2FolderMeta?: () => void
   onNewSubfolder?: () => void
   onNewMarkdown?: () => void
   onDelete?: () => void
@@ -65,7 +64,6 @@ export function FileContextMenu({
   hasDirectoryReadme,
   onDirectoryReadme,
   onEt2NewTask,
-  onEt2FolderMeta,
   onNewSubfolder,
   onNewMarkdown,
   onDelete,
@@ -173,20 +171,6 @@ export function FileContextMenu({
           >
             <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
             <span>Neue .tsk.json</span>
-          </button>
-        )}
-        {onEt2FolderMeta && (
-          <button
-            type="button"
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            onClick={() => {
-              onEt2FolderMeta()
-              onClose()
-            }}
-          >
-            <FileJson className="h-4 w-4 shrink-0 text-violet-500" />
-            <span>Ordner-Metadaten (.et2/folder.json)</span>
           </button>
         )}
         {onDelete && (

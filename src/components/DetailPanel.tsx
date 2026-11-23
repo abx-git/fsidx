@@ -11,6 +11,7 @@ interface DetailPanelProps {
   node: IndexNode | null
   jsonPreview: string
   tskDetailSlot?: ReactNode
+  legacyNoticeSlot?: ReactNode
   viewerPinned: boolean
   onViewerPinnedChange: (value: boolean) => void
   viewerSlot?: ReactNode
@@ -31,6 +32,7 @@ export function DetailPanel({
   node,
   jsonPreview,
   tskDetailSlot,
+  legacyNoticeSlot,
   viewerPinned,
   onViewerPinnedChange,
   viewerSlot,
@@ -48,7 +50,8 @@ export function DetailPanel({
   const showViewer = viewerPinned && viewerSlot
   const detailsVisible = !showViewer || !viewerExpanded
   const showTskDetail = Boolean(tskDetailSlot)
-  const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail
+  const showLegacyNotice = Boolean(legacyNoticeSlot)
+  const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail && !showLegacyNotice
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
@@ -109,6 +112,7 @@ export function DetailPanel({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        {showLegacyNotice && <div className="shrink-0">{legacyNoticeSlot}</div>}
         {showTskDetail && <div className="flex min-h-0 flex-1 flex-col">{tskDetailSlot}</div>}
 
         {showFileMetadata && (
@@ -165,7 +169,7 @@ export function DetailPanel({
           </>
         )}
 
-        {!showTskDetail && !showFileMetadata && !showViewer && (
+        {!showTskDetail && !showLegacyNotice && !showFileMetadata && !showViewer && (
           <p className="px-3 py-6 text-center text-xs text-zinc-500">
             Optional: Index-Metadaten unter „Seitenleiste einstellen“ aktivieren.
           </p>

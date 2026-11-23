@@ -6,6 +6,7 @@ import { defaultViewerForFile } from '../lib/file-viewers'
 import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
+import { isHiddenEt2Scope } from '../lib/scope-sanitize'
 import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
 import type { ContextMenuTarget } from './FileContextMenu'
@@ -127,15 +128,15 @@ export function FileBrowser({
             </p>
           </>
         )}
-        <p className="border-b border-zinc-100 px-3 py-1 text-[11px] text-zinc-400 dark:border-zinc-800">
-          Rechtsklick: Datei-Viewer / Metadaten · Ordner:{' '}
-          <code className="text-[10px]">README.md</code>
-        </p>
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {listing.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-zinc-500">
-            {inSearch ? 'Keine Treffer.' : 'Dieser Ordner ist leer.'}
+            {inSearch
+              ? 'Keine Treffer.'
+              : isHiddenEt2Scope(scopePath, showEt2DotFiles)
+                ? 'Legacy-Systemordner (.et2) — in der Scope-Leiste einen Ordner darüber wählen oder *.tsk.json anlegen.'
+                : 'Keine Einträge. Oben „.tsk.json“ oder Ordner anlegen.'}
           </li>
         )}
         {listing.map((row) => {

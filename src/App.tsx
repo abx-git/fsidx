@@ -16,7 +16,10 @@ import { createEt2TaskOnDisk } from './lib/et2/create-task'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
 import { isTskJsonPath } from './lib/et2/tsk-paths'
-import { folderMetaRelative, makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
+import { isTaskFilePath, makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
+import { sanitizeScopePath } from './lib/scope-sanitize'
+import { LegacyTaskNotice } from './components/et2/LegacyTaskNotice'
+import { taskContainerDir } from './lib/workspace-scope'
 import { looksLikeOpaqueId } from './lib/et2/display-title'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
@@ -112,7 +115,7 @@ function App() {
       setFileView(null)
       return
     }
-    if (isTskJsonPath(selectedNode.path)) {
+    if (isTskJsonPath(selectedNode.path) || isTaskFilePath(selectedNode.path)) {
       setFileView(null)
       return
     }
@@ -174,6 +177,11 @@ function App() {
     return selectedNode.path
   }, [selectedNode])
 
+  const isLegacyTaskFile = useMemo(
+    () => selectedNode?.kind === 'file' && isTaskFilePath(selectedNode.path),
+    [selectedNode],
+  )
+
   const tskFile = useTskFile(activeTskPath, fileSources)
   const et2TaskEditor = useEt2TaskEditor(selectedTskTaskRef, fileSources)
 
@@ -211,15 +219,20 @@ function App() {
 
   const navigateToPath = useCallback(
     (path: string, selectId?: string | null) => {
-      setCurrentPath(path)
+      setCurrentPath(sanitizeScopePath(path, showEt2DotFiles))
       setSearchQuery('')
       setMetadataTarget(null)
       setSaveError(null)
       setFileView(null)
       if (selectId !== undefined) setSelectedId(selectId)
     },
-    [setCurrentPath, setSearchQuery, setSelectedId],
+    [setCurrentPath, setSearchQuery, setSelectedId, showEt2DotFiles],
   )
+
+  useEffect(() => {
+    const next = sanitizeScopePath(currentPath, showEt2DotFiles)
+    if (next !== currentPath) setCurrentPath(next)
+  }, [currentPath, showEt2DotFiles, setCurrentPath])
 
   useEffect(() => {
     if (!manifest || currentPath === '') return
@@ -622,41 +635,6 @@ function App() {
     setSelectedId,
   ])
 
-  const handleEt2FolderMeta = useCallback(
-    async (dirPath: string) => {
-      if (!manifest || !fileSources || !canWrite) {
-        window.alert('folder.json: Ordner mit Chrome/Edge (Schreibzugriff) öffnen.')
-        return
-      }
-      const rel = folderMetaRelative(dirPath)
-      const existing = manifest.entries.find((e) => e.path === rel)
-      if (!existing) {
-        const dirNode = findNodeByPath(manifest.tree, dirPath)
-        const body = `${JSON.stringify(
-          {
-            format: 'et2-folder-v1',
-            version: 1,
-            title: dirNode?.name ?? dirPath.split('/').pop() ?? '',
-          },
-          null,
-          2,
-        )}\n`
-        await writeTextToStore(fileSources, rel, body)
-        const id = registerSidecarFile({
-          relativePath: rel,
-          name: 'folder.json',
-          kind: 'file',
-          size: new Blob([body]).size,
-          lastModified: Date.now(),
-        })
-        if (id) openViewer('json', rel, 'folder.json', id)
-        return
-      }
-      openViewer('json', rel, 'folder.json', existing.id, existing.size)
-    },
-    [manifest, fileSources, canWrite, registerSidecarFile, openViewer],
-  )
-
   const handleEt2MigrateFile = useCallback(
     async (relativePath: string, content: string, size: number) => {
       if (!fileSources) throw new Error('Keine Dateiquelle')
@@ -782,8 +760,6 @@ function App() {
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
-        canWrite={canWrite}
-        onNewEt2Task={handleNewEt2TaskFromChrome}
       />
       </div>
 
@@ -845,6 +821,26 @@ function App() {
             manifest={manifest}
             node={inspectNode}
             jsonPreview={jsonPreview}
+            legacyNoticeSlot={
+              isLegacyTaskFile && selectedNode ? (
+                <LegacyTaskNotice
+                  fileName={selectedNode.name}
+                  canWrite={canWrite}
+                  onCreateTsk={() =>
+                    createEt2TaskQuick(taskContainerDir(selectedNode.path) || currentPath)
+                  }
+                  onOpenAsMarkdown={() =>
+                    openViewer(
+                      'markdown',
+                      selectedNode.path,
+                      selectedNode.name,
+                      selectedNode.id,
+                      selectedNode.size,
+                    )
+                  }
+                />
+              ) : undefined
+            }
             tskDetailSlot={
               activeTskPath && selectedNode ? (
                 <TskDetailPanel
@@ -938,10 +934,6 @@ function App() {
         onEt2NewTask={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           createEt2TaskQuick(contextMenu.path)
-        }}
-        onEt2FolderMeta={() => {
-          if (!contextMenu || contextMenu.kind !== 'directory') return
-          void handleEt2FolderMeta(contextMenu.path)
         }}
         onNewSubfolder={() => {
           if (!contextMenu || contextMenu.kind !== 'directory') return

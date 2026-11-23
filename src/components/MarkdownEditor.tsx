@@ -9,6 +9,7 @@ import {
 import { useEffect } from 'react'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { LivePreviewMarkdown } from './markdown/LivePreviewMarkdown'
+import { isTaskFilePath } from '../lib/et2/paths'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
 interface MarkdownEditorProps {
@@ -85,12 +86,15 @@ export function MarkdownEditor({
           )}
           <div className="min-w-0 text-left">
             <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{fileName}</p>
-            <details className="text-[11px] text-zinc-500">
-              <summary className="cursor-pointer select-none hover:text-zinc-700 dark:hover:text-zinc-300">
-                Speicherort anzeigen
-              </summary>
-              <p className="mt-0.5 max-w-md break-all font-mono leading-snug">{filePath}</p>
-            </details>
+            {isTaskFilePath(filePath) ? (
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                Legacy-Aufgabe — nur Beschreibungstext (ohne YAML)
+              </p>
+            ) : (
+              <p className="truncate text-[11px] text-zinc-500" title={filePath}>
+                {filePath}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

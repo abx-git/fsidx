@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readTextFromStore, writeTextToStore } from '../lib/file-sources'
+import { isTaskFilePath, taskIdFromPath } from '../lib/et2/paths'
+import { parseTaskMd } from '../lib/et2/parse-task-md'
+import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 
 export type MarkdownViewMode = 'live' | 'source'
 
@@ -51,7 +54,13 @@ export function useMarkdownDocument(
     readTextFromStore(fileSources, path)
       .then((text) => {
         if (cancelled) return
-        setContent(text)
+        if (isTaskFilePath(path)) {
+          const id = taskIdFromPath(path) ?? path
+          const doc = parseTaskMd(text, id)
+          setContent(doc.body)
+        } else {
+          setContent(text)
+        }
       })
       .catch((err) => {
         if (cancelled) return
@@ -83,7 +92,15 @@ export function useMarkdownDocument(
 
   const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {
     if (!path || !fileSources) return null
-    await writeTextToStore(fileSources, path, content)
+    if (isTaskFilePath(path)) {
+      const id = taskIdFromPath(path) ?? path
+      const existing = await readTextFromStore(fileSources, path)
+      const doc = parseTaskMd(existing, id)
+      const text = serializeTaskMd({ frontmatter: doc.frontmatter, body: content })
+      await writeTextToStore(fileSources, path, text)
+    } else {
+      await writeTextToStore(fileSources, path, content)
+    }
     draftCache.delete(path)
     setDirty(false)
     const lastModified = Date.now()

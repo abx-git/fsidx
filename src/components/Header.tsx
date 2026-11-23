@@ -5,7 +5,6 @@ import {
   Trash2,
   Download,
   Upload,
-  ListTodo,
   Import,
 } from 'lucide-react'
 import type { FileIndexManifest } from '../types'
@@ -25,8 +24,6 @@ interface HeaderProps {
   showEt2DotFiles: boolean
   onShowEt2DotFilesChange: (value: boolean) => void
   onEt2Migrate: () => void
-  canWrite: boolean
-  onNewEt2Task: () => void
 }
 
 export function Header({
@@ -42,8 +39,6 @@ export function Header({
   showEt2DotFiles,
   onShowEt2DotFilesChange,
   onEt2Migrate,
-  canWrite,
-  onNewEt2Task,
 }: HeaderProps) {
   return (
     <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-950">
@@ -125,7 +120,7 @@ export function Header({
                   onChange={(e) => onShowEt2DotFilesChange(e.target.checked)}
                   className="rounded border-zinc-300"
                 />
-                Systemordner <code className="text-[10px]">.et2</code> in Dateiliste
+                Versteckte Legacy-Ordner <code className="text-[10px]">.et2</code> anzeigen
               </label>
               {manifest && (
                 <p className="flex flex-wrap gap-3 text-[10px] text-zinc-500">
@@ -151,16 +146,6 @@ export function Header({
               className="w-full rounded-lg border border-zinc-300 bg-zinc-50 py-1.5 pl-10 pr-3 text-sm text-zinc-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             />
           </div>
-          <button
-            type="button"
-            disabled={!canWrite}
-            onClick={onNewEt2Task}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-            title={!canWrite ? 'Schreibzugriff nötig' : 'Neue .tsk.json im aktuellen Ordner'}
-          >
-            <ListTodo className="h-3.5 w-3.5" />
-            Neue Aufgaben-Datei
-          </button>
         </div>
       )}
     </header>

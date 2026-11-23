@@ -1,5 +1,9 @@
 import type { IndexNode } from '../types'
-import { shouldShowFileInTree, type TreeDisplayFilterState } from './tree-display-filter'
+import {
+  shouldShowDirectoryInTree,
+  shouldShowFileInTree,
+  type TreeDisplayFilterState,
+} from './tree-display-filter'
 
 export interface VisibleTreeRow {
   id: string
@@ -19,6 +23,7 @@ export function dirHasVisibleDescendants(
 ): boolean {
   for (const child of node.children ?? []) {
     if (child.kind === 'directory') {
+      if (!shouldShowDirectoryInTree(child.path, showEt2DotFiles)) continue
       if (dirHasVisibleDescendants(child, filter, showEt2DotFiles)) return true
     } else if (shouldShowFileInTree(child.path, filter, showEt2DotFiles)) {
       return true
@@ -40,7 +45,8 @@ function visibleChildren(
 ): IndexNode[] {
   return (node.children ?? []).filter((child) =>
     child.kind === 'directory'
-      ? dirHasVisibleDescendants(child, filter, showEt2DotFiles)
+      ? shouldShowDirectoryInTree(child.path, showEt2DotFiles) &&
+        dirHasVisibleDescendants(child, filter, showEt2DotFiles)
       : shouldShowFileInTree(child.path, filter, showEt2DotFiles),
   )
 }

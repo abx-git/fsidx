@@ -27,7 +27,7 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
   '.cm-cursor': {
     borderLeftWidth: '2px',
   },
-  '.cm-selectionBackground, ::selection': {
+  '.cm-selectionBackground': {
     backgroundColor: 'rgba(124, 58, 237, 0.18) !important',
   },
   '.cm-md-edit-line': {

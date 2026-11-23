@@ -75,6 +75,23 @@ function addBlockPreview(
   markRangeLines(state, from, to, hiddenLines)
 }
 
+function isBlockReplaceDecoration(deco: Decoration): boolean {
+  const spec = deco.spec as { block?: boolean; widget?: unknown }
+  return spec.widget != null && Boolean(spec.block)
+}
+
+/** Nur inaktive Vorschau-Blöcke sind atomar — sonst springt posAtCoords in verborgenen Nachbarzeilen. */
+function atomicPreviewRanges(view: EditorView, decorations: DecorationSet): DecorationSet {
+  const active = activeEditRegion(view.state)
+  const items: PendingDeco[] = []
+  decorations.between(0, view.state.doc.length, (from, to, deco) => {
+    if (!isBlockReplaceDecoration(deco)) return
+    if (rangesOverlap({ from, to }, active)) return
+    items.push({ from, to, deco })
+  })
+  return finishDecorations(items)
+}
+
 function finishDecorations(items: PendingDeco[]): DecorationSet {
   const sorted = items.sort((a, b) => a.from - b.from || a.to - b.to)
   const builder = new RangeSetBuilder<Decoration>()
@@ -196,7 +213,7 @@ export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension
     },
     provide: (f) => [
       EditorView.decorations.from(f),
-      EditorView.atomicRanges.of((view) => view.state.field(f)),
+      EditorView.atomicRanges.of((view) => atomicPreviewRanges(view, view.state.field(f))),
     ],
   })
   return field

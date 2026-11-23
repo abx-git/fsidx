@@ -68,7 +68,7 @@ export function ObsidianLiveMarkdownEditor({
         key={editorKey ?? docPath}
         value={content}
         minHeight="min(70vh, 720px)"
-        className="[&_.cm-editor]:!bg-transparent [&_.cm-scroller]:overflow-visible"
+        className="[&_.cm-editor]:!bg-transparent [&_.cm-scroller]:min-h-0"
         editable={canWrite}
         extensions={extensions}
         onChange={(value) => onChange(value)}

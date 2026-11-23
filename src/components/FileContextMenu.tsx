@@ -1,4 +1,5 @@
 import {
+  Copy,
   Eye,
   FileJson,
   FileText,
@@ -15,7 +16,9 @@ import {
   viewerOptionsForFile,
   type FileViewerKind,
 } from '../lib/file-viewers'
+import { copyTextToClipboard } from '../lib/clipboard'
 import { DIRECTORY_README_NAME } from '../lib/directory-readme'
+import { indexedEntryFullPath } from '../lib/indexed-path'
 
 export interface ContextMenuTarget {
   id: string
@@ -41,6 +44,7 @@ const VIEWER_ICONS: Partial<Record<FileViewerKind, LucideIcon>> = {
 
 interface FileContextMenuProps {
   target: ContextMenuTarget | null
+  workspaceRootName: string
   onClose: () => void
   hasSidecar: boolean
   canWrite: boolean
@@ -59,6 +63,7 @@ interface FileContextMenuProps {
 
 export function FileContextMenu({
   target,
+  workspaceRootName,
   onClose,
   hasSidecar,
   canWrite,
@@ -223,6 +228,18 @@ export function FileContextMenu({
   const viewerOptions = isTsk
     ? []
     : viewerOptionsForFile(target.path, target.extension)
+  const fullPath = indexedEntryFullPath(workspaceRootName, target.path)
+
+  const copyFullPath = () => {
+    void (async () => {
+      try {
+        await copyTextToClipboard(fullPath)
+      } catch {
+        window.prompt('Pfad (manuell kopieren):', fullPath)
+      }
+      onClose()
+    })()
+  }
 
   return (
     <div
@@ -231,9 +248,20 @@ export function FileContextMenu({
       style={{ left: target.x, top: target.y }}
       role="menu"
     >
-      <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={target.path}>
+      <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={fullPath}>
         {target.name}
       </p>
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        title={fullPath}
+        onClick={copyFullPath}
+      >
+        <Copy className="h-4 w-4 shrink-0 text-zinc-500" />
+        <span className="truncate">Vollständigen Pfad kopieren</span>
+      </button>
+      <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
       {!isTsk && (
         <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Öffnen mit</p>
       )}

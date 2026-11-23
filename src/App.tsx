@@ -1330,6 +1330,7 @@ function App() {
 
       <FileContextMenu
         target={contextMenu}
+        workspaceRootName={manifest?.rootName ?? 'Workspace'}
         onClose={() => setContextMenu(null)}
         hasSidecar={contextMenu ? hasSidecar(contextMenu.path) : false}
         canWrite={canWrite}

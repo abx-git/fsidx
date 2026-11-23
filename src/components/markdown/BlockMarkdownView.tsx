@@ -28,6 +28,8 @@ export function BlockMarkdownView({
   const [activeBlock, setActiveBlock] = useState<number | null>(null)
   const areaRefs = useRef<Map<number, HTMLTextAreaElement>>(new Map())
   const pendingSelection = useRef<TextareaEditResult | null>(null)
+  /** Nur beim Wechsel aus der Vorschau: Cursor ans Ende, nicht bei Klicks in die Textarea. */
+  const placeCursorAtEndFor = useRef<number | null>(null)
 
   useEffect(() => {
     setActiveBlock(null)
@@ -48,15 +50,19 @@ export function BlockMarkdownView({
     setActiveTextarea(areaRefs.current.get(activeBlock) ?? null)
   }, [activeBlock, blocks])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeBlock === null) return
     if (pendingSelection.current) return
-    const el = areaRefs.current.get(activeBlock)
-    if (!el) return
-    el.focus()
-    const len = el.value.length
-    el.setSelectionRange(len, len)
-  }, [activeBlock])
+    if (placeCursorAtEndFor.current === activeBlock) {
+      const el = areaRefs.current.get(activeBlock)
+      if (!el) return
+      placeCursorAtEndFor.current = null
+      el.focus()
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+      resizeArea(el)
+    }
+  }, [activeBlock, blocks, resizeArea])
 
   useLayoutEffect(() => {
     if (activeBlock === null || !pendingSelection.current) return
@@ -92,7 +98,10 @@ export function BlockMarkdownView({
         <button
           type="button"
           className="mb-4 w-full rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-sm text-zinc-400 hover:border-violet-300 hover:bg-violet-50/50 hover:text-violet-700 dark:border-zinc-600 dark:hover:border-violet-700 dark:hover:bg-violet-950/20 dark:hover:text-violet-200"
-          onClick={() => setActiveBlock(0)}
+          onClick={() => {
+            placeCursorAtEndFor.current = 0
+            setActiveBlock(0)
+          }}
         >
           Klicken, um zu schreiben…
         </button>
@@ -115,8 +124,12 @@ export function BlockMarkdownView({
               }`}
               onMouseDown={(e) => {
                 if (!canWrite) return
-                if ((e.target as HTMLElement).closest('a, button')) return
+                const t = e.target as HTMLElement
+                if (t.closest('a, button')) return
+                if (t.closest('textarea')) return
+                if (activeBlock === index) return
                 e.preventDefault()
+                placeCursorAtEndFor.current = index
                 setActiveBlock(index)
               }}
             >
@@ -127,6 +140,8 @@ export function BlockMarkdownView({
                   onApply={(result) => applyToolbarEdit(index, result)}
                 />
                 <textarea
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   ref={(el) => {
                     if (el) {
                       areaRefs.current.set(index, el)
@@ -173,6 +188,7 @@ export function BlockMarkdownView({
             onClick={() => {
               const next = joinMarkdownBlocks([...blocks, ''])
               onChange(next)
+              placeCursorAtEndFor.current = blocks.length
               setActiveBlock(blocks.length)
             }}
           >

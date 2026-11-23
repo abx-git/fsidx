@@ -9,6 +9,8 @@ import { preprocessObsidianEmbeds } from '../../lib/markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../../lib/plantuml'
 import { MermaidDiagram } from './diagrams/MermaidDiagram'
 import { PlantUmlDiagram } from './diagrams/PlantUmlDiagram'
+import { hljsCodeClass, highlightMarkdownCode } from '../../lib/markdown-highlight'
+import { reactNodeToPlainText } from '../../lib/markdown-react-children'
 import { MarkdownAssetImage } from './MarkdownAssetImage'
 
 function blockAttrs(node: HastElement | undefined): Record<string, string> | undefined {
@@ -62,24 +64,29 @@ function buildMdComponents(
     <pre className={['markdown-pre', focus(node)].filter(Boolean).join(' ')} {...props} {...blockAttrs(node)}>{children}</pre>
   ),
   code({ className, children, ...props }) {
-    const match = /language-(\w+)/.exec(className ?? '')
+    const match = /language-([\w-]+)/.exec(className ?? '')
     const lang = match?.[1]?.toLowerCase()
-    const text = String(children).replace(/\n$/, '')
+    const text = reactNodeToPlainText(children)
+    const isFence = Boolean(lang) || text.includes('\n')
 
-    if (lang === 'mermaid' || (!lang && isMermaidSource(text))) {
-      return <MermaidDiagram source={text} />
-    }
-    if (lang === 'plantuml' || lang === 'puml' || (!lang && isPlantUmlSource(text))) {
-      return <PlantUmlDiagram source={text} />
-    }
+    if (isFence) {
+      if (lang === 'mermaid' || (!lang && isMermaidSource(text))) {
+        return <MermaidDiagram source={text} />
+      }
+      if (lang === 'plantuml' || lang === 'puml' || (!lang && isPlantUmlSource(text))) {
+        return <PlantUmlDiagram source={text} />
+      }
 
-    if (match) {
+      const { html, hlLanguage } = highlightMarkdownCode(text, lang)
       return (
-        <code className={className} {...props}>
-          {children}
-        </code>
+        <code
+          className={[hljsCodeClass(hlLanguage), className].filter(Boolean).join(' ')}
+          {...props}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       )
     }
+
     return (
       <code className={className} {...props}>
         {children}

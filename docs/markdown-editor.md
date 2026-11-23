@@ -11,7 +11,7 @@
 
 ## Modi
 
-- **Ansicht** (`viewMode: view`): formatiertes Markdown, Diagramme und Bilder aus dem Workspace.
+- **Ansicht** (`viewMode: view`): formatiertes Markdown, **Syntax-Highlighting** in Code-Fences (highlight.js / GitHub Dark), Diagramme und Bilder aus dem Workspace.
 - **Bearbeiten** (`viewMode: edit`): Monospace-Textarea mit Toolbar (nur wenn Schreibrecht).
 
 ## Entfernt

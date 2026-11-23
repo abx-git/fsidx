@@ -8,7 +8,6 @@ import { DEFAULT_NEW_TASK_TITLE } from '../lib/et2/constants'
 import { humanTaskTitle } from '../lib/et2/display-title'
 import type { Et2TaskStatus } from '../types/et2-tasks-bundle'
 import { loadEt2TaskRecord, updateEt2TaskInBundle } from '../lib/et2/tasks-bundle'
-import { taskContainerDir } from '../lib/workspace-scope'
 
 export function useEt2TaskEditor(
   taskPath: string | null,
@@ -123,8 +122,7 @@ export function useEt2TaskEditor(
       if (isBundled) {
         const ref = taskRefFromPath(taskPath)
         if (!ref) throw new Error('Ungültige Aufgabenreferenz')
-        const scopeDir = taskContainerDir(taskPath)
-        const { row } = await updateEt2TaskInBundle(fileSources, scopeDir, ref.taskId, {
+        const { row } = await updateEt2TaskInBundle(fileSources, ref.bundlePath, ref.taskId, {
           title: titleSaved,
           body,
           status,

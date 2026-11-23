@@ -1,6 +1,6 @@
 import type { Et2BoardSnapshotV1, Et2TaskNodeJson } from '../../types/et2-legacy'
 import { et2NodeToTaskDocument } from './node-to-task'
-import { tasksBundleRelative } from './paths'
+import { tskFileName } from './tsk-paths'
 import { serializeTasksBundle } from './tasks-bundle'
 import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
@@ -62,7 +62,7 @@ export function migrateEt2BoardDryRun(board: Et2BoardSnapshotV1): MigrateDryRunR
     version: 1,
     tasks,
   })
-  const bundlePath = tasksBundleRelative('')
+  const bundlePath = tskFileName('ET2-Import')
   files.push({
     relativePath: bundlePath,
     content: bundleContent,

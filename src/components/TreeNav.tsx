@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, CheckSquare, File, Folder } from 'lucide-react'
 import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { isTaskFilePath } from '../lib/et2/paths'
+import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { shouldShowFileInTree, type TreeDisplayFilterState } from '../lib/tree-display-filter'
 import { dirHasVisibleDescendants, flattenVisibleTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -87,10 +88,12 @@ function TreeNode({
 
   if (node.kind === 'file') {
     if (!shouldShowFileInTree(node.path, filter, showEt2DotFiles)) return null
-    const isTask = isTaskFilePath(node.path)
-    const label = isTask
+    const isTask = isTaskFilePath(node.path) || isTskJsonPath(node.path)
+    const label = isTaskFilePath(node.path)
       ? (taskTitleByPath?.get(node.path) ?? node.name.replace(/\.task\.md$/, ''))
-      : node.name
+      : isTskJsonPath(node.path)
+        ? node.name
+        : node.name
     const selected = selectedId === node.id
     return (
       <div

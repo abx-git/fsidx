@@ -6,23 +6,11 @@ import { formatBytes, formatDate } from '../lib/format'
 import { DIRECTORY_README_NAME } from '../lib/directory-readme'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
-import type { Et2TaskStatus } from '../types/et2-tasks-bundle'
-import { et2TaskStatusLabel } from '../lib/et2/task-status-labels'
-
-export interface Et2TaskFocusInfo {
-  title: string
-  folderLabel?: string | null
-  dueDate?: string | null
-  tags?: string[]
-  status?: Et2TaskStatus
-}
-
 interface DetailPanelProps {
   manifest: FileIndexManifest
   node: IndexNode | null
   jsonPreview: string
-  tasksMode?: boolean
-  taskFocus?: Et2TaskFocusInfo | null
+  tskDetailSlot?: ReactNode
   viewerPinned: boolean
   onViewerPinnedChange: (value: boolean) => void
   viewerSlot?: ReactNode
@@ -42,8 +30,7 @@ export function DetailPanel({
   manifest,
   node,
   jsonPreview,
-  tasksMode = false,
-  taskFocus,
+  tskDetailSlot,
   viewerPinned,
   onViewerPinnedChange,
   viewerSlot,
@@ -60,8 +47,8 @@ export function DetailPanel({
 }: DetailPanelProps) {
   const showViewer = viewerPinned && viewerSlot
   const detailsVisible = !showViewer || !viewerExpanded
-  const showTaskCard = tasksMode && Boolean(taskFocus)
-  const showFileMetadata = metadataVisible && detailsVisible && !tasksMode
+  const showTskDetail = Boolean(tskDetailSlot)
+  const showFileMetadata = metadataVisible && detailsVisible && !showTskDetail
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
@@ -122,43 +109,7 @@ export function DetailPanel({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-        {showTaskCard && taskFocus && (
-          <div className="shrink-0 border-b border-violet-100 bg-violet-50/50 px-3 py-3 dark:border-violet-900/40 dark:bg-violet-950/20">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{taskFocus.title}</h3>
-            {taskFocus.status && (
-              <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">
-                Status: {et2TaskStatusLabel(taskFocus.status)}
-              </p>
-            )}
-            {taskFocus.folderLabel && (
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Ordner: {taskFocus.folderLabel}</p>
-            )}
-            {taskFocus.dueDate && (
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                Fällig:{' '}
-                {Number.isNaN(Date.parse(taskFocus.dueDate))
-                  ? taskFocus.dueDate
-                  : new Date(taskFocus.dueDate).toLocaleDateString('de-DE')}
-              </p>
-            )}
-            {taskFocus.tags && taskFocus.tags.length > 0 && (
-              <ul className="mt-2 flex flex-wrap gap-1">
-                {taskFocus.tags.map((tag) => (
-                  <li
-                    key={tag}
-                    className="rounded bg-white px-1.5 py-0.5 text-[11px] text-violet-800 dark:bg-zinc-900 dark:text-violet-200"
-                  >
-                    {tag}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {tasksMode && !taskFocus && (
-          <p className="px-3 py-6 text-center text-xs text-zinc-500">Aufgabe in der Liste wählen.</p>
-        )}
+        {showTskDetail && <div className="flex min-h-0 flex-1 flex-col">{tskDetailSlot}</div>}
 
         {showFileMetadata && (
           <>
@@ -214,7 +165,7 @@ export function DetailPanel({
           </>
         )}
 
-        {!tasksMode && !showFileMetadata && !showViewer && (
+        {!showTskDetail && !showFileMetadata && !showViewer && (
           <p className="px-3 py-6 text-center text-xs text-zinc-500">
             Optional: Index-Metadaten unter „Seitenleiste einstellen“ aktivieren.
           </p>

@@ -1,3 +1,5 @@
+import { isTskJsonPath } from './tsk-paths'
+
 export const ET2_DIR = '.et2'
 export const ET2_TASKS_SUBDIR = 'tasks'
 export const ET2_FOLDER_JSON = 'folder.json'
@@ -38,9 +40,19 @@ export function tasksBundleRelative(dirPrefix: string): string {
   return `${base}${ET2_DIR}/${ET2_TASKS_JSON}`
 }
 
-export function isTasksBundlePath(relativePath: string): boolean {
+export function isLegacyEt2TasksBundlePath(relativePath: string): boolean {
   const norm = relativePath.replace(/\\/g, '/').split(ET2_TASK_REF_SEP)[0]
   return norm.endsWith(`/${ET2_DIR}/${ET2_TASKS_JSON}`) || norm === `${ET2_DIR}/${ET2_TASKS_JSON}`
+}
+
+/** `.tsk.json` oder Legacy `.et2/tasks.json` */
+export function isTasksBundlePath(relativePath: string): boolean {
+  const norm = relativePath.replace(/\\/g, '/').split(ET2_TASK_REF_SEP)[0]
+  return isTskJsonPath(norm) || isLegacyEt2TasksBundlePath(norm)
+}
+
+export function isTaskBundleFilePath(relativePath: string): boolean {
+  return isTasksBundlePath(relativePath)
 }
 
 export function isBundledTaskRef(relativePath: string): boolean {

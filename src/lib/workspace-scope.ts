@@ -31,6 +31,10 @@ export function scopeAncestorCrumbs(scopePath: string, workspaceRootName: string
 
 export function taskContainerDir(taskFilePath: string): string {
   const norm = taskFilePath.replace(/\\/g, '/').split('#')[0]
+  if (norm.toLowerCase().endsWith('.tsk.json')) {
+    const idx = norm.lastIndexOf('/')
+    return idx === -1 ? '' : norm.slice(0, idx)
+  }
   const bundleMarker = '/.et2/tasks.json'
   const bundleIdx = norm.indexOf(bundleMarker)
   if (bundleIdx >= 0) return norm.slice(0, bundleIdx)
@@ -42,7 +46,8 @@ export function taskContainerDir(taskFilePath: string): string {
 
 /** Ordner, in dem die Task-Datei liegt, relativ zum Scope (`.` = Scope-Ordner selbst). */
 export function relativeFolderWithinScope(taskFilePath: string, scopePath: string): string {
-  const container = taskContainerDir(taskFilePath)
+  const basePath = taskFilePath.split('#')[0]
+  const container = taskContainerDir(basePath)
   const scope = normalizeScopePath(scopePath)
   if (!scope) return container || '.'
   if (container === scope) return '.'

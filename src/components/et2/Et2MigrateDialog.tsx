@@ -89,7 +89,7 @@ export function Et2MigrateDialog({
         <div className="space-y-4 px-4 py-4 text-sm">
           <p className="text-zinc-600 dark:text-zinc-400">
             Wähle eine <code className="text-xs">et2-board.json</code> (scope: board). Der Wizard schreibt eine{' '}
-            <code className="text-xs">.et2/tasks.json</code> mit allen Aufgaben, Unteraufgaben (
+            <code className="text-xs">ET2-Import.tsk.json</code> mit allen Aufgaben, Unteraufgaben (
             <code className="text-xs">parentId</code>) und Status — ohne zusätzliche Projekt-Unterordner.
           </p>
 

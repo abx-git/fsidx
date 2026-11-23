@@ -6,6 +6,7 @@ import {
   makeBundledTaskRef,
   taskIdFromPath,
 } from './paths'
+import { isTskJsonPath } from './tsk-paths'
 import { DEFAULT_NEW_TASK_TITLE } from './constants'
 
 function scopeDirsInSubtree(indexedRelativePaths: string[], scopePath: string): string[] {
@@ -155,5 +156,12 @@ export function summaryFromBundleTask(
 export function countEt2TasksInSubtree(indexedRelativePaths: string[], scopePath: string): number {
   const legacy = scanSubtreeLegacyTasks(indexedRelativePaths, scopePath).length
   const bundles = scanSubtreeTaskBundles(indexedRelativePaths, scopePath).length
-  return legacy + bundles
+  let tsk = 0
+  for (const rel of indexedRelativePaths) {
+    const norm = rel.replace(/\\/g, '/')
+    if (!isTskJsonPath(norm)) continue
+    if (!isEntryInScope(norm, scopePath)) continue
+    tsk += 1
+  }
+  return legacy + bundles + tsk
 }

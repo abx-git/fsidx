@@ -9,10 +9,15 @@ import {
 } from '../../types/et2-tasks-bundle'
 import type { Et2TaskKind } from '../../types/et2-task'
 import { DEFAULT_NEW_TASK_TITLE } from './constants'
-import { et2DirRelative, makeBundledTaskRef, tasksBundleRelative } from './paths'
-import { ensureDirectoryOnDisk } from '../create-workspace'
+import {
+  isTaskBundleFilePath,
+  makeBundledTaskRef,
+  taskRefFromPath,
+  tasksBundleRelative,
+} from './paths'
 import { parseTaskMd } from './parse-task-md'
 import { isTaskFilePath, taskIdFromPath } from './paths'
+import { defaultNewTskPath, isTskJsonPath, tskFileName } from './tsk-paths'
 import { taskContainerDir } from '../workspace-scope'
 
 function newTaskId(): string {
@@ -29,7 +34,7 @@ export function emptyTasksBundle(): Et2TasksBundle {
 export function parseTasksBundle(json: string): Et2TasksBundle {
   const data = JSON.parse(json) as Et2TasksBundle
   if (data?.format !== ET2_TASKS_BUNDLE_FORMAT || data.version !== 1 || !Array.isArray(data.tasks)) {
-    throw new Error('Ungültige tasks.json (et2-tasks-v1).')
+    throw new Error('Ungültige Aufgaben-JSON (et2-tasks-v1).')
   }
   return data
 }
@@ -38,63 +43,103 @@ export function serializeTasksBundle(bundle: Et2TasksBundle): string {
   return `${JSON.stringify(bundle, null, 2)}\n`
 }
 
-export function scopeDirFromBundlePath(bundlePath: string): string {
-  return taskContainerDirForBundle(bundlePath)
+export function parentDirOfBundleFile(bundlePath: string): string {
+  const norm = bundlePath.replace(/\\/g, '/').split('#')[0]
+  const idx = norm.lastIndexOf('/')
+  return idx === -1 ? '' : norm.slice(0, idx)
 }
 
-export function taskContainerDirForBundle(bundleOrTaskPath: string): string {
-  const norm = bundleOrTaskPath.replace(/\\/g, '/').split('#')[0]
-  const marker = `/${et2DirRelative()}/tasks.json`
-  const idx = norm.indexOf(marker)
-  if (idx === -1) return ''
-  return norm.slice(0, idx)
-}
-
-export async function readTasksBundle(
+export async function readTasksBundleFile(
   store: FileSourceStore,
-  scopeDir: string,
+  bundleFilePath: string,
 ): Promise<Et2TasksBundle | null> {
-  const path = tasksBundleRelative(scopeDir)
   try {
-    const text = await readTextFromStore(store, path)
+    const text = await readTextFromStore(store, bundleFilePath)
     return parseTasksBundle(text)
   } catch {
     return null
   }
 }
 
-export async function writeTasksBundle(
+export async function writeTasksBundleFile(
   store: FileSourceStore,
-  scopeDir: string,
+  bundleFilePath: string,
   bundle: Et2TasksBundle,
 ): Promise<{ relativePath: string; row: RawFileRow }> {
   if (!(await ensureWritePermission(store))) {
     throw new Error('Schreibzugriff verweigert.')
   }
-  const et2Path = scopeDir ? `${scopeDir}/${et2DirRelative()}` : et2DirRelative()
-  await ensureDirectoryOnDisk(store, et2Path)
-  const relativePath = tasksBundleRelative(scopeDir)
   const text = serializeTasksBundle(bundle)
-  await writeTextToStore(store, relativePath, text)
+  await writeTextToStore(store, bundleFilePath, text)
   const now = Date.now()
+  const name = bundleFilePath.split('/').pop() ?? bundleFilePath
   const row: RawFileRow = {
-    relativePath,
-    name: 'tasks.json',
+    relativePath: bundleFilePath,
+    name,
     kind: 'file',
     size: new Blob([text]).size,
     lastModified: now,
   }
-  return { relativePath, row }
+  return { relativePath: bundleFilePath, row }
+}
+
+function pickNewTskPath(dirPath: string, indexedPaths: string[]): string {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const candidate = defaultNewTskPath(dirPath, attempt)
+    if (!indexedPaths.includes(candidate)) return candidate
+  }
+  return defaultNewTskPath(dirPath, Date.now() % 1000)
 }
 
 export interface CreateEt2TaskOptions {
+  /** Zielordner (wenn keine `tskPath`). */
   dirPath: string
+  /** Bestehende `.tsk.json` oder Legacy-`.et2/tasks.json`. */
+  tskPath?: string
   title: string
   kind?: Et2TaskKind
   body?: string
   taskId?: string
   parentId?: string | null
   status?: Et2TaskStatus
+  /** Dateiname nur bei neuer Datei (z. B. `Projekt.tsk.json`). */
+  tskFileName?: string
+  indexedPaths?: string[]
+}
+
+export async function createNewTskFile(
+  store: FileSourceStore,
+  dirPath: string,
+  options: {
+    fileName?: string
+    indexedPaths?: string[]
+    initialTitle?: string
+    initialBody?: string
+  },
+): Promise<{ tskPath: string; row: RawFileRow; taskId: string }> {
+  const indexed = options.indexedPaths ?? []
+  let fileName = options.fileName?.trim()
+  if (!fileName) {
+    const candidate = pickNewTskPath(dirPath, indexed)
+    fileName = candidate.split('/').pop() ?? candidate
+  }
+  if (!fileName.toLowerCase().endsWith('.tsk.json')) {
+    fileName = tskFileName(fileName.replace(/\.json$/i, ''))
+  }
+  const tskPath = dirPath ? `${dirPath}/${fileName}` : fileName
+  const taskId = newTaskId()
+  const bundle = emptyTasksBundle()
+  bundle.tasks.push({
+    id: taskId,
+    parentId: null,
+    title: options.initialTitle?.trim() || DEFAULT_NEW_TASK_TITLE,
+    body: options.initialBody ?? '',
+    status: 'open',
+    kind: 'card',
+    order: 0,
+  })
+  const { row } = await writeTasksBundleFile(store, tskPath, bundle)
+  return { tskPath, row, taskId }
 }
 
 export async function createEt2TaskOnDisk(
@@ -102,7 +147,34 @@ export async function createEt2TaskOnDisk(
   options: CreateEt2TaskOptions,
 ): Promise<{ relativePath: string; row: RawFileRow; taskId: string; bundlePath: string }> {
   const taskId = options.taskId ?? newTaskId()
-  const bundle = (await readTasksBundle(store, options.dirPath)) ?? emptyTasksBundle()
+  let bundlePath = options.tskPath?.replace(/\\/g, '/')
+
+  if (!bundlePath) {
+    const legacy = tasksBundleRelative(options.dirPath)
+    const indexed = options.indexedPaths ?? []
+    if (indexed.includes(legacy)) {
+      bundlePath = legacy
+    } else {
+      const created = await createNewTskFile(store, options.dirPath, {
+        fileName: options.tskFileName,
+        indexedPaths: indexed,
+        initialTitle: options.title,
+        initialBody: options.body,
+      })
+      return {
+        relativePath: makeBundledTaskRef(created.tskPath, created.taskId),
+        row: created.row,
+        taskId: created.taskId,
+        bundlePath: created.tskPath,
+      }
+    }
+  }
+
+  const bundle =
+    (await readTasksBundleFile(store, bundlePath)) ??
+    (isTskJsonPath(bundlePath) ? emptyTasksBundle() : null)
+  if (!bundle) throw new Error('Aufgaben-Datei konnte nicht gelesen werden.')
+
   const record: Et2TaskRecord = {
     id: taskId,
     parentId: options.parentId ?? null,
@@ -113,23 +185,23 @@ export async function createEt2TaskOnDisk(
     order: bundle.tasks.length,
   }
   bundle.tasks.push(record)
-  const { relativePath: bundlePath, row } = await writeTasksBundle(store, options.dirPath, bundle)
+  const { row } = await writeTasksBundleFile(store, bundlePath, bundle)
   const relativePath = makeBundledTaskRef(bundlePath, taskId)
   return { relativePath, row, taskId, bundlePath }
 }
 
 export async function updateEt2TaskInBundle(
   store: FileSourceStore,
-  scopeDir: string,
+  bundleFilePath: string,
   taskId: string,
   patch: Partial<Pick<Et2TaskRecord, 'title' | 'body' | 'status' | 'parentId' | 'kind'>>,
 ): Promise<{ row: RawFileRow }> {
-  const bundle = await readTasksBundle(store, scopeDir)
-  if (!bundle) throw new Error('tasks.json fehlt.')
+  const bundle = await readTasksBundleFile(store, bundleFilePath)
+  if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
   const idx = bundle.tasks.findIndex((t) => t.id === taskId)
   if (idx === -1) throw new Error('Aufgabe nicht gefunden.')
   bundle.tasks[idx] = { ...bundle.tasks[idx], ...patch }
-  const { row } = await writeTasksBundle(store, scopeDir, bundle)
+  const { row } = await writeTasksBundleFile(store, bundleFilePath, bundle)
   return { row }
 }
 
@@ -138,15 +210,28 @@ export async function loadEt2TaskRecord(
   bundlePath: string,
   taskId: string,
 ): Promise<Et2TaskRecord> {
-  const scopeDir = taskContainerDirForBundle(bundlePath)
-  const bundle = await readTasksBundle(store, scopeDir)
-  if (!bundle) throw new Error('tasks.json fehlt.')
+  const bundle = await readTasksBundleFile(store, bundlePath)
+  if (!bundle) throw new Error('Aufgaben-Datei fehlt.')
   const task = bundle.tasks.find((t) => t.id === taskId)
   if (!task) throw new Error('Aufgabe nicht gefunden.')
   return task
 }
 
-/** Legacy `.task.md` in einem Scope in einen Bundle-Datensatz überführen (nur Lesen). */
+/** @deprecated Legacy — liest `.et2/tasks.json` im Ordner */
+export async function readTasksBundle(store: FileSourceStore, scopeDir: string) {
+  return readTasksBundleFile(store, tasksBundleRelative(scopeDir))
+}
+
+export async function loadEt2TaskRecordBySelection(
+  store: FileSourceStore,
+  selectionPath: string,
+): Promise<{ bundlePath: string; taskId: string; record: Et2TaskRecord }> {
+  const ref = taskRefFromPath(selectionPath)
+  if (!ref) throw new Error('Keine Aufgabenreferenz.')
+  const record = await loadEt2TaskRecord(store, ref.bundlePath, ref.taskId)
+  return { bundlePath: ref.bundlePath, taskId: ref.taskId, record }
+}
+
 export async function legacyMdTasksForScope(
   store: FileSourceStore,
   scopeDir: string,
@@ -177,4 +262,8 @@ export async function legacyMdTasksForScope(
     }
   }
   return records
+}
+
+export function isTaskStoragePath(path: string): boolean {
+  return isTaskBundleFilePath(path) || isTskJsonPath(path)
 }

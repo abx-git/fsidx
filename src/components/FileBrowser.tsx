@@ -1,4 +1,5 @@
-import { Folder, File, FileJson } from 'lucide-react'
+import { Folder, File, FileJson, ListTodo } from 'lucide-react'
+import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import type { IndexEntry, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
 import { defaultViewerForFile } from '../lib/file-viewers'
@@ -154,6 +155,7 @@ export function FileBrowser({
                     return
                   }
                   onSelectEntry(row.id)
+                  if (isTskJsonPath(row.path)) return
                   const kind = defaultViewerForFile(row.path, row.extension)
                   onOpenViewer(kind, row.path, row.name, row.id, row.size)
                 }}
@@ -176,6 +178,8 @@ export function FileBrowser({
                 <span className="flex min-w-0 items-center gap-2">
                   {row.kind === 'directory' ? (
                     <Folder className="h-4 w-4 shrink-0 text-amber-500" />
+                  ) : isTskJsonPath(row.path) ? (
+                    <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
                   ) : (
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}

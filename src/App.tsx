@@ -8,17 +8,19 @@ import {
 } from './lib/directory-readme'
 import { canWriteToStore, writeTextToStore } from './lib/file-sources'
 import { sidecarPathForFile } from './lib/sidecar'
-import { Header, type CenterPaneMode } from './components/Header'
-import { Et2TaskPanel } from './components/et2/Et2TaskPanel'
+import { Header } from './components/Header'
+import { TskDetailPanel } from './components/et2/TskDetailPanel'
 import { Et2NewTaskDialog } from './components/et2/Et2NewTaskDialog'
 import { Et2MigrateDialog } from './components/et2/Et2MigrateDialog'
 import { createEt2TaskOnDisk } from './lib/et2/create-task'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
-import { taskContainerDir } from './lib/workspace-scope'
-import { formatTaskFolderLabel, looksLikeOpaqueId } from './lib/et2/display-title'
-import { folderMetaRelative, isEt2TaskSelectionPath, taskRefFromPath } from './lib/et2/paths'
+import { makeBundledTaskRef, taskRefFromPath } from './lib/et2/paths'
+import { folderMetaRelative } from './lib/et2/paths'
+import { isTskJsonPath } from './lib/et2/tsk-paths'
+import { looksLikeOpaqueId } from './lib/et2/display-title'
 import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
+import { useTskFile } from './hooks/useTskFile'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
 import { DetailPanel } from './components/DetailPanel'
@@ -58,10 +60,9 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [markdownSaveError, setMarkdownSaveError] = useState<string | null>(null)
   const [markdownSaving, setMarkdownSaving] = useState(false)
-  const [centerMode, setCenterMode] = useState<CenterPaneMode>('files')
   const [showEt2DotFiles, setShowEt2DotFiles] = useState(false)
   const [et2MigrateOpen, setEt2MigrateOpen] = useState(false)
-  const [selectedEt2TaskPath, setSelectedEt2TaskPath] = useState<string | null>(null)
+  const [selectedTskTaskRef, setSelectedTskTaskRef] = useState<string | null>(null)
   const [newEt2TaskRequest, setNewEt2TaskRequest] = useState<{ dirPath: string } | null>(null)
 
   const {
@@ -107,6 +108,10 @@ function App() {
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
     if (!selectedNode || selectedNode.kind !== 'file') {
+      setFileView(null)
+      return
+    }
+    if (isTskJsonPath(selectedNode.path)) {
       setFileView(null)
       return
     }
@@ -163,23 +168,24 @@ function App() {
     }
     return map
   }, [et2TasksForTree.tasks])
-  const et2TaskEditor = useEt2TaskEditor(selectedEt2TaskPath, fileSources)
+  const activeTskPath = useMemo(() => {
+    if (selectedNode?.kind !== 'file' || !isTskJsonPath(selectedNode.path)) return null
+    return selectedNode.path
+  }, [selectedNode])
 
-  const selectedTaskSummary = useMemo(
-    () => et2Tasks.tasks.find((t) => t.relativePath === selectedEt2TaskPath) ?? null,
-    [et2Tasks.tasks, selectedEt2TaskPath],
-  )
+  const tskFile = useTskFile(activeTskPath, fileSources)
+  const et2TaskEditor = useEt2TaskEditor(selectedTskTaskRef, fileSources)
 
-  const et2TaskFocus = useMemo(() => {
-    if (!selectedTaskSummary) return null
-    return {
-      title: selectedTaskSummary.title,
-      folderLabel: formatTaskFolderLabel(selectedTaskSummary.folderWithinScope),
-      dueDate: selectedTaskSummary.dueDate,
-      tags: selectedTaskSummary.tags,
-      status: selectedTaskSummary.status,
+  useEffect(() => {
+    if (!activeTskPath) {
+      setSelectedTskTaskRef(null)
+      return
     }
-  }, [selectedTaskSummary])
+    if (!selectedTskTaskRef || !selectedTskTaskRef.startsWith(`${activeTskPath}#`)) {
+      const first = tskFile.tasks[0]
+      setSelectedTskTaskRef(first?.relativePath ?? null)
+    }
+  }, [activeTskPath, tskFile.tasks, selectedTskTaskRef])
 
   const fileViewTarget = useMemo(() => {
     if (!fileView) return null
@@ -196,21 +202,6 @@ function App() {
     return fileView
   }, [fileView, et2Tasks.tasks, markdown.content])
 
-  useEffect(() => {
-    if (centerMode === 'tasks' && fileView?.path.includes('/.et2/tasks/')) {
-      setFileView(null)
-    }
-  }, [centerMode, fileView?.path])
-
-  const handleCenterModeChange = useCallback(
-    (mode: CenterPaneMode) => {
-      setCenterMode(mode)
-      if (mode === 'tasks' && fileView?.path.includes('/.et2/tasks/')) {
-        setFileView(null)
-      }
-    },
-    [fileView?.path],
-  )
 
   const inspectNode = useMemo(() => {
     if (!manifest) return null
@@ -445,61 +436,68 @@ function App() {
   )
 
   const handleEt2Subtask = useCallback(async () => {
-    if (!selectedEt2TaskPath || !fileSources || !canWrite) {
-      window.alert('Unteraufgabe: zuerst eine Aufgabe wählen und Schreibzugriff aktivieren.')
+    if (!activeTskPath || !selectedTskTaskRef || !fileSources || !canWrite) {
+      window.alert('Unteraufgabe: .tsk.json und eine Aufgabe wählen.')
       return
     }
-    const ref = taskRefFromPath(selectedEt2TaskPath)
-    if (!ref) {
-      window.alert(
-        'Unteraufgaben hängen an Aufgaben in .et2/tasks.json. Lege eine neue Aufgabe an — alte .task.md-Dateien bleiben lesbar.',
-      )
-      return
-    }
-    const parentDir = taskContainerDir(selectedEt2TaskPath)
+    const ref = taskRefFromPath(selectedTskTaskRef)
+    if (!ref) return
+    const parentDir = activeTskPath.includes('/')
+      ? activeTskPath.slice(0, activeTskPath.lastIndexOf('/'))
+      : ''
     try {
       const result = await createEt2TaskOnDisk(fileSources, {
         dirPath: parentDir,
+        tskPath: activeTskPath,
         title: '',
         body: '',
         parentId: ref.taskId,
+        indexedPaths: indexedPathList,
       })
       registerSidecarFile(result.row)
       clearMarkdownDrafts()
       et2Tasks.reload()
-      setCenterMode('tasks')
-      setSelectedEt2TaskPath(result.relativePath)
+      await tskFile.reload()
+      setSelectedTskTaskRef(result.relativePath)
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Unteraufgabe konnte nicht angelegt werden')
     }
-  }, [selectedEt2TaskPath, fileSources, canWrite, registerSidecarFile, et2Tasks])
+  }, [
+    activeTskPath,
+    selectedTskTaskRef,
+    fileSources,
+    canWrite,
+    registerSidecarFile,
+    et2Tasks,
+    indexedPathList,
+    tskFile,
+  ])
 
   const finalizeNewEt2Task = useCallback(
     async (dirPath: string, title: string, body: string) => {
       if (!fileSources) {
         throw new Error('Ordner nicht verbunden. Bitte oben „Ordner verbinden“.')
       }
-      const { row } = await createEt2TaskOnDisk(fileSources, {
+      const { row, bundlePath, taskId } = await createEt2TaskOnDisk(fileSources, {
         dirPath,
         title,
         body,
+        indexedPaths: indexedPathList,
       })
-      registerSidecarFile(row)
+      const entryId = registerSidecarFile(row)
       clearMarkdownDrafts()
       et2Tasks.reload()
-      setCenterMode('tasks')
-      setSelectedEt2TaskPath(row.relativePath)
-      setSelectedId(null)
+      if (entryId) setSelectedId(entryId)
+      setSelectedTskTaskRef(makeBundledTaskRef(bundlePath, taskId))
     },
-    [fileSources, registerSidecarFile, et2Tasks, setSelectedId],
+    [fileSources, registerSidecarFile, et2Tasks, indexedPathList, setSelectedId],
   )
 
   const createEt2TaskQuick = useCallback(
     (dirPath: string) => {
-      setCenterMode('tasks')
       if (!fileSources || !canWrite) return
       void finalizeNewEt2Task(dirPath, '', '').catch((err) => {
-        window.alert(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden')
+        window.alert(err instanceof Error ? err.message : 'Aufgaben-Datei konnte nicht angelegt werden')
       })
     },
     [fileSources, canWrite, finalizeNewEt2Task],
@@ -507,7 +505,6 @@ function App() {
 
   const openNewEt2TaskWithDialog = useCallback(
     (dirPath: string) => {
-      setCenterMode('tasks')
       if (!fileSources || !canWrite) return
       setNewEt2TaskRequest({ dirPath })
     },
@@ -524,12 +521,13 @@ function App() {
   }, [supportsFsPicker, needsFolderReconnect, reconnectLastFolder, handleOpenFolder])
 
   const handleSaveEt2TaskContent = useCallback(async () => {
-    if (!selectedEt2TaskPath) return
+    if (!selectedTskTaskRef) return
     try {
       const stats = await et2TaskEditor.save()
       if (stats) {
-        const ref = taskRefFromPath(selectedEt2TaskPath)
-        const rel = ref?.bundlePath ?? selectedEt2TaskPath
+        const ref = taskRefFromPath(selectedTskTaskRef)
+        const rel = ref?.bundlePath ?? activeTskPath
+        if (!rel) return
         const name = rel.split('/').pop() ?? rel
         registerSidecarFile({
           relativePath: rel,
@@ -539,11 +537,12 @@ function App() {
           lastModified: stats.lastModified,
         })
         et2Tasks.reload()
+        await tskFile.reload()
       }
     } catch {
       // Fehler im Hook gesetzt
     }
-  }, [selectedEt2TaskPath, et2TaskEditor, registerSidecarFile, et2Tasks])
+  }, [selectedTskTaskRef, et2TaskEditor, registerSidecarFile, et2Tasks, activeTskPath, tskFile])
 
   const handleNewEt2TaskFromChrome = useCallback(() => {
     createEt2TaskQuick(currentPath)
@@ -652,38 +651,6 @@ function App() {
       markdown={markdownEditorProps}
       size={fileView.size}
     />
-  ) : centerMode === 'tasks' ? (
-    <Et2TaskPanel
-      rootName={manifest.rootName}
-      scopePath={currentPath}
-      onSelectScope={(path) => navigateToPath(path, null)}
-      tasks={et2Tasks.tasks}
-      loading={et2Tasks.loading}
-      canWrite={canWrite}
-      selectedTaskPath={selectedEt2TaskPath}
-      onSelectTask={(relativePath) => {
-        setSelectedEt2TaskPath(relativePath)
-        if (fileView?.path.includes('/.et2/tasks/')) setFileView(null)
-      }}
-      onNewTask={() => createEt2TaskQuick(currentPath)}
-      onNewTaskWithDialog={() => openNewEt2TaskWithDialog(currentPath)}
-      taskEditor={{
-        title: et2TaskEditor.title,
-        body: et2TaskEditor.body,
-        onTitleChange: et2TaskEditor.updateTitle,
-        onBodyChange: et2TaskEditor.updateBody,
-        status: et2TaskEditor.status,
-        onStatusChange: et2TaskEditor.updateStatus,
-        onSave: handleSaveEt2TaskContent,
-        loading: et2TaskEditor.loading,
-        saving: et2TaskEditor.saving,
-        dirty: et2TaskEditor.dirty,
-        error: et2TaskEditor.error,
-      }}
-      onNewSubtask={() => void handleEt2Subtask()}
-      onNewFolder={() => void handleNewFolder(currentPath)}
-      onNewMarkdown={() => void handleNewMarkdown(currentPath)}
-    />
   ) : (
     <FileBrowser
       rootName={manifest.rootName}
@@ -738,8 +705,6 @@ function App() {
         manifest={manifest}
         supportsFsPicker={supportsFsPicker}
         indexing={indexing}
-        centerMode={centerMode}
-        onCenterModeChange={handleCenterModeChange}
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
@@ -794,10 +759,6 @@ function App() {
                 const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
                 setCurrentPath(parent)
                 setSelectedId(id)
-                if (isEt2TaskSelectionPath(path)) {
-                  setCenterMode('tasks')
-                  setSelectedEt2TaskPath(path)
-                }
               }}
               indexedFilePaths={indexedPathList}
               taskTitleByPath={taskTitleByPath}
@@ -809,8 +770,31 @@ function App() {
             manifest={manifest}
             node={inspectNode}
             jsonPreview={jsonPreview}
-            tasksMode={centerMode === 'tasks'}
-            taskFocus={et2TaskFocus}
+            tskDetailSlot={
+              activeTskPath && selectedNode ? (
+                <TskDetailPanel
+                  fileName={selectedNode.name}
+                  tasks={tskFile.tasks}
+                  loading={tskFile.loading}
+                  loadError={tskFile.error}
+                  selectedTaskRef={selectedTskTaskRef}
+                  onSelectTask={setSelectedTskTaskRef}
+                  onNewSubtask={() => void handleEt2Subtask()}
+                  canWrite={canWrite}
+                  title={et2TaskEditor.title}
+                  body={et2TaskEditor.body}
+                  status={et2TaskEditor.status}
+                  onTitleChange={et2TaskEditor.updateTitle}
+                  onBodyChange={et2TaskEditor.updateBody}
+                  onStatusChange={et2TaskEditor.updateStatus}
+                  onSave={handleSaveEt2TaskContent}
+                  editorLoading={et2TaskEditor.loading}
+                  editorSaving={et2TaskEditor.saving}
+                  editorDirty={et2TaskEditor.dirty}
+                  editorError={et2TaskEditor.error}
+                />
+              ) : undefined
+            }
             viewerPinned={viewerPinned}
             onViewerPinnedChange={setViewerPinned}
             viewerSlot={

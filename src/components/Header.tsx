@@ -159,7 +159,7 @@ export function Header({
               onChange={(e) => onShowEt2DotFilesChange(e.target.checked)}
               className="rounded border-zinc-300"
             />
-            .et2 anzeigen
+            Systemordner .et2
           </label>
           <button
             type="button"

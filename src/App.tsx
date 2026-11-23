@@ -673,8 +673,8 @@ function App() {
         size: row.size,
         lastModified: row.lastModified ?? Date.now(),
       })
-      et2Tasks.reload()
-      await tskFile.reload()
+      void et2Tasks.reload({ silent: true })
+      await tskFile.reload({ silent: true })
     },
     [registerSidecarFile, et2Tasks, tskFile],
   )

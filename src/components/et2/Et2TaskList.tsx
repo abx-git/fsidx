@@ -2,7 +2,6 @@ import {
   ChevronRight,
   ExternalLink,
   GripVertical,
-  ListPlus,
   MoreHorizontal,
   Terminal,
   Trash2,
@@ -125,9 +124,9 @@ export function Et2TaskList({
     [tskPath],
   )
 
-  const openMenu = (taskId: string, rect: DOMRect) => {
+  const openMenu = (taskId: string, pos: { top: number; left: number }) => {
     setMenuTaskId(taskId)
-    setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 })
+    setMenuPos(pos)
   }
 
   const selectedTaskId = useMemo(() => {
@@ -139,8 +138,9 @@ export function Et2TaskList({
     if (!canWrite || !selectedTaskId) return
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey) return
-      const tag = (e.target as HTMLElement | null)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const panel = document.querySelector('[data-tsk-panel]')
+      const active = document.activeElement
+      if (!panel?.contains(active)) return
       if (e.key === 'ArrowUp') {
         e.preventDefault()
         onMoveSibling?.(selectedTaskId, 'up')
@@ -155,8 +155,8 @@ export function Et2TaskList({
         onIndentTask?.(selectedTaskId)
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [canWrite, selectedTaskId, onMoveSibling, onIndentTask, onOutdentTask])
 
   const canDropOn = useCallback(
@@ -235,6 +235,14 @@ export function Et2TaskList({
                 selected ? 'bg-violet-100/80 dark:bg-violet-950/40' : ''
               } ${dropHighlight ? 'ring-2 ring-inset ring-violet-400' : ''}`}
               style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
+              onContextMenu={
+                canWrite
+                  ? (e) => {
+                      e.preventDefault()
+                      openMenu(task.taskId, { top: e.clientY, left: e.clientX })
+                    }
+                  : undefined
+              }
             >
               {canWrite && (
                 <span
@@ -310,24 +318,18 @@ export function Et2TaskList({
                 )}
               </button>
               {canWrite && (
-                <div className="flex shrink-0 items-center gap-0.5 pr-1 opacity-80 group-hover:opacity-100">
-                  <button
-                    type="button"
-                    title="Unterkarte"
-                    className="rounded p-1 text-violet-800 hover:bg-violet-100 dark:text-violet-200"
-                    onClick={() => onAddSubtask(task.taskId)}
-                  >
-                    <ListPlus className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Aktionen"
-                    className="rounded p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    onClick={(e) => openMenu(task.taskId, e.currentTarget.getBoundingClientRect())}
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  aria-label="Aktionen"
+                  title="Aktionen"
+                  className="my-1 shrink-0 rounded p-1 pr-2 opacity-70 hover:bg-zinc-100 group-hover:opacity-100 dark:hover:bg-zinc-800"
+                  onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect()
+                    openMenu(task.taskId, { top: r.bottom + 4, left: Math.max(8, r.right - 200) })
+                  }}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
           </li>
@@ -343,6 +345,66 @@ export function Et2TaskList({
             className={rowMenuClass}
             style={{ top: menuPos.top, left: menuPos.left }}
           >
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                onAddSubtask(menuTaskId)
+              }}
+            >
+              <span>Unteraufgabe anlegen</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                onMoveSibling?.(menuTaskId, 'up')
+              }}
+            >
+              <span>Nach oben</span>
+              <span className="text-zinc-400">Alt+↑</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                onMoveSibling?.(menuTaskId, 'down')
+              }}
+            >
+              <span>Nach unten</span>
+              <span className="text-zinc-400">Alt+↓</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                onIndentTask?.(menuTaskId)
+              }}
+            >
+              <span>Einrücken</span>
+              <span className="text-zinc-400">Alt+→</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                onOutdentTask?.(menuTaskId)
+              }}
+            >
+              <span>Ausrücken</span>
+              <span className="text-zinc-400">Alt+←</span>
+            </button>
+            <div className="my-0.5 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
             <button
               type="button"
               role="menuitem"

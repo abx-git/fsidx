@@ -1,4 +1,4 @@
-import { GitBranch, Loader2, ListTodo } from 'lucide-react'
+import { Loader2, ListTodo } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
@@ -108,32 +108,22 @@ export function TskDetailPanel({
   }, [titleFocusTick, onTitleChange])
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-violet-50/20 dark:bg-violet-950/10">
+    <div
+      data-tsk-panel=""
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-violet-50/20 dark:bg-violet-950/10"
+    >
       <div className="shrink-0 border-b border-violet-200 px-3 py-2 dark:border-violet-900/50">
         <p className="flex items-center gap-1.5 text-xs font-medium text-violet-900 dark:text-violet-100">
           <ListTodo className="h-3.5 w-3.5" />
           Aufgaben · {fileName}
         </p>
-        <div className="mt-1.5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={!canWrite || !selectedTaskRef}
-            onClick={() => {
-              const parentId = editorTaskId ?? undefined
-              onNewSubtask(parentId)
-            }}
-            className="inline-flex items-center gap-1 rounded border border-violet-300 px-2 py-0.5 text-[10px] font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-40 dark:border-violet-700 dark:text-violet-100"
-          >
-            <GitBranch className="h-3 w-3" />
-            Unteraufgabe
-          </button>
-          <span className="ml-auto text-[10px] text-zinc-500">
-            {editorSaving ? 'Speichern…' : editorDirty ? 'Wird gespeichert…' : 'Gespeichert'}
-          </span>
-        </div>
+        <p className="mt-1 text-[10px] text-zinc-500">
+          {editorSaving ? 'Speichern…' : editorDirty ? 'Wird gespeichert…' : 'Gespeichert'}
+        </p>
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
-            Liste: ziehen = unter Ziel einordnen · Alt+↑↓ Reihenfolge · Alt+←/→ Ein-/Ausrücken
+            Alt+↑↓ Reihenfolge · Alt+←/→ ein-/ausrücken · Ziehen = unter Ziel einordnen · Aktionen im ⋯
+            -Menü
           </p>
         )}
       </div>

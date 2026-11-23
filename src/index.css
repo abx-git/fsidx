@@ -197,7 +197,17 @@ body {
   margin: 0.35em 0;
 }
 
-.obsidian-live-shell .cm-editor .cm-line:has(.cm-md-rendered-line) {
+.obsidian-live-shell .cm-md-block-render {
+  margin: 0;
+  padding: 0;
+  line-height: 1.65;
+}
+
+.obsidian-live-shell .cm-md-blank-line {
+  min-height: 0.35em;
+}
+
+.obsidian-live-shell .cm-editor .cm-line:has(.cm-md-rendered-block) {
   padding-top: 0;
   padding-bottom: 0;
 }

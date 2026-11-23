@@ -30,7 +30,7 @@ export function findTableRanges(state: EditorState): DocRange[] {
     let start = line.from
     let end = line.to
     let next = lineNo + 1
-  const tableLines: string[] = [line.text]
+    const tableLines: string[] = [line.text]
 
     while (next <= doc.lines) {
       const row = doc.line(next)
@@ -56,6 +56,88 @@ export function findTableRanges(state: EditorState): DocRange[] {
   }
 
   return tables
+}
+
+export function findFencedCodeRanges(state: EditorState): DocRange[] {
+  const ranges: DocRange[] = []
+  syntaxTree(state).iterate({
+    enter(node: SyntaxNodeRef) {
+      if (node.type.name === 'FencedCode') {
+        ranges.push({ from: node.from, to: node.to })
+      }
+    },
+  })
+  return ranges
+}
+
+function lineRange(state: EditorState, lineNo: number): DocRange {
+  const line = state.doc.line(lineNo)
+  return { from: line.from, to: line.to }
+}
+
+export function lineInAnyRange(state: EditorState, lineNo: number, ranges: DocRange[]): boolean {
+  const line = lineRange(state, lineNo)
+  return ranges.some((r) => rangesOverlap(r, line))
+}
+
+/** Absätze (Leerzeile-getrennt), ohne Tabellen/Code-Zeilen. */
+export function findParagraphRanges(state: EditorState, skipRanges: DocRange[]): DocRange[] {
+  const paragraphs: DocRange[] = []
+  const doc = state.doc
+  let lineNo = 1
+
+  while (lineNo <= doc.lines) {
+    if (lineInAnyRange(state, lineNo, skipRanges)) {
+      lineNo++
+      continue
+    }
+
+    const line = state.doc.line(lineNo)
+    if (!line.text.trim()) {
+      lineNo++
+      continue
+    }
+
+    const start = lineNo
+    let end = lineNo
+    let scan = lineNo + 1
+    while (scan <= doc.lines) {
+      if (lineInAnyRange(state, scan, skipRanges)) break
+      const row = state.doc.line(scan)
+      if (!row.text.trim()) break
+      end = scan
+      scan++
+    }
+
+    paragraphs.push({
+      from: doc.line(start).from,
+      to: doc.line(end).to,
+    })
+    lineNo = scan + 1
+  }
+
+  return paragraphs
+}
+
+export function splitParagraphAroundLine(
+  state: EditorState,
+  paragraph: DocRange,
+  activeLineNo: number,
+): { before?: DocRange; after?: DocRange } {
+  const first = state.doc.lineAt(paragraph.from).number
+  const last = state.doc.lineAt(paragraph.to).number
+  if (activeLineNo < first || activeLineNo > last) return {}
+
+  let before: DocRange | undefined
+  let after: DocRange | undefined
+
+  if (activeLineNo > first) {
+    before = { from: paragraph.from, to: state.doc.line(activeLineNo - 1).to }
+  }
+  if (activeLineNo < last) {
+    after = { from: state.doc.line(activeLineNo + 1).from, to: paragraph.to }
+  }
+  return { before, after }
 }
 
 export function fencedCodeAtCursor(state: EditorState, head: number): DocRange | null {

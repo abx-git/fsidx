@@ -1,4 +1,3 @@
-import { syntaxTree } from '@codemirror/language'
 import type { EditorState, Extension } from '@codemirror/state'
 import { RangeSetBuilder, StateField } from '@codemirror/state'
 import {
@@ -6,12 +5,14 @@ import {
   type DecorationSet,
   EditorView,
 } from '@codemirror/view'
-import type { SyntaxNodeRef } from '@lezer/common'
 import {
   activeEditRegion,
   eachLineInRange,
+  findFencedCodeRanges,
+  findParagraphRanges,
   findTableRanges,
   rangesOverlap,
+  splitParagraphAroundLine,
 } from './fsidxMarkdownRegions'
 import {
   FencedCodePreviewWidget,
@@ -26,8 +27,8 @@ function addDeco(items: PendingDeco[], from: number, to: number, deco: Decoratio
   items.push({ from, to, deco })
 }
 
-function fencedCodeMeta(state: EditorState, node: SyntaxNodeRef): { lang: string; code: string } {
-  const text = state.sliceDoc(node.from, node.to)
+function fencedCodeMeta(state: EditorState, from: number, to: number): { lang: string; code: string } {
+  const text = state.sliceDoc(from, to)
   const lines = text.split('\n')
   if (lines.length < 2) return { lang: '', code: text }
   const info =
@@ -37,6 +38,41 @@ function fencedCodeMeta(state: EditorState, node: SyntaxNodeRef): { lang: string
     body.pop()
   }
   return { lang: info, code: body.join('\n') }
+}
+
+function markRangeLines(
+  state: EditorState,
+  from: number,
+  to: number,
+  hiddenLines: Set<number>,
+) {
+  eachLineInRange(state, { from, to }, (lineNo) => {
+    hiddenLines.add(lineNo)
+  })
+}
+
+function addBlockPreview(
+  items: PendingDeco[],
+  hiddenLines: Set<number>,
+  state: EditorState,
+  from: number,
+  to: number,
+  focusAt: number,
+  ctx: MarkdownWidgetContext,
+) {
+  if (from > to) return
+  const text = state.sliceDoc(from, to)
+  if (!text.trim()) return
+  addDeco(
+    items,
+    from,
+    to,
+    Decoration.replace({
+      widget: new MarkdownPreviewWidget(text, focusAt, ctx, 'block'),
+      block: true,
+    }),
+  )
+  markRangeLines(state, from, to, hiddenLines)
 }
 
 function finishDecorations(items: PendingDeco[]): DecorationSet {
@@ -58,75 +94,56 @@ function finishDecorations(items: PendingDeco[]): DecorationSet {
 function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): DecorationSet {
   const items: PendingDeco[] = []
   const active = activeEditRegion(state)
+  const activeLineNo = state.doc.lineAt(active.from).number
   const hiddenLines = new Set<number>()
 
-  const markHiddenLines = (from: number, to: number) => {
-    eachLineInRange(state, { from, to }, (lineNo) => {
-      hiddenLines.add(lineNo)
-    })
-  }
+  const tables = findTableRanges(state)
+  const fences = findFencedCodeRanges(state)
+  const skipRanges = [...tables, ...fences]
 
   eachLineInRange(state, active, (_lineNo, from) => {
     addDeco(items, from, from, Decoration.line({ class: 'cm-md-edit-line' }))
   })
 
-  syntaxTree(state).iterate({
-    enter(node: SyntaxNodeRef) {
-      if (node.type.name !== 'FencedCode') return
-      if (rangesOverlap({ from: node.from, to: node.to }, active)) return
-      const meta = fencedCodeMeta(state, node)
-      if (node.from >= node.to) return
-      addDeco(
-        items,
-        node.from,
-        node.to,
-        Decoration.replace({
-          widget: new FencedCodePreviewWidget(meta.code, meta.lang, node.from),
-          block: true,
-        }),
-      )
-      markHiddenLines(node.from, node.to)
-    },
-  })
-
-  for (const table of findTableRanges(state)) {
-    if (rangesOverlap(table, active)) continue
-    if (table.from >= table.to) continue
-    const text = state.sliceDoc(table.from, table.to)
+  for (const nodeRange of fences) {
+    if (rangesOverlap(nodeRange, active)) continue
+    const meta = fencedCodeMeta(state, nodeRange.from, nodeRange.to)
+    if (nodeRange.from >= nodeRange.to) continue
     addDeco(
       items,
-      table.from,
-      table.to,
+      nodeRange.from,
+      nodeRange.to,
       Decoration.replace({
-        widget: new MarkdownPreviewWidget(text, table.from, ctx, 'block'),
+        widget: new FencedCodePreviewWidget(meta.code, meta.lang, nodeRange.from),
         block: true,
       }),
     )
-    markHiddenLines(table.from, table.to)
+    markRangeLines(state, nodeRange.from, nodeRange.to, hiddenLines)
+  }
+
+  for (const table of tables) {
+    if (rangesOverlap(table, active)) continue
+    addBlockPreview(items, hiddenLines, state, table.from, table.to, table.from, ctx)
+  }
+
+  for (const paragraph of findParagraphRanges(state, skipRanges)) {
+    if (!rangesOverlap(paragraph, active)) {
+      addBlockPreview(items, hiddenLines, state, paragraph.from, paragraph.to, paragraph.from, ctx)
+      continue
+    }
+
+    const { before, after } = splitParagraphAroundLine(state, paragraph, activeLineNo)
+    if (before) addBlockPreview(items, hiddenLines, state, before.from, before.to, before.from, ctx)
+    if (after) addBlockPreview(items, hiddenLines, state, after.from, after.to, after.from, ctx)
   }
 
   for (let lineNo = 1; lineNo <= state.doc.lines; lineNo++) {
     if (hiddenLines.has(lineNo)) continue
     const line = state.doc.line(lineNo)
     if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
-
-    if (line.from >= line.to && !line.text.length) {
-      addDeco(items, line.from, line.from, Decoration.line({ class: 'cm-md-rendered-gap' }))
-      continue
+    if (!line.text.trim()) {
+      addDeco(items, line.from, line.from, Decoration.line({ class: 'cm-md-blank-line' }))
     }
-
-    const text = line.text
-    const slice = text.trim() ? text : '\u00a0'
-    addDeco(
-      items,
-      line.from,
-      line.to,
-      Decoration.replace({
-        widget: new MarkdownPreviewWidget(slice, line.from, ctx, 'line'),
-        block: false,
-        inclusive: false,
-      }),
-    )
   }
 
   try {
@@ -137,20 +154,13 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   }
 }
 
-/**
- * Block-/zeilenübergreifende Replace-Widgets müssen als StateField laufen
- * (nicht ViewPlugin), siehe CodeMirror-Dokumentation zu EditorView.decorations.
- */
 export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
       return buildDecorations(state, ctx)
     },
     update(decorations, tr) {
-      if (
-        tr.docChanged ||
-        !tr.startState.selection.eq(tr.state.selection)
-      ) {
+      if (tr.docChanged || !tr.startState.selection.eq(tr.state.selection)) {
         return buildDecorations(tr.state, ctx)
       }
       return decorations.map(tr.changes)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import {
   activeEditRegion,
+  findParagraphRanges,
   findTableRanges,
   isTableLine,
 } from './fsidxMarkdownRegions'
@@ -30,5 +31,16 @@ describe('activeEditRegion', () => {
     const active = activeEditRegion(state)
     expect(state.doc.sliceString(active.from, active.to)).toBe('| H1 | H2 |\n| --- | --- |\n| a | b |')
     expect(findTableRanges(state).length).toBe(1)
+  })
+})
+
+describe('findParagraphRanges', () => {
+  it('gruppiert Absätze an Leerzeilen', () => {
+    const doc = 'Zeile A\nZeile B\n\nZeile C\n'
+    const state = EditorState.create({ doc })
+    const paras = findParagraphRanges(state, [])
+    expect(paras.length).toBe(2)
+    expect(state.doc.sliceString(paras[0].from, paras[0].to)).toBe('Zeile A\nZeile B')
+    expect(state.doc.sliceString(paras[1].from, paras[1].to)).toBe('Zeile C')
   })
 })

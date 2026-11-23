@@ -4,6 +4,10 @@ import { readBlobFromStore, type FileSourceStore } from '../file-sources'
 import { resolveAssetPathCandidates } from '../markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../plantuml'
 import {
+  dispatchSelection,
+  focusPosFromPreviewClick,
+} from './fsidxMarkdownClick'
+import {
   renderMarkdownInto,
   unmountMarkdown,
   type MarkdownPreviewKind,
@@ -14,29 +18,24 @@ export interface MarkdownWidgetContext {
   fileSources: FileSourceStore | null
 }
 
-function focusRange(view: EditorView, from: number) {
-  view.dispatch({
-    selection: { anchor: from },
-    scrollIntoView: false,
-  })
-  view.focus()
-}
-
 export class MarkdownPreviewWidget extends WidgetType {
   readonly content: string
-  readonly focusAt: number
+  readonly blockFrom: number
+  readonly blockTo: number
   readonly ctx: MarkdownWidgetContext
   readonly kind: MarkdownPreviewKind
 
   constructor(
     content: string,
-    focusAt: number,
+    blockFrom: number,
+    blockTo: number,
     ctx: MarkdownWidgetContext,
     kind: MarkdownPreviewKind = 'line',
   ) {
     super()
     this.content = content
-    this.focusAt = focusAt
+    this.blockFrom = blockFrom
+    this.blockTo = blockTo
     this.ctx = ctx
     this.kind = kind
   }
@@ -44,7 +43,8 @@ export class MarkdownPreviewWidget extends WidgetType {
   eq(other: MarkdownPreviewWidget) {
     return (
       other.content === this.content &&
-      other.focusAt === this.focusAt &&
+      other.blockFrom === this.blockFrom &&
+      other.blockTo === this.blockTo &&
       other.kind === this.kind &&
       other.ctx.docPath === this.ctx.docPath
     )
@@ -66,8 +66,13 @@ export class MarkdownPreviewWidget extends WidgetType {
         : 'cm-md-rendered-chunk cm-md-rendered-block cursor-text'
     wrap.title = 'Klicken zum Bearbeiten'
     wrap.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return
       e.preventDefault()
-      focusRange(view, this.focusAt)
+      e.stopPropagation()
+      dispatchSelection(
+        view,
+        focusPosFromPreviewClick(view, e, this.blockFrom, this.blockTo, wrap),
+      )
     })
     renderMarkdownInto(wrap, this.content, this.ctx, this.kind)
     return wrap
@@ -127,8 +132,10 @@ export class ImagePreviewWidget extends WidgetType {
     wrap.className = 'cm-md-image-wrap'
     wrap.title = 'Klicken zum Bearbeiten'
     wrap.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return
       e.preventDefault()
-      focusRange(view, this.focusAt)
+      e.stopPropagation()
+      dispatchSelection(view, this.focusAt)
     })
 
     const img = document.createElement('img')
@@ -157,17 +164,24 @@ export class ImagePreviewWidget extends WidgetType {
 export class FencedCodePreviewWidget extends WidgetType {
   readonly code: string
   readonly lang: string
-  readonly focusAt: number
+  readonly blockFrom: number
+  readonly blockTo: number
 
-  constructor(code: string, lang: string, focusAt: number) {
+  constructor(code: string, lang: string, blockFrom: number, blockTo: number) {
     super()
     this.code = code
     this.lang = lang
-    this.focusAt = focusAt
+    this.blockFrom = blockFrom
+    this.blockTo = blockTo
   }
 
   eq(other: FencedCodePreviewWidget) {
-    return other.code === this.code && other.lang === this.lang && other.focusAt === this.focusAt
+    return (
+      other.code === this.code &&
+      other.lang === this.lang &&
+      other.blockFrom === this.blockFrom &&
+      other.blockTo === this.blockTo
+    )
   }
 
   ignoreEvent() {
@@ -179,8 +193,13 @@ export class FencedCodePreviewWidget extends WidgetType {
     wrap.className = 'cm-md-fenced-preview'
     wrap.title = 'Klicken zum Bearbeiten'
     wrap.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return
       e.preventDefault()
-      focusRange(view, this.focusAt)
+      e.stopPropagation()
+      dispatchSelection(
+        view,
+        focusPosFromPreviewClick(view, e, this.blockFrom, this.blockTo, wrap),
+      )
     })
 
     const trimmed = this.code.trim()

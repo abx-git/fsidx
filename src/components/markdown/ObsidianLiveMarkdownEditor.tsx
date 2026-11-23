@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FileSourceStore } from '../../lib/file-sources'
 import { fsidxDarkMarkdownEditorTheme, fsidxMarkdownEditorTheme } from '../../lib/codemirror/fsidxEditorTheme'
 import { markdownLivePreviewPlugin } from '../../lib/codemirror/fsidxMarkdownLivePreview'
+import { markdownPointerExtension } from '../../lib/codemirror/fsidxMarkdownPointer'
 
 interface ObsidianLiveMarkdownEditorProps {
   content: string
@@ -50,6 +51,7 @@ export function ObsidianLiveMarkdownEditor({
       fsidxMarkdownEditorTheme,
       fsidxDarkMarkdownEditorTheme,
       markdownLivePreviewPlugin(ctx),
+      markdownPointerExtension,
       Prec.high(
         keymap.of([
           { key: 'Enter', run: insertNewlineContinueMarkup },

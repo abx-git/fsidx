@@ -58,7 +58,6 @@ function addBlockPreview(
   state: EditorState,
   from: number,
   to: number,
-  focusAt: number,
   ctx: MarkdownWidgetContext,
 ) {
   if (from > to) return
@@ -69,7 +68,7 @@ function addBlockPreview(
     from,
     to,
     Decoration.replace({
-      widget: new MarkdownPreviewWidget(text, focusAt, ctx, 'block'),
+      widget: new MarkdownPreviewWidget(text, from, to, ctx, 'block'),
       block: true,
     }),
   )
@@ -115,7 +114,12 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
       nodeRange.from,
       nodeRange.to,
       Decoration.replace({
-        widget: new FencedCodePreviewWidget(meta.code, meta.lang, nodeRange.from),
+        widget: new FencedCodePreviewWidget(
+          meta.code,
+          meta.lang,
+          nodeRange.from,
+          nodeRange.to,
+        ),
         block: true,
       }),
     )
@@ -124,18 +128,18 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
 
   for (const table of tables) {
     if (rangesOverlap(table, active)) continue
-    addBlockPreview(items, hiddenLines, state, table.from, table.to, table.from, ctx)
+    addBlockPreview(items, hiddenLines, state, table.from, table.to, ctx)
   }
 
   for (const paragraph of findParagraphRanges(state, skipRanges)) {
     if (!rangesOverlap(paragraph, active)) {
-      addBlockPreview(items, hiddenLines, state, paragraph.from, paragraph.to, paragraph.from, ctx)
+      addBlockPreview(items, hiddenLines, state, paragraph.from, paragraph.to, ctx)
       continue
     }
 
     const { before, after } = splitParagraphAroundLine(state, paragraph, activeLineNo)
-    if (before) addBlockPreview(items, hiddenLines, state, before.from, before.to, before.from, ctx)
-    if (after) addBlockPreview(items, hiddenLines, state, after.from, after.to, after.from, ctx)
+    if (before) addBlockPreview(items, hiddenLines, state, before.from, before.to, ctx)
+    if (after) addBlockPreview(items, hiddenLines, state, after.from, after.to, ctx)
   }
 
   for (let lineNo = 1; lineNo <= state.doc.lines; lineNo++) {

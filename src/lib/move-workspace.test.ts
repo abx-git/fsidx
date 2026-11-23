@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   moveFileValidationError,
+  normalizeRenameFileNameInput,
   renameFileValidationError,
   resolveMoveFilePath,
   resolveRenameFilePath,
@@ -31,6 +32,18 @@ describe('resolveRenameFilePath', () => {
       'proj/Backlog.tsk.json',
     )
     expect(resolveRenameFilePath('root.tsk.json', 'neu.tsk.json')).toBe('neu.tsk.json')
+  })
+})
+
+describe('normalizeRenameFileNameInput', () => {
+  it('nimmt nur den Dateinamen', () => {
+    expect(normalizeRenameFileNameInput('  notiz.md  ')).toBe('notiz.md')
+    expect(normalizeRenameFileNameInput('ordner/notes.txt')).toBe('notes.txt')
+  })
+
+  it('lehnt leere oder ungültige Namen ab', () => {
+    expect(() => normalizeRenameFileNameInput('')).toThrow()
+    expect(() => normalizeRenameFileNameInput('bad:name.md')).toThrow()
   })
 })
 

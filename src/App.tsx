@@ -7,7 +7,7 @@ import {
   directoryReadmePath,
 } from './lib/directory-readme'
 import { canWriteToStore, writeTextToStore } from './lib/file-sources'
-import { sidecarPathForFile } from './lib/sidecar'
+import { isSidecarForIndexedFile, sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
 import { TskDetailPanel } from './components/et2/TskDetailPanel'
 import { Et2AggregateTaskPanel } from './components/et2/Et2AggregateTaskPanel'
@@ -26,7 +26,12 @@ import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { deletePathFromStore } from './lib/delete-workspace'
-import { moveFileInStore, renameFileInStore, resolveMoveFilePath } from './lib/move-workspace'
+import {
+  moveFileInStore,
+  normalizeRenameFileNameInput,
+  renameFileInStore,
+  resolveMoveFilePath,
+} from './lib/move-workspace'
 import { isTskJsonPath, normalizeTskJsonFileNameInput } from './lib/et2/tsk-paths'
 import {
   isBundledTaskRef,
@@ -914,15 +919,24 @@ function App() {
     [fileSources, canWrite, manifest, indexedFilePaths, applyRelocatedFileInIndex],
   )
 
-  const handleRenameTskFile = useCallback(
+  const handleRenameFile = useCallback(
     async (filePath: string, currentName: string) => {
       if (!fileSources || !canWrite || !manifest) return
       const from = filePath.replace(/\\/g, '/')
-      const input = window.prompt('Aufgaben-Datei umbenennen:', currentName)
+      if (isSidecarForIndexedFile(from, indexedFilePaths)) {
+        window.alert(
+          'Metadaten-JSON (.json): Bitte die zugehörige Datei umbenennen — die Metadaten werden mit verschoben.',
+        )
+        return
+      }
+      const promptTitle = isTskJsonPath(from) ? 'Aufgaben-Datei umbenennen:' : 'Datei umbenennen:'
+      const input = window.prompt(promptTitle, currentName)
       if (input === null) return
       let newName: string
       try {
-        newName = normalizeTskJsonFileNameInput(input)
+        newName = isTskJsonPath(from)
+          ? normalizeTskJsonFileNameInput(input)
+          : normalizeRenameFileNameInput(input)
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Ungültiger Dateiname')
         return
@@ -1231,9 +1245,7 @@ function App() {
                   onSelectTask={setSelectedTskTaskRef}
                   onNewSubtask={(parentId) => void handleEt2Subtask(parentId)}
                   onNewSibling={(anchorId) => void handleEt2SiblingAfter(anchorId)}
-                  onRenameTskFile={() =>
-                    void handleRenameTskFile(activeTskPath, selectedNode.name)
-                  }
+                  onRenameTskFile={() => void handleRenameFile(activeTskPath, selectedNode.name)}
                   onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
                   onReparentTask={(taskId) => setReparentTaskId(taskId)}
                   onNestTask={(taskId, parentId) => void handleEt2NestTask(taskId, parentId)}
@@ -1360,8 +1372,8 @@ function App() {
         }
         onOpenInScope={() => handleOpenContextInScope()}
         onRename={
-          contextMenu?.kind === 'file' && isTskJsonPath(contextMenu.path) && canWrite
-            ? () => void handleRenameTskFile(contextMenu.path, contextMenu.name)
+          contextMenu?.kind === 'file' && canWrite
+            ? () => void handleRenameFile(contextMenu.path, contextMenu.name)
             : undefined
         }
         onDelete={

@@ -45,6 +45,18 @@ export function resolveMoveFilePath(filePath: string, destDirPath: string): stri
   return dir ? `${dir}/${name}` : name
 }
 
+/** Nur Dateiname (kein Pfad), gültige Zeichen für neue Dateien. */
+export function normalizeRenameFileNameInput(input: string): string {
+  const raw = input.trim().replace(/\\/g, '/')
+  if (!raw) throw new Error('Dateiname fehlt.')
+  const base = raw.includes('/') ? (raw.split('/').pop() ?? raw) : raw
+  if (!base || base === '.' || base === '..') throw new Error('Ungültiger Dateiname.')
+  if (/[/\\:*?"<>|]/.test(base)) {
+    throw new Error('Dateiname enthält ungültige Zeichen.')
+  }
+  return base
+}
+
 export function resolveRenameFilePath(filePath: string, newFileName: string): string {
   const parent = parentDirOfFile(filePath.replace(/\\/g, '/'))
   const name = newFileName.trim().replace(/\\/g, '/')

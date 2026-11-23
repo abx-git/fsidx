@@ -278,7 +278,7 @@ export function FileContextMenu({
           {hasSidecar ? 'Metadaten bearbeiten' : 'Metadaten-JSON erstellen'}
         </button>
       )}
-      {isTsk && onRename && (
+      {onRename && (
         <button
           type="button"
           role="menuitem"

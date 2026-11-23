@@ -1,11 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
-import { sourceOffsetFromPreviewClick } from '../lib/markdown-view-click'
+import {
+  lineNumberAtOffset,
+  scrollContainerToSourceLine,
+  sourceRangeFromPreviewClick,
+} from '../lib/markdown-view-click'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
+
+const SCROLL_ANCHOR_PX = 96
 
 interface MarkdownEditorProps {
   fileName: string
@@ -40,18 +46,64 @@ export function MarkdownEditor({
   saveError,
   fileSources,
 }: MarkdownEditorProps) {
-  const [editCaret, setEditCaret] = useState<number | null>(null)
+  const viewScrollRef = useRef<HTMLDivElement>(null)
+  const previewArticleRef = useRef<HTMLElement>(null)
+  const [editFocus, setEditFocus] = useState<{ start: number; end: number; line: number } | null>(
+    null,
+  )
+  const [viewHighlightLine, setViewHighlightLine] = useState<number | null>(null)
 
   const handlePreviewDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       if (!canWrite || viewMode !== 'view') return
       e.preventDefault()
-      const offset = sourceOffsetFromPreviewClick(content, e.currentTarget, e.clientX, e.clientY)
-      setEditCaret(offset)
+      const range = sourceRangeFromPreviewClick(
+        content,
+        e.currentTarget,
+        e.clientX,
+        e.clientY,
+      )
+      const end = range.end > range.start ? range.end : range.start
+      setViewHighlightLine(null)
+      setEditFocus({
+        start: range.start,
+        end,
+        line: range.line,
+      })
       onViewModeChange('edit')
     },
     [canWrite, viewMode, content, onViewModeChange],
   )
+
+  const returnToViewAtCaret = useCallback(
+    (caret: number) => {
+      const line = lineNumberAtOffset(content, caret)
+      setEditFocus(null)
+      setViewHighlightLine(line)
+      onViewModeChange('view')
+    },
+    [content, onViewModeChange],
+  )
+
+  useEffect(() => {
+    if (viewMode !== 'view' || viewHighlightLine == null) return
+    const scrollEl = viewScrollRef.current
+    const article = previewArticleRef.current
+    if (!scrollEl || !article) return
+    const id = requestAnimationFrame(() => {
+      scrollContainerToSourceLine(scrollEl, article, viewHighlightLine, SCROLL_ANCHOR_PX)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [viewMode, viewHighlightLine, content])
+
+  useEffect(() => {
+    if (viewMode === 'edit') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewHighlightLine(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewMode])
 
   const downloadEdited = () => {
     const blob = new Blob([content], { type: 'text/markdown' })
@@ -106,7 +158,10 @@ export function MarkdownEditor({
               type="button"
               role="tab"
               aria-selected={viewMode === 'view'}
-              onClick={() => onViewModeChange('view')}
+              onClick={() => {
+                setViewHighlightLine(null)
+                onViewModeChange('view')
+              }}
               className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
                 viewMode === 'view'
                   ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
@@ -163,19 +218,30 @@ export function MarkdownEditor({
           </p>
         )}
         {!loading && !error && viewMode === 'view' && (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div
+            ref={viewScrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+          >
             <article
+              ref={previewArticleRef}
               className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
                 canWrite ? 'cursor-text' : ''
               }`}
-              title={canWrite ? 'Doppelklick zum Bearbeiten' : undefined}
+              title={canWrite ? 'Doppelklick zum Bearbeiten (Esc zurück)' : undefined}
               onDoubleClick={handlePreviewDoubleClick}
             >
               {content.trim() ? (
-                <MarkdownContent content={content} docPath={filePath} fileSources={fileSources} />
+                <MarkdownContent
+                  content={content}
+                  docPath={filePath}
+                  fileSources={fileSources}
+                  highlightSourceLine={viewHighlightLine}
+                />
               ) : canWrite ? (
                 <p
-                  className="text-sm text-zinc-400"
+                  className={`text-sm text-zinc-400 ${
+                    viewHighlightLine === 1 ? 'md-preview-line-focus rounded-sm bg-violet-500/10' : ''
+                  }`}
                   data-md-source-start="1"
                   data-md-source-end="1"
                 >
@@ -195,8 +261,9 @@ export function MarkdownEditor({
               disabled={!canWrite}
               placeholder="Markdown…"
               stickyToolbar
-              focusAt={editCaret}
-              onFocusAtApplied={() => setEditCaret(null)}
+              focusRange={editFocus}
+              onFocusRangeApplied={() => setEditFocus(null)}
+              onEscapeAt={returnToViewAtCaret}
             />
           </div>
         )}

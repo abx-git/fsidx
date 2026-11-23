@@ -98,6 +98,56 @@ export function mdBlockDataAttrs(pos: MdBlockPosition): Record<string, string> |
   }
 }
 
+export function lineNumberAtOffset(source: string, offset: number): number {
+  const clamped = Math.min(Math.max(0, offset), source.length)
+  return source.slice(0, clamped).split('\n').length
+}
+
+function wordBoundsInPlain(text: string, index: number): { start: number; end: number } {
+  const i = Math.min(Math.max(0, index), text.length)
+  const isWord = (ch: string) => /[\p{L}\p{N}_]/u.test(ch)
+  let start = i
+  let end = i
+  while (start > 0 && isWord(text[start - 1]!)) start -= 1
+  while (end < text.length && isWord(text[end]!)) end += 1
+  if (start === end && i < text.length) {
+    end = Math.min(text.length, i + 1)
+    start = i
+  }
+  return { start, end }
+}
+
+function selectionPlainRangeInBlock(
+  block: Element,
+  clientX: number,
+  clientY: number,
+): { start: number; end: number } {
+  const sel = block.ownerDocument.getSelection()
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+    const range = sel.getRangeAt(0)
+    if (block.contains(range.startContainer) && block.contains(range.endContainer)) {
+      const doc = block.ownerDocument
+      const startR = doc.createRange()
+      startR.selectNodeContents(block)
+      startR.setEnd(range.startContainer, range.startOffset)
+      const endR = doc.createRange()
+      endR.selectNodeContents(block)
+      endR.setEnd(range.endContainer, range.endOffset)
+      const start = startR.toString().length
+      const end = endR.toString().length
+      if (end > start) return { start, end }
+    }
+  }
+  const caret = caretOffsetInElement(block, clientX, clientY)
+  return wordBoundsInPlain(block.textContent ?? '', caret)
+}
+
+export interface PreviewClickSourceRange {
+  start: number
+  end: number
+  line: number
+}
+
 /** Quell-Offset aus Doppelklick in der gerenderten Vorschau. */
 export function sourceOffsetFromPreviewClick(
   source: string,
@@ -105,21 +155,91 @@ export function sourceOffsetFromPreviewClick(
   clientX: number,
   clientY: number,
 ): number {
+  return sourceRangeFromPreviewClick(source, articleRoot, clientX, clientY).start
+}
+
+export function sourceRangeFromPreviewClick(
+  source: string,
+  articleRoot: HTMLElement,
+  clientX: number,
+  clientY: number,
+): PreviewClickSourceRange {
+  const empty: PreviewClickSourceRange = { start: 0, end: 0, line: 1 }
   const hit = document.elementFromPoint(clientX, clientY)
-  if (!hit || !articleRoot.contains(hit)) return 0
+  if (!hit || !articleRoot.contains(hit)) return empty
 
   const block = (hit as Element).closest('[data-md-source-start]') as HTMLElement | null
-  if (!block) return 0
+  if (!block) return empty
 
   const startLine = Number.parseInt(block.dataset.mdSourceStart ?? '', 10)
   const endLine = Number.parseInt(block.dataset.mdSourceEnd ?? String(startLine), 10)
-  if (!Number.isFinite(startLine) || startLine < 1) return 0
+  if (!Number.isFinite(startLine) || startLine < 1) return empty
 
   const blockSource = blockSourceSlice(source, startLine, endLine)
   const base = globalOffsetForBlockSlice(source, startLine)
-  const caretInBlock = caretOffsetInElement(block, clientX, clientY)
   const blockPlain = block.textContent ?? ''
-  const plainPrefix = blockPlain.slice(0, Math.min(caretInBlock, blockPlain.length))
-  const inner = mapPlainPrefixToSourceOffset(blockSource, plainPrefix)
-  return Math.min(source.length, base + inner)
+  const { start: plainStart, end: plainEnd } = selectionPlainRangeInBlock(block, clientX, clientY)
+  const innerStart = mapPlainPrefixToSourceOffset(blockSource, blockPlain.slice(0, plainStart))
+  const innerEnd = mapPlainPrefixToSourceOffset(blockSource, blockPlain.slice(0, plainEnd))
+  const start = Math.min(source.length, base + innerStart)
+  const end = Math.max(start, Math.min(source.length, base + innerEnd))
+  return {
+    start,
+    end,
+    line: lineNumberAtOffset(source, start),
+  }
+}
+
+export function blockCoversSourceLine(
+  el: HTMLElement,
+  line: number,
+): boolean {
+  const start = Number.parseInt(el.dataset.mdSourceStart ?? '', 10)
+  const end = Number.parseInt(el.dataset.mdSourceEnd ?? String(start), 10)
+  if (!Number.isFinite(start)) return false
+  return line >= start && line <= end
+}
+
+export function scrollContainerToSourceLine(
+  scrollEl: HTMLElement,
+  article: HTMLElement,
+  line: number,
+  paddingPx = 96,
+): void {
+  const blocks = [...article.querySelectorAll<HTMLElement>('[data-md-source-start]')]
+  const target =
+    blocks.find((b) => blockCoversSourceLine(b, line)) ??
+    blocks.find((b) => Number.parseInt(b.dataset.mdSourceStart ?? '0', 10) >= line) ??
+    blocks[blocks.length - 1]
+  if (!target) {
+    scrollEl.scrollTop = 0
+    return
+  }
+  const scrollRect = scrollEl.getBoundingClientRect()
+  const blockTop = target.getBoundingClientRect().top - scrollRect.top + scrollEl.scrollTop
+  scrollEl.scrollTop = Math.max(0, blockTop - paddingPx)
+}
+
+export function scrollTextareaToSourceLine(
+  textarea: HTMLTextAreaElement,
+  source: string,
+  line: number,
+  paddingPx = 96,
+): void {
+  const style = window.getComputedStyle(textarea)
+  const lineHeight = Number.parseFloat(style.lineHeight) || 20
+  const safeLine = Math.min(Math.max(1, line), source.split('\n').length)
+  scrollTextareaToLine(textarea, safeLine, paddingPx, lineHeight)
+}
+
+export function scrollTextareaToLine(
+  textarea: HTMLTextAreaElement,
+  line: number,
+  paddingPx = 96,
+  lineHeight?: number,
+): void {
+  const lh =
+    lineHeight ??
+    (Number.parseFloat(window.getComputedStyle(textarea).lineHeight) || 20)
+  textarea.scrollTop = Math.max(0, (line - 1) * lh - paddingPx)
 }

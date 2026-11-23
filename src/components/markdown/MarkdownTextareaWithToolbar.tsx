@@ -1,5 +1,8 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { TextareaEditResult } from '../../lib/markdown-textarea-edit'
+import { scrollTextareaToLine } from '../../lib/markdown-view-click'
+
+const SCROLL_ANCHOR_PX = 96
 import { MarkdownBlockToolbar } from './MarkdownBlockToolbar'
 
 interface MarkdownTextareaWithToolbarProps {
@@ -11,9 +14,11 @@ interface MarkdownTextareaWithToolbarProps {
   minHeightClass?: string
   /** Toolbar bleibt beim Scrollen sichtbar (Vollbild-Editor). */
   stickyToolbar?: boolean
-  /** Einmal Caret setzen (z. B. nach Doppelklick in der Vorschau). */
-  focusAt?: number | null
-  onFocusAtApplied?: () => void
+  focusRange?: { start: number; end: number; line?: number } | null
+  onFocusRangeApplied?: () => void
+  onEscapeAt?: (caret: number) => void
+  scrollToLine?: number | null
+  onScrollToLineApplied?: () => void
 }
 
 export function MarkdownTextareaWithToolbar({
@@ -24,8 +29,11 @@ export function MarkdownTextareaWithToolbar({
   className = '',
   minHeightClass = 'min-h-[7.5rem]',
   stickyToolbar = false,
-  focusAt = null,
-  onFocusAtApplied,
+  focusRange = null,
+  onFocusRangeApplied,
+  onEscapeAt,
+  scrollToLine = null,
+  onScrollToLineApplied,
 }: MarkdownTextareaWithToolbarProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const pendingSelection = useRef<TextareaEditResult | null>(null)
@@ -52,18 +60,25 @@ export function MarkdownTextareaWithToolbar({
   }, [value, resize])
 
   useLayoutEffect(() => {
-    if (focusAt == null || !ref.current) return
+    if (!focusRange || !ref.current) return
     const el = ref.current
-    const pos = Math.min(Math.max(0, focusAt), el.value.length)
+    const start = Math.min(Math.max(0, focusRange.start), el.value.length)
+    const end = Math.min(Math.max(start, focusRange.end), el.value.length)
     el.focus()
-    el.setSelectionRange(pos, pos)
-    const style = window.getComputedStyle(el)
-    const lineHeight = Number.parseFloat(style.lineHeight) || 20
-    const linesAbove = el.value.slice(0, pos).split('\n').length
-    el.scrollTop = Math.max(0, (linesAbove - 4) * lineHeight)
+    el.setSelectionRange(start, end)
+    const line =
+      focusRange.line ??
+      el.value.slice(0, start).split('\n').length
+    scrollTextareaToLine(el, line, SCROLL_ANCHOR_PX)
     resize()
-    onFocusAtApplied?.()
-  }, [focusAt, onFocusAtApplied, resize])
+    onFocusRangeApplied?.()
+  }, [focusRange, onFocusRangeApplied, resize])
+
+  useLayoutEffect(() => {
+    if (scrollToLine == null || !ref.current) return
+    scrollTextareaToLine(ref.current, scrollToLine, SCROLL_ANCHOR_PX)
+    onScrollToLineApplied?.()
+  }, [scrollToLine, onScrollToLineApplied])
 
   const applyEdit = (result: TextareaEditResult) => {
     pendingSelection.current = result
@@ -91,6 +106,12 @@ export function MarkdownTextareaWithToolbar({
       onChange={(e) => {
         onChange(e.target.value)
         resize()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && onEscapeAt && ref.current) {
+          e.preventDefault()
+          onEscapeAt(ref.current.selectionStart)
+        }
       }}
       placeholder={placeholder}
       spellCheck

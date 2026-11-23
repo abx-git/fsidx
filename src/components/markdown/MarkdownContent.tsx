@@ -21,43 +21,45 @@ function buildMdComponents(
   docPath: string | undefined,
   fileSources: FileSourceStore | null,
   compact: boolean,
+  highlightSourceLine: number | null | undefined,
 ): Components {
   const pClass = compact ? 'cm-md-flow my-0' : undefined
+  const focus = (node: HastElement | undefined) => blockClassForLine(node, highlightSourceLine)
 
   return {
   p({ node, children, ...props }) {
     return (
-      <p className={pClass} {...props} {...blockAttrs(node)}>
+      <p className={[pClass, focus(node)].filter(Boolean).join(' ') || undefined} {...props} {...blockAttrs(node)}>
         {children}
       </p>
     )
   },
   h1: ({ node, children, ...props }) => (
-    <h1 {...props} {...blockAttrs(node)}>{children}</h1>
+    <h1 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h1>
   ),
   h2: ({ node, children, ...props }) => (
-    <h2 {...props} {...blockAttrs(node)}>{children}</h2>
+    <h2 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h2>
   ),
   h3: ({ node, children, ...props }) => (
-    <h3 {...props} {...blockAttrs(node)}>{children}</h3>
+    <h3 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h3>
   ),
   h4: ({ node, children, ...props }) => (
-    <h4 {...props} {...blockAttrs(node)}>{children}</h4>
+    <h4 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h4>
   ),
   h5: ({ node, children, ...props }) => (
-    <h5 {...props} {...blockAttrs(node)}>{children}</h5>
+    <h5 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h5>
   ),
   h6: ({ node, children, ...props }) => (
-    <h6 {...props} {...blockAttrs(node)}>{children}</h6>
+    <h6 className={focus(node)} {...props} {...blockAttrs(node)}>{children}</h6>
   ),
   li: ({ node, children, ...props }) => (
-    <li {...props} {...blockAttrs(node)}>{children}</li>
+    <li className={focus(node)} {...props} {...blockAttrs(node)}>{children}</li>
   ),
   blockquote: ({ node, children, ...props }) => (
-    <blockquote {...props} {...blockAttrs(node)}>{children}</blockquote>
+    <blockquote className={focus(node)} {...props} {...blockAttrs(node)}>{children}</blockquote>
   ),
   pre: ({ node, children, ...props }) => (
-    <pre className="markdown-pre" {...props} {...blockAttrs(node)}>{children}</pre>
+    <pre className={['markdown-pre', focus(node)].filter(Boolean).join(' ')} {...props} {...blockAttrs(node)}>{children}</pre>
   ),
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className ?? '')
@@ -110,11 +112,29 @@ function buildMdComponents(
   }
 }
 
+const lineFocusClass =
+  'md-preview-line-focus rounded-sm bg-violet-500/10 shadow-[inset_3px_0_0] shadow-violet-500 dark:bg-violet-400/10'
+
+function blockClassForLine(
+  node: HastElement | undefined,
+  highlightSourceLine: number | null | undefined,
+): string | undefined {
+  if (!highlightSourceLine) return undefined
+  const start = node?.position?.start?.line
+  const end = node?.position?.end?.line ?? start
+  if (!start) return undefined
+  return highlightSourceLine >= start && highlightSourceLine <= (end ?? start)
+    ? lineFocusClass
+    : undefined
+}
+
 export interface MarkdownContentProps {
   content: string
   className?: string
   docPath?: string
   fileSources?: FileSourceStore | null
+  /** Zeile im Quelltext, die in der Vorschau hervorgehoben wird. */
+  highlightSourceLine?: number | null
 }
 
 export function MarkdownContent({
@@ -122,12 +142,13 @@ export function MarkdownContent({
   className,
   docPath,
   fileSources = null,
+  highlightSourceLine = null,
 }: MarkdownContentProps) {
   const compact = className?.includes('cm-md-compact') ?? false
   const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
   const components = useMemo(
-    () => buildMdComponents(docPath, fileSources ?? null, compact),
-    [docPath, fileSources, compact],
+    () => buildMdComponents(docPath, fileSources ?? null, compact, highlightSourceLine),
+    [docPath, fileSources, compact, highlightSourceLine],
   )
 
   return (

@@ -12,7 +12,7 @@
 
 ## Modi
 
-- **live** (`viewMode: reading`): aktive Zeile (bzw. Tabelle/Codeblock) als Quelltext, alle anderen Zeilen gerendert.
+- **live** (`viewMode: reading`): nur die Zeile unter der Schreibmarke als Roh-Markdown, alle anderen Zeilen gerendert (kein Block-Highlight).
 - **source** (`viewMode: source`): voller CodeMirror-Quelltext, Zeilennummern, ohne Vorschau.
 
 ## Entfernt (Legacy)

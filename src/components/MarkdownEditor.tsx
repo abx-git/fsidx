@@ -122,8 +122,8 @@ export function MarkdownEditor({
             </div>
             {canWrite && (
               <p className="mt-1 text-[10px] text-zinc-400">
-                CodeMirror: aktive Zeile als Markdown, übrige Zeilen gerendert. Quelltext-Modus ohne
-                Vorschau.
+                Nur die Zeile mit der Schreibmarke als Markdown — keine Hervorhebung, Klick setzt die
+                Marke. Quelltext-Modus: alles Roh.
               </p>
             )}
           </CollapsibleSection>

@@ -25,12 +25,12 @@ describe('activeEditRegion', () => {
     expect(state.doc.sliceString(active.from, active.to)).toBe('Text')
   })
 
-  it('umfasst die ganze Tabelle bei Cursor in der Tabelle', () => {
+  it('nutzt nur die Tabellenzeile unter dem Cursor', () => {
     const doc = '| H1 | H2 |\n| --- | --- |\n| a | b |\n'
     const head = doc.indexOf('| a |')
     const state = EditorState.create({ doc, selection: { anchor: head } })
     const active = activeEditRegion(state)
-    expect(state.doc.sliceString(active.from, active.to)).toBe('| H1 | H2 |\n| --- | --- |\n| a | b |')
+    expect(state.doc.sliceString(active.from, active.to)).toBe('| a | b |')
     expect(findTableRanges(state).length).toBe(1)
   })
 })

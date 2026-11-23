@@ -30,9 +30,6 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
   '.cm-selectionBackground': {
     backgroundColor: 'rgba(124, 58, 237, 0.18) !important',
   },
-  '.cm-md-edit-line': {
-    backgroundColor: 'rgba(124, 58, 237, 0.07)',
-  },
   '.cm-md-rendered-line': {
     display: 'inline',
     width: 'auto',
@@ -58,11 +55,4 @@ export const fsidxMarkdownEditorTheme = EditorView.theme({
   },
 })
 
-export const fsidxDarkMarkdownEditorTheme = EditorView.theme(
-  {
-    '.cm-md-edit-line': {
-      backgroundColor: 'rgba(124, 58, 237, 0.14)',
-    },
-  },
-  { dark: true },
-)
+export const fsidxDarkMarkdownEditorTheme = EditorView.theme({}, { dark: true })

@@ -94,6 +94,17 @@ function addBlockPreview(
   markRangeLines(state, from, to, hiddenLines)
 }
 
+function previewAtomicRanges(view: EditorView, decorations: DecorationSet): DecorationSet {
+  const active = activeEditRegion(view.state)
+  const items: PendingDeco[] = []
+  decorations.between(0, view.state.doc.length, (from, to, deco) => {
+    if ((deco.spec as { widget?: unknown }).widget == null) return
+    if (rangesOverlap({ from, to }, active)) return
+    items.push({ from, to, deco })
+  })
+  return finishDecorations(items)
+}
+
 function finishDecorations(items: PendingDeco[]): DecorationSet {
   const sorted = items.sort((a, b) => a.from - b.from || a.to - b.to)
   const builder = new RangeSetBuilder<Decoration>()
@@ -119,12 +130,17 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   const fences = findFencedCodeRanges(state)
   const skipRanges = [...tables, ...fences]
 
-  eachLineInRange(state, active, (_lineNo, from) => {
-    addDeco(items, from, from, Decoration.line({ class: 'cm-md-edit-line' }))
-  })
-
   for (const nodeRange of fences) {
-    if (rangesOverlap(nodeRange, active)) continue
+    if (rangesOverlap(nodeRange, active)) {
+      const first = state.doc.lineAt(nodeRange.from).number
+      const last = state.doc.lineAt(nodeRange.to).number
+      for (let lineNo = first; lineNo <= last; lineNo++) {
+        const line = state.doc.line(lineNo)
+        if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
+        addLinePreview(items, hiddenLines, state, lineNo, ctx)
+      }
+      continue
+    }
     const meta = fencedCodeMeta(state, nodeRange.from, nodeRange.to)
     if (nodeRange.from >= nodeRange.to) continue
     addDeco(
@@ -145,7 +161,16 @@ function buildDecorations(state: EditorState, ctx: MarkdownWidgetContext): Decor
   }
 
   for (const table of tables) {
-    if (rangesOverlap(table, active)) continue
+    if (rangesOverlap(table, active)) {
+      const first = state.doc.lineAt(table.from).number
+      const last = state.doc.lineAt(table.to).number
+      for (let lineNo = first; lineNo <= last; lineNo++) {
+        const line = state.doc.line(lineNo)
+        if (rangesOverlap({ from: line.from, to: line.to }, active)) continue
+        addLinePreview(items, hiddenLines, state, lineNo, ctx)
+      }
+      continue
+    }
     addBlockPreview(items, hiddenLines, state, table.from, table.to, ctx)
   }
 
@@ -211,7 +236,10 @@ export function markdownLivePreviewPlugin(ctx: MarkdownWidgetContext): Extension
       }
       return decorations
     },
-    provide: (f) => EditorView.decorations.from(f),
+    provide: (f) => [
+      EditorView.decorations.from(f),
+      EditorView.atomicRanges.of((view) => previewAtomicRanges(view, view.state.field(f))),
+    ],
   })
   return field
 }

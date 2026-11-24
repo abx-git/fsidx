@@ -26,22 +26,21 @@ export function ScopeCreateActions({
   extra,
 }: ScopeCreateActionsProps) {
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2'
-  const chip =
-    'inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+  const iconBtn =
+    'inline-flex shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white p-1.5 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 ${pad}`}>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">Anlegen</span>
+    <div className={`flex flex-wrap items-center gap-1.5 border-b border-zinc-100 dark:border-zinc-800 ${pad}`}>
       {onNewTskFile && (
         <button
           type="button"
           disabled={!canWrite}
           onClick={onNewTskFile}
-          className="inline-flex items-center gap-1 rounded-md bg-blue-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+          className={iconBtn}
           title="Neue Aufgaben-Datei (Aufgaben.tsk.json, ggf. nummeriert)"
+          aria-label="Neue Aufgaben-Datei"
         >
-          <CheckSquare className="h-3.5 w-3.5" />
-          Aufgaben-Datei
+          <CheckSquare className="h-4 w-4" />
         </button>
       )}
       {onNewLinkFile && (
@@ -49,11 +48,11 @@ export function ScopeCreateActions({
           type="button"
           disabled={!canWrite}
           onClick={onNewLinkFile}
-          className="inline-flex items-center gap-1 rounded-md bg-violet-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-40"
+          className={iconBtn}
           title="Neue Link-Datei (*.link.json) mit Web-Vorschau"
+          aria-label="Web-Link"
         >
-          <Link2 className="h-3.5 w-3.5" />
-          Web-Link
+          <Link2 className="h-4 w-4" />
         </button>
       )}
       {onNewDrawioFile && (
@@ -61,27 +60,45 @@ export function ScopeCreateActions({
           type="button"
           disabled={!canWrite}
           onClick={onNewDrawioFile}
-          className="inline-flex items-center gap-1 rounded-md bg-orange-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-40"
+          className={iconBtn}
           title="Neue draw.io-Datei (*.drawio) mit Editor in der Detailansicht"
+          aria-label="draw.io"
         >
-          <PenLine className="h-3.5 w-3.5" />
-          draw.io
+          <PenLine className="h-4 w-4" />
         </button>
       )}
       {extra}
-      <button type="button" disabled={!canWrite} onClick={onNewFolder} className={chip}>
-        <FolderPlus className="h-3.5 w-3.5 text-amber-500" />
-        Ordner
+      <button
+        type="button"
+        disabled={!canWrite}
+        onClick={onNewFolder}
+        className={iconBtn}
+        title="Neuer Ordner"
+        aria-label="Ordner"
+      >
+        <FolderPlus className="h-4 w-4" />
       </button>
       {onNewVaultFolder && (
-        <button type="button" disabled={!canWrite} onClick={onNewVaultFolder} className={chip}>
-          <Shield className="h-3.5 w-3.5 text-blue-800" />
-          Tresor
+        <button
+          type="button"
+          disabled={!canWrite}
+          onClick={onNewVaultFolder}
+          className={iconBtn}
+          title="Neuer Tresor"
+          aria-label="Tresor"
+        >
+          <Shield className="h-4 w-4" />
         </button>
       )}
-      <button type="button" disabled={!canWrite} onClick={onNewMarkdown} className={chip}>
-        <FileText className="h-3.5 w-3.5 text-sky-500" />
-        Markdown
+      <button
+        type="button"
+        disabled={!canWrite}
+        onClick={onNewMarkdown}
+        className={iconBtn}
+        title="Neue Markdown-Datei"
+        aria-label="Markdown"
+      >
+        <FileText className="h-4 w-4" />
       </button>
       {!canWrite && (
         <p className="w-full text-[10px] text-amber-800 dark:text-amber-200">

@@ -8,6 +8,9 @@ import {
   supportsDirectoryPicker,
 } from '../lib/directory-picker'
 import type { FileSourceStore } from '../lib/file-sources'
+import { inferVaultRootsFromMarkerEntries } from '../lib/vault/vault-paths'
+import { reconcileLockedVaultsInManifest } from '../lib/vault/vault-refresh'
+import { lockAllVaults } from '../lib/vault/vault-session'
 import { resetIdCounter } from '../lib/id'
 import { searchEntries } from '../lib/search'
 import {
@@ -205,7 +208,13 @@ export function useFileIndex() {
   }, [manifest, selectedId])
 
   const persistNow = useCallback(
-    (m: FileIndexManifest, kind: WorkspaceSourceKind | null, path: string, sel: string | null) => {
+    (
+      m: FileIndexManifest,
+      kind: WorkspaceSourceKind | null,
+      path: string,
+      sel: string | null,
+      vaultRoots?: string[],
+    ) => {
       if (!kind) return
       void saveWorkspaceSession({
         manifest: m,
@@ -213,6 +222,7 @@ export function useFileIndex() {
         currentPath: path,
         selectedId: sel,
         savedAt: new Date().toISOString(),
+        vaultRoots,
       })
     },
     [],
@@ -243,20 +253,33 @@ export function useFileIndex() {
           ) {
             const sources = await fileSourcesFromDirectoryHandle(handle)
             if (!cancelled) {
+              lockAllVaults()
+              const vaultRoots =
+                sources.vaultRoots ??
+                session.vaultRoots ??
+                inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path))
+              const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
+              setManifest(reconciled)
               setFileSources(sources)
               setNeedsFolderReconnect(false)
-              setProgress({ phase: 'ready', scanned: session.manifest.entries.length })
+              setProgress({ phase: 'ready', scanned: reconciled.entries.length })
             }
             return
           }
         }
 
         if (!cancelled) {
+          lockAllVaults()
+          const vaultRoots =
+            session.vaultRoots ??
+            inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path))
+          const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
+          setManifest(reconciled)
           setFileSources(null)
           setNeedsFolderReconnect(
             session.sourceKind === 'handles' || session.sourceKind === 'files',
           )
-          setProgress({ phase: 'ready', scanned: session.manifest.entries.length })
+          setProgress({ phase: 'ready', scanned: reconciled.entries.length })
         }
       } catch (err) {
         if (!cancelled) {
@@ -281,12 +304,14 @@ export function useFileIndex() {
     if (!manifest || !sourceKind) return
     if (persistTimer.current) clearTimeout(persistTimer.current)
     persistTimer.current = setTimeout(() => {
-      persistNow(manifest, sourceKind, currentPath, selectedId)
+      const vaultRoots =
+        fileSources?.kind === 'handles' ? fileSources.vaultRoots : undefined
+      persistNow(manifest, sourceKind, currentPath, selectedId, vaultRoots)
     }, 400)
     return () => {
       if (persistTimer.current) clearTimeout(persistTimer.current)
     }
-  }, [manifest, sourceKind, currentPath, selectedId, persistNow])
+  }, [manifest, sourceKind, currentPath, selectedId, fileSources, persistNow])
 
   const indexFromPicker = useCallback(async () => {
     setProgress({ phase: 'reading', scanned: 0 })
@@ -294,7 +319,11 @@ export function useFileIndex() {
     try {
       const { rootName, rows, fileSources: sources, rootHandle } = await pickDirectoryWithFsApi()
       setProgress({ phase: 'building', scanned: rows.length })
-      const built = buildManifestFromRows(rootName, rows)
+      lockAllVaults()
+      const built = reconcileLockedVaultsInManifest(
+        buildManifestFromRows(rootName, rows),
+        sources.vaultRoots ?? [],
+      )
       setManifest(built)
       setFileSources(sources)
       setSourceKind('handles')
@@ -303,7 +332,7 @@ export function useFileIndex() {
       setSearchQuery('')
       setProgress({ phase: 'ready', scanned: rows.length })
       await saveDirectoryHandle(rootHandle)
-      persistNow(built, 'handles', '', null)
+      persistNow(built, 'handles', '', null, sources.vaultRoots)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setProgress((p) => (p.phase === 'reading' ? { phase: 'idle', scanned: 0 } : p))
@@ -367,9 +396,16 @@ export function useFileIndex() {
         (await requestDirectoryPermission(handle))
       ) {
         const sources = await fileSourcesFromDirectoryHandle(handle)
+        lockAllVaults()
+        if (manifest) {
+          const reconciled = reconcileLockedVaultsInManifest(manifest, sources.vaultRoots ?? [])
+          setManifest(reconciled)
+          setProgress({ phase: 'ready', scanned: reconciled.entries.length })
+        } else {
+          setProgress({ phase: 'ready', scanned: 0 })
+        }
         setFileSources(sources)
         setSourceKind('handles')
-        setProgress({ phase: 'ready', scanned: manifest.entries.length })
         return
       }
       if (supportsDirectoryPicker()) {
@@ -389,6 +425,7 @@ export function useFileIndex() {
   }, [indexFromPicker, manifest])
 
   const clearIndex = useCallback(() => {
+    lockAllVaults()
     setManifest(null)
     setFileSources(null)
     setSourceKind(null)

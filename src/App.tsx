@@ -550,7 +550,7 @@ function App() {
   const handleVaultUnlock = useCallback(
     async (key: CryptoKey) => {
       if (!fileSources || !manifest || !vaultUnlockTarget) return
-      const { manifest: next } = await unlockVaultAndMergeIndex(
+      const { manifest: next, skippedEntries } = await unlockVaultAndMergeIndex(
         fileSources,
         manifest,
         vaultUnlockTarget,
@@ -558,6 +558,11 @@ function App() {
       )
       replaceManifest(next)
       setVaultUiTick((t) => t + 1)
+      if (skippedEntries > 0) {
+        window.alert(
+          `${skippedEntries} Eintrag/Einträge konnten nicht entschlüsselt werden (falscher Schlüssel oder keine Vault-Datei).`,
+        )
+      }
     },
     [fileSources, manifest, vaultUnlockTarget, replaceManifest],
   )
@@ -1226,6 +1231,7 @@ function App() {
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         hasLegacyEt2={hasLegacyEt2}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
+        vaultRoots={fileSources?.vaultRoots}
       />
       </div>
 
@@ -1280,6 +1286,7 @@ function App() {
               onContextMenu={setContextMenu}
               canWrite={canWrite}
               onDropFileToDir={(path, dir) => void handleMoveFileToDirectory(path, dir)}
+              vaultRoots={fileSources?.vaultRoots}
             />
           </div>
           <div className="fsidx-pane min-h-0">{centerPane}</div>

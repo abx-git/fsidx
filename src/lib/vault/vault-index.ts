@@ -34,15 +34,24 @@ export async function indexVaultDirectory(
   key: CryptoKey,
   dirHandle: FileSystemDirectoryHandle,
   logicalPrefix: string,
-): Promise<{ rows: RawFileRow[]; handles: Map<string, FileSystemFileHandle>; diskRefs: VaultDiskRef[] }> {
+): Promise<{
+  rows: RawFileRow[]
+  handles: Map<string, FileSystemFileHandle>
+  diskRefs: VaultDiskRef[]
+  skippedEntries: number
+}> {
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const diskRefs: VaultDiskRef[] = []
+  let skippedEntries = 0
 
   for await (const [encryptedName, child] of dirHandle.entries()) {
     if (encryptedName === VAULT_MARKER_FILENAME) continue
     const decoded = await decryptEntry(key, encryptedName, child)
-    if (!decoded) continue
+    if (!decoded) {
+      skippedEntries++
+      continue
+    }
 
     const logicalPath = logicalPrefix ? `${logicalPrefix}/${decoded.decryptedName}` : decoded.decryptedName
 
@@ -52,6 +61,7 @@ export async function indexVaultDirectory(
       rows.push(...nested.rows)
       nested.handles.forEach((h, p) => handles.set(p, h))
       diskRefs.push(...nested.diskRefs)
+      skippedEntries += nested.skippedEntries
     } else {
       let size: number | undefined
       let lastModified: number | undefined
@@ -75,7 +85,7 @@ export async function indexVaultDirectory(
   }
 
   rows.sort((a, b) => a.relativePath.localeCompare(b.relativePath, 'de'))
-  return { rows, handles, diskRefs }
+  return { rows, handles, diskRefs, skippedEntries }
 }
 
 export async function directoryHasVaultMarker(dir: FileSystemDirectoryHandle): Promise<boolean> {

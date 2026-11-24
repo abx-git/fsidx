@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, CheckSquare, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, CheckSquare, Folder, Lock, Shield } from 'lucide-react'
+import { isVaultUnlocked } from '../lib/vault/vault-session'
 import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { flattenVisibleTree, isDirectoryVisibleInTree } from '../lib/tree-flat'
@@ -41,6 +42,7 @@ interface TreeNavProps {
   onContextMenu?: (target: ContextMenuTarget) => void
   canWrite?: boolean
   onDropFileToDir?: (filePath: string, destDirPath: string) => void
+  vaultRoots?: string[]
 }
 
 interface TreeNodeProps {
@@ -61,6 +63,7 @@ interface TreeNodeProps {
   dropTargetPath: string | null
   onDropTargetPath: (path: string | null) => void
   onDropFileToDir?: (filePath: string, destDirPath: string) => void
+  vaultRoots?: string[]
 }
 
 function TreeNode({
@@ -81,6 +84,7 @@ function TreeNode({
   dropTargetPath,
   onDropTargetPath,
   onDropFileToDir,
+  vaultRoots = [],
 }: TreeNodeProps) {
   const emitContext = (e: React.MouseEvent) => {
     if (!onContextMenu) return
@@ -115,6 +119,9 @@ function TreeNode({
   )
   const hasChildren = visibleChildren.length > 0
   const isRoot = node.path === ''
+  const isVaultDir = vaultRoots.includes(node.path)
+  const vaultLocked = isVaultDir && !isVaultUnlocked(node.path)
+  const workspaceIsVaultRoot = isRoot && vaultRoots.includes('')
   const isDropTarget = canWrite && dropTargetPath === node.path
 
   const acceptFileDrop = (e: React.DragEvent) => {
@@ -127,12 +134,20 @@ function TreeNode({
   return (
     <div className="select-none" role="group">
       <div
-        className={`flex w-full items-center gap-0.5 rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+        className={`flex w-full items-center gap-0.5 rounded-md text-sm ${
+          isVaultDir || workspaceIsVaultRoot
+            ? vaultLocked
+              ? 'border border-blue-200/90 bg-blue-50/70 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/35'
+              : 'border border-blue-100 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/30 dark:bg-blue-950/25'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+        } ${
           isDropTarget
             ? 'bg-sky-100 ring-2 ring-inset ring-sky-400 dark:bg-sky-950/40 dark:ring-sky-500'
             : isActive
               ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
-              : 'text-zinc-700 dark:text-zinc-300'
+              : !isVaultDir && !workspaceIsVaultRoot
+                ? 'text-zinc-700 dark:text-zinc-300'
+                : 'text-blue-950 dark:text-blue-100'
         }`}
         style={{ paddingLeft: `${indent}px` }}
       >
@@ -189,8 +204,30 @@ function TreeNode({
           }}
           className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
         >
-          <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          {isVaultDir || workspaceIsVaultRoot ? (
+            <Shield className="h-3.5 w-3.5 shrink-0 text-blue-800 dark:text-blue-300" />
+          ) : (
+            <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          )}
           <span className="truncate">{node.name || '(root)'}</span>
+          {(isVaultDir || workspaceIsVaultRoot) && (
+            <span
+              className={`shrink-0 rounded px-1 py-px text-[8px] font-bold uppercase tracking-wide ${
+                vaultLocked
+                  ? 'bg-blue-200 text-blue-950 dark:bg-blue-900 dark:text-blue-100'
+                  : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+              }`}
+            >
+              {vaultLocked ? (
+                <span className="inline-flex items-center gap-0.5">
+                  <Lock className="h-2.5 w-2.5" aria-hidden />
+                  Tresor
+                </span>
+              ) : (
+                'Tresor · offen'
+              )}
+            </span>
+          )}
           {taskCount > 0 && (
             <span
               className="ml-auto inline-flex items-center gap-0.5 rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-200"
@@ -223,6 +260,7 @@ function TreeNode({
             dropTargetPath={dropTargetPath}
             onDropTargetPath={onDropTargetPath}
             onDropFileToDir={onDropFileToDir}
+            vaultRoots={vaultRoots}
           />
         ))}
     </div>
@@ -240,6 +278,7 @@ export function TreeNav({
   onContextMenu,
   canWrite = false,
   onDropFileToDir,
+  vaultRoots = [],
 }: TreeNavProps) {
   const [expandedPaths, setExpandedPaths] = useState(() => readExpandedPaths(rootName))
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
@@ -396,6 +435,7 @@ export function TreeNav({
           dropTargetPath={dropTargetPath}
           onDropTargetPath={setDropTargetPath}
           onDropFileToDir={onDropFileToDir}
+          vaultRoots={vaultRoots}
         />
       </div>
     </nav>

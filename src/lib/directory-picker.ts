@@ -1,8 +1,9 @@
 import type { RawFileRow } from './build-manifest'
 import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
-import { directoryHasVaultMarker } from './vault/vault-index'
+import { isVaultDirectory } from './vault/vault-detect'
 import { VAULT_MARKER_FILENAME } from './vault/marker'
+import { setVaultOpaqueOnDiskCount } from './vault/vault-session'
 
 export const DIRECTORY_PICKER_ID = 'fsidx-root'
 
@@ -17,6 +18,46 @@ export async function requestDirectoryPermission(
   if (current === 'granted') return true
   if (current === 'denied') return false
   return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted'
+}
+
+async function absorbVaultFolder(
+  relativePath: string,
+  dirHandle: FileSystemDirectoryHandle,
+  rows: RawFileRow[],
+  handles: Map<string, FileSystemFileHandle>,
+  vaultRoots: string[],
+): Promise<void> {
+  if (!vaultRoots.includes(relativePath)) vaultRoots.push(relativePath)
+
+  let opaqueCount = 0
+  for await (const [name] of dirHandle.entries()) {
+    if (name !== VAULT_MARKER_FILENAME) opaqueCount++
+  }
+  setVaultOpaqueOnDiskCount(relativePath, opaqueCount)
+
+  if (relativePath) {
+    rows.push({
+      relativePath,
+      name: relativePath.split('/').pop() ?? relativePath,
+      kind: 'directory',
+    })
+  }
+
+  try {
+    const marker = await dirHandle.getFileHandle(VAULT_MARKER_FILENAME)
+    const markerPath = relativePath ? `${relativePath}/${VAULT_MARKER_FILENAME}` : VAULT_MARKER_FILENAME
+    handles.set(markerPath, marker)
+    const file = await marker.getFile()
+    rows.push({
+      relativePath: markerPath,
+      name: VAULT_MARKER_FILENAME,
+      kind: 'file',
+      size: file.size,
+      lastModified: file.lastModified,
+    })
+  } catch {
+    /* x-be Vault ohne fsidx-Marker */
+  }
 }
 
 export async function fileSourcesFromDirectoryHandle(
@@ -71,35 +112,24 @@ async function walkDirectoryHandle(
   handles: Map<string, FileSystemFileHandle>,
   vaultRoots: string[],
 ): Promise<void> {
+  if (prefix === '' && (await isVaultDirectory(dirHandle))) {
+    await absorbVaultFolder('', dirHandle, rows, handles, vaultRoots)
+    return
+  }
+
   for await (const [name, child] of dirHandle.entries()) {
     const relativePath = prefix ? `${prefix}/${name}` : name
 
     if (child.kind === 'directory') {
+      if (await isVaultDirectory(child)) {
+        await absorbVaultFolder(relativePath, child, rows, handles, vaultRoots)
+        continue
+      }
       rows.push({
         relativePath,
         name,
         kind: 'directory',
       })
-      const isVault = await directoryHasVaultMarker(child)
-      if (isVault) {
-        vaultRoots.push(relativePath)
-        try {
-          const marker = await child.getFileHandle(VAULT_MARKER_FILENAME)
-          const markerPath = relativePath ? `${relativePath}/${VAULT_MARKER_FILENAME}` : VAULT_MARKER_FILENAME
-          handles.set(markerPath, marker)
-          const file = await marker.getFile()
-          rows.push({
-            relativePath: markerPath,
-            name: VAULT_MARKER_FILENAME,
-            kind: 'file',
-            size: file.size,
-            lastModified: file.lastModified,
-          })
-        } catch {
-          /* marker missing despite detection race */
-        }
-        continue
-      }
       await walkDirectoryHandle(child, relativePath, rows, handles, vaultRoots)
     } else {
       let size: number | undefined

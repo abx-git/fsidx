@@ -11,8 +11,8 @@ import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
 import { fsidxFileDragMime } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
-import { shouldHideFromFileList } from '../lib/vault/vault-paths'
-import { isVaultUnlocked } from '../lib/vault/vault-session'
+import { scopeVaultRoot, shouldHideFromFileList } from '../lib/vault/vault-paths'
+import { getVaultOpaqueOnDiskCount, isVaultUnlocked } from '../lib/vault/vault-session'
 
 interface FileBrowserProps {
   rootName: string
@@ -78,10 +78,11 @@ export function FileBrowser({
   onUnlockVault,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
-  const scopeVaultRoot =
-    vaultRoots.find((r) => scopePath === r || scopePath.startsWith(`${r}/`)) ?? null
+  const activeVaultRoot = scopeVaultRoot(scopePath, vaultRoots)
+  const workspaceIsVault = vaultRoots.includes('')
   const scopeVaultLocked =
-    scopeVaultRoot !== null && !isVaultUnlocked(scopeVaultRoot)
+    (workspaceIsVault || activeVaultRoot !== null) &&
+    !isVaultUnlocked(workspaceIsVault ? '' : activeVaultRoot ?? '')
 
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
@@ -107,8 +108,8 @@ export function FileBrowser({
     if (isSidecarForIndexedFile(row.path, indexedFilePaths)) return false
     if (isEt2InternalPath(row.path, showEt2DotFiles)) return false
     if (shouldHideFromFileList(row.path)) return false
-    if (row.kind === 'file' && scopeVaultLocked && scopeVaultRoot) {
-      if (row.path.startsWith(`${scopeVaultRoot}/`)) return false
+    if (row.kind === 'file' && scopeVaultLocked) {
+      if (workspaceIsVault || (activeVaultRoot && row.path.startsWith(`${activeVaultRoot}/`))) return false
     }
     return true
   })
@@ -120,6 +121,7 @@ export function FileBrowser({
           workspaceRootName={rootName}
           scopePath={scopePath}
           onSelectScope={onNavigate}
+          vaultRoots={vaultRoots}
         />
       )}
       <div className="shrink-0">
@@ -132,21 +134,32 @@ export function FileBrowser({
             onNewVaultFolder={onNewVaultFolder}
           />
         )}
-        {!inSearch && scopeVaultLocked && scopeVaultRoot && (
-          <div className="flex items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/80 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/30">
-            <p className="flex items-center gap-1.5 text-xs text-blue-900 dark:text-blue-100">
-              <Lock className="h-3.5 w-3.5 shrink-0" />
-              Verschlüsselter Tresor — Inhalte nur nach Entsperren sichtbar.
+        {!inSearch && scopeVaultLocked && onUnlockVault && (
+          <div className="flex items-center justify-between gap-2 border-b-2 border-blue-300 bg-blue-100/90 px-3 py-2 dark:border-blue-700 dark:bg-blue-950/50">
+            <p className="flex flex-col gap-0.5 text-xs font-medium text-blue-950 dark:text-blue-100 sm:flex-row sm:items-center sm:gap-1.5">
+              <span className="inline-flex items-center gap-1.5">
+                <Shield className="h-4 w-4 shrink-0 text-blue-800" />
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                Verschlüsselter Tresor — Inhalte nur nach Entsperren sichtbar.
+              </span>
+              {(() => {
+                const vaultKey = workspaceIsVault ? '' : activeVaultRoot ?? ''
+                const onDisk = getVaultOpaqueOnDiskCount(vaultKey)
+                if (onDisk == null || onDisk < 1) return null
+                return (
+                  <span className="text-[11px] font-normal text-blue-900/90 dark:text-blue-200/90">
+                    ({onDisk} verschlüsselte Einträge auf der Platte)
+                  </span>
+                )
+              })()}
             </p>
-            {onUnlockVault && (
-              <button
-                type="button"
-                className="shrink-0 rounded-md bg-blue-800 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
-                onClick={() => onUnlockVault(scopeVaultRoot)}
-              >
-                Entsperren…
-              </button>
-            )}
+            <button
+              type="button"
+              className="shrink-0 rounded-md bg-blue-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-700"
+              onClick={() => onUnlockVault(workspaceIsVault ? '' : activeVaultRoot ?? '')}
+            >
+              Entsperren…
+            </button>
           </div>
         )}
         {inSearch && (
@@ -156,6 +169,7 @@ export function FileBrowser({
               scopePath={scopePath}
               onSelectScope={onNavigate}
               variant="compact"
+              vaultRoots={vaultRoots}
             />
             <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               {searchResults.length} Treffer für &quot;{searchQuery}&quot;
@@ -216,9 +230,11 @@ export function FileBrowser({
                     y: e.clientY,
                   })
                 }}
-                className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b border-zinc-100 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:border-zinc-800/80 dark:hover:bg-zinc-900 ${
-                  isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30' : ''
-                }`}
+                className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b px-3 py-2 text-left text-sm dark:border-zinc-800/80 ${
+                  row.kind === 'directory' && vaultRoots.includes(row.path)
+                    ? 'border-blue-200/80 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/25'
+                    : 'border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                } ${isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30' : ''}`}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {row.kind === 'directory' && vaultRoots.includes(row.path) ? (
@@ -231,6 +247,17 @@ export function FileBrowser({
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}
                   <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{row.name}</span>
+                  {row.kind === 'directory' && vaultRoots.includes(row.path) && (
+                    <span
+                      className={`shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide ${
+                        isVaultUnlocked(row.path)
+                          ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
+                          : 'bg-blue-200 text-blue-950 dark:bg-blue-900 dark:text-blue-100'
+                      }`}
+                    >
+                      {isVaultUnlocked(row.path) ? 'Tresor · offen' : 'Tresor'}
+                    </span>
+                  )}
                   {meta && (
                     <span title="Metadaten-JSON vorhanden" className="inline-flex">
                       <FileJson className="h-3.5 w-3.5 shrink-0 text-blue-700" />

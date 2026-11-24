@@ -6,7 +6,9 @@ import {
   Download,
   Upload,
   Import,
+  Shield,
 } from 'lucide-react'
+import { isVaultUnlocked } from '../lib/vault/vault-session'
 import type { FileIndexManifest } from '../types'
 import { downloadManifestJson } from '../lib/build-manifest'
 import { CollapsibleSection } from './ui/CollapsibleSection'
@@ -28,6 +30,7 @@ interface HeaderProps {
   /** Nur wenn der Workspace alte `.et2/`-Strukturen enthält. */
   hasLegacyEt2?: boolean
   onEt2Migrate: () => void
+  vaultRoots?: string[]
 }
 
 export function Header({
@@ -46,7 +49,12 @@ export function Header({
   onShowEt2DotFilesChange,
   hasLegacyEt2 = false,
   onEt2Migrate,
+  vaultRoots = [],
 }: HeaderProps) {
+  const vaultCount = vaultRoots.length
+  const anyVaultLocked =
+    vaultCount > 0 && vaultRoots.some((r) => !isVaultUnlocked(r))
+
   return (
     <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -55,6 +63,26 @@ export function Header({
             LocalDir Index
             {manifest && (
               <span className="ml-2 font-normal text-zinc-500 dark:text-zinc-400">· {manifest.rootName}</span>
+            )}
+            {vaultCount > 0 && (
+              <span
+                className={`ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  anyVaultLocked
+                    ? 'bg-blue-100 text-blue-950 dark:bg-blue-950/60 dark:text-blue-100'
+                    : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
+                }`}
+                title={
+                  anyVaultLocked
+                    ? 'Mindestens ein Tresor ist noch gesperrt'
+                    : 'Alle Tresore sind entsperrt'
+                }
+              >
+                <Shield className="h-3 w-3" aria-hidden />
+                {vaultCount === 1 && vaultRoots[0] === ''
+                  ? 'Workspace-Tresor'
+                  : `${vaultCount} Tresor${vaultCount > 1 ? 'e' : ''}`}
+                {anyVaultLocked ? ' · gesperrt' : ''}
+              </span>
             )}
           </h1>
         </div>

@@ -20,7 +20,10 @@ async function resolveVaultDir(
     dir = await dir.getDirectoryHandle(seg)
   }
 
-  const innerParts = logicalDir.slice(vaultRoot.length + 1).split('/').filter(Boolean)
+  const innerParts =
+    vaultRoot === ''
+      ? logicalDir.split('/').filter(Boolean)
+      : logicalDir.slice(vaultRoot.length + 1).split('/').filter(Boolean)
   for (const plainSeg of innerParts) {
     const encrypted = await encryptVaultName(key, plainSeg)
     dir = await dir.getDirectoryHandle(encrypted)
@@ -94,13 +97,17 @@ export async function ensureVaultDirectoryOnDisk(
   if (store.kind !== 'handles') throw new Error('Tresor: Schreibzugriff nötig')
   const session = getVaultSession(vaultRoot)
   if (!session) throw new Error('Tresor gesperrt')
-  if (logicalDir === vaultRoot || !logicalDir.startsWith(`${vaultRoot}/`)) return
+  if (vaultRoot !== '' && logicalDir !== vaultRoot && !logicalDir.startsWith(`${vaultRoot}/`)) return
 
-  const segments = logicalDir.slice(vaultRoot.length + 1).split('/').filter(Boolean)
-  const rootParts = vaultRoot.split('/').filter(Boolean)
+  const segments =
+    vaultRoot === ''
+      ? logicalDir.split('/').filter(Boolean)
+      : logicalDir.slice(vaultRoot.length + 1).split('/').filter(Boolean)
   let dir = store.root
-  for (const seg of rootParts) {
-    dir = await dir.getDirectoryHandle(seg)
+  if (vaultRoot) {
+    for (const seg of vaultRoot.split('/').filter(Boolean)) {
+      dir = await dir.getDirectoryHandle(seg)
+    }
   }
   let built = vaultRoot
   for (const plain of segments) {

@@ -15,6 +15,8 @@ export interface PersistedWorkspaceSession {
   currentPath: string
   selectedId: string | null
   savedAt: string
+  /** Bekannte Tresor-Ordner (`''` = ganzer Workspace-Root). */
+  vaultRoots?: string[]
 }
 
 function openDb(): Promise<IDBDatabase> {

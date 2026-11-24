@@ -171,12 +171,27 @@ export function insertTaskSiblingAfter(
   return [...bumped, { ...newTask, parentId, order: insertOrder }]
 }
 
-/** Eine Ebene ausrücken. */
+/** Eine Ebene ausrücken — direkt nach dem bisherigen Elter auf gleicher Ebene. */
 export function outdentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2TaskRecord[] {
   const task = tasks.find((t) => t.id === taskId)
   if (!task?.parentId) return tasks
   const parent = tasks.find((t) => t.id === task.parentId)
-  const newParentId = parent?.parentId ?? null
+  if (!parent) return tasks
+  const newParentId = parent.parentId ?? null
   if (wouldCreateTaskCycle(tasks, taskId, newParentId)) return tasks
-  return reparentTaskInList(tasks, taskId, newParentId)
+
+  const grandSibs = siblingsOf(tasks, newParentId)
+  const parentIdx = grandSibs.findIndex((s) => s.id === parent.id)
+  const parentOrder = parent.order ?? parentIdx
+  const insertOrder = parentOrder + 1
+
+  return tasks.map((t) => {
+    if (t.id === taskId) {
+      return { ...t, parentId: newParentId, order: insertOrder }
+    }
+    if ((t.parentId ?? null) === newParentId && (t.order ?? 0) >= insertOrder) {
+      return { ...t, order: (t.order ?? 0) + 1 }
+    }
+    return t
+  })
 }

@@ -4,6 +4,7 @@ import {
   collectDescendantTaskIds,
   deleteTaskSubtree,
   insertTaskSiblingAfter,
+  outdentTaskInTree,
   reorderTaskRelativeToSibling,
   reparentTaskInList,
   wouldCreateTaskCycle,
@@ -51,6 +52,18 @@ describe('task-bundle-ops', () => {
       .sort((x, y) => (x.order ?? 0) - (y.order ?? 0))
       .map((t) => t.id)
     expect(ids).toEqual(['c', 'a', 'b'])
+  })
+
+  it('rückt Aufgabe nach Parent-Ebene ohne ans Listenende zu springen', () => {
+    const tree: Et2TaskRecord[] = [
+      { id: 'a', parentId: null, title: 'A', status: 'open', order: 0 },
+      { id: 'x', parentId: null, title: 'X', status: 'open', order: 1 },
+      { id: 'b', parentId: 'a', title: 'B', status: 'open', order: 0 },
+    ]
+    const next = outdentTaskInTree(tree, 'b')
+    expect(next.find((t) => t.id === 'b')?.parentId ?? null).toBe(null)
+    expect(next.find((t) => t.id === 'b')?.order).toBe(1)
+    expect(next.find((t) => t.id === 'x')?.order).toBe(2)
   })
 
   it('fügt Geschwister nach Anker ein', () => {

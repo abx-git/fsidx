@@ -94,14 +94,12 @@ function dropTargetKey(target: TaskDropTarget): string {
 
 function TaskDropGap({
   active,
-  dragActive,
   depth,
   label,
   onActivate,
   onDrop,
 }: {
   active: boolean
-  dragActive: boolean
   depth: number
   label: string
   onActivate: () => void
@@ -111,49 +109,30 @@ function TaskDropGap({
     <li
       className="list-none py-0.5"
       style={{ paddingLeft: `${0.5 + depth * 0.75}rem`, paddingRight: '0.5rem' }}
-      onDragEnter={
-        dragActive
-          ? (e) => {
-              e.preventDefault()
-              onActivate()
-            }
-          : undefined
-      }
-      onDragOver={
-        dragActive
-          ? (e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onActivate()
-            }
-          : undefined
-      }
-      onDrop={
-        dragActive
-          ? (e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onDrop()
-            }
-          : undefined
-      }
+      onDragEnter={(e) => {
+        e.preventDefault()
+        onActivate()
+      }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onActivate()
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onDrop()
+      }}
     >
       <div
-        className={`flex h-2 items-center rounded ${
-          dragActive ? 'transition' : ''
-        } ${dragActive && !active ? 'opacity-60' : ''}`}
-        title={dragActive ? label : undefined}
-        aria-hidden={!dragActive}
+        className={`flex h-2 items-center rounded transition ${active ? '' : 'opacity-60'}`}
+        title={label}
       >
         <div
-          className={`h-0.5 w-full rounded-full ${
-            dragActive ? 'transition' : ''
-          } ${
-            !dragActive
-              ? 'bg-transparent'
-              : active
-                ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-                : 'bg-violet-200/80 dark:bg-violet-800/60'
+          className={`h-0.5 w-full rounded-full transition ${
+            active
+              ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+              : 'bg-violet-200/80 dark:bg-violet-800/60'
           }`}
         />
       </div>
@@ -363,39 +342,28 @@ export function Et2TaskList({
       onKeyDown={handleListKeyDown}
     >
     <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
-      {canWrite && (
+      {canWrite && dragId && (
         <li
           className="list-none px-2 py-0.5"
-          title={dragId ? 'Wurzelebene' : undefined}
-          aria-hidden={!dragId}
-          onDragOver={
-            dragId
-              ? (e) => {
-                  e.preventDefault()
-                  setDropTarget({ kind: 'root' })
-                }
-              : undefined
-          }
-          onDrop={
-            dragId
-              ? (e) => {
-                  e.preventDefault()
-                  setDropTarget({ kind: 'root' })
-                  if (!dragId) return
-                  onNestTask?.(dragId, null)
-                  clearDrag()
-                }
-              : undefined
-          }
+          title="Wurzelebene"
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDropTarget({ kind: 'root' })
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDropTarget({ kind: 'root' })
+            if (!dragId) return
+            onNestTask?.(dragId, null)
+            clearDrag()
+          }}
         >
           <div className="flex h-2 items-center">
             <div
-              className={`h-0.5 w-full rounded-full ${dragId ? 'transition' : ''} ${
-                !dragId
-                  ? 'bg-transparent'
-                  : activeKey === 'root'
-                    ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-                    : 'bg-violet-200/80 dark:bg-violet-800/60'
+              className={`h-0.5 w-full rounded-full transition ${
+                activeKey === 'root'
+                  ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+                  : 'bg-violet-200/80 dark:bg-violet-800/60'
               }`}
             />
           </div>
@@ -422,17 +390,14 @@ export function Et2TaskList({
         const inlineEditing = selected && editingTaskId === task.taskId
         return (
           <Fragment key={task.relativePath}>
-            {canWrite && onReorderTask && (
+            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
               <TaskDropGap
                 depth={depth}
-                dragActive={Boolean(dragId)}
                 active={activeKey === beforeKey}
                 label="Hier einfügen (gleiche Ebene)"
-                onActivate={() =>
-                  dragId && canReorderAt(task.taskId) && setDropTarget({ kind: 'before', taskId: task.taskId })
-                }
+                onActivate={() => setDropTarget({ kind: 'before', taskId: task.taskId })}
                 onDrop={() => {
-                  if (!dragId || !canReorderAt(task.taskId)) return
+                  if (!dragId) return
                   onReorderTask(dragId, task.taskId, 'before')
                   clearDrag()
                 }}
@@ -593,17 +558,14 @@ export function Et2TaskList({
               )}
             </div>
           </li>
-            {canWrite && onReorderTask && (
+            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
               <TaskDropGap
                 depth={depth}
-                dragActive={Boolean(dragId)}
                 active={activeKey === afterKey}
                 label="Hier einfügen (gleiche Ebene)"
-                onActivate={() =>
-                  dragId && canReorderAt(task.taskId) && setDropTarget({ kind: 'after', taskId: task.taskId })
-                }
+                onActivate={() => setDropTarget({ kind: 'after', taskId: task.taskId })}
                 onDrop={() => {
-                  if (!dragId || !canReorderAt(task.taskId)) return
+                  if (!dragId) return
                   onReorderTask(dragId, task.taskId, 'after')
                   clearDrag()
                 }}

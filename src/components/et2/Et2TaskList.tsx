@@ -105,10 +105,10 @@ function TaskDropGap({
   onActivate: () => void
   onDrop: () => void
 }) {
+  const inset = `${0.5 + depth * 0.75}rem`
   return (
     <li
-      className="list-none py-0.5"
-      style={{ paddingLeft: `${0.5 + depth * 0.75}rem`, paddingRight: '0.5rem' }}
+      className="list-none relative z-20 h-0 overflow-visible"
       onDragEnter={(e) => {
         e.preventDefault()
         onActivate()
@@ -125,14 +125,15 @@ function TaskDropGap({
       }}
     >
       <div
-        className={`flex h-2 items-center rounded transition ${active ? '' : 'opacity-60'}`}
+        className="pointer-events-auto absolute inset-x-0 top-1/2 flex h-3 -translate-y-1/2 items-center"
+        style={{ paddingLeft: inset, paddingRight: '0.5rem' }}
         title={label}
       >
         <div
           className={`h-0.5 w-full rounded-full transition ${
             active
               ? 'bg-blue-700 shadow-[0_0_0_2px] shadow-blue-500 dark:shadow-blue-600'
-              : 'bg-blue-200/80 dark:bg-blue-800/60'
+              : 'bg-blue-200/80 dark:bg-blue-800/60 opacity-60'
           }`}
         />
       </div>
@@ -350,10 +351,10 @@ export function Et2TaskList({
       className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300/50 dark:focus-visible:ring-blue-700/40"
       onKeyDown={handleListKeyDown}
     >
-    <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
+    <ul ref={listRef}>
       {canWrite && dragId && (
         <li
-          className="list-none px-2 py-0.5"
+          className="relative z-20 list-none h-0 overflow-visible"
           title="Wurzelebene"
           onDragOver={(e) => {
             e.preventDefault()
@@ -367,18 +368,18 @@ export function Et2TaskList({
             clearDrag()
           }}
         >
-          <div className="flex h-2 items-center">
+          <div className="pointer-events-auto absolute inset-x-0 top-1/2 flex h-3 -translate-y-1/2 items-center px-2">
             <div
               className={`h-0.5 w-full rounded-full transition ${
                 activeKey === 'root'
                   ? 'bg-blue-700 shadow-[0_0_0_2px] shadow-blue-500 dark:shadow-blue-600'
-                  : 'bg-blue-200/80 dark:bg-blue-800/60'
+                  : 'bg-blue-200/80 opacity-60 dark:bg-blue-800/60'
               }`}
             />
           </div>
         </li>
       )}
-      {visible.map((task) => {
+      {visible.map((task, taskIndex) => {
         const selected = selectedTaskRef === task.relativePath
         const depth = task.depth ?? 0
         const hasKids = taskHasChildren(task.taskId, records)
@@ -394,15 +395,20 @@ export function Et2TaskList({
 
         const nestHighlight =
           dropTarget?.kind === 'nest' && dropTarget.taskId === task.taskId
-        const beforeKey = `before:${task.taskId}`
         const afterKey = `after:${task.taskId}`
         const inlineEditing = selected && editingTaskId === task.taskId
+        const showTopGap =
+          canWrite &&
+          dragId &&
+          onReorderTask &&
+          taskIndex === 0 &&
+          canReorderAt(task.taskId)
         return (
           <Fragment key={task.relativePath}>
-            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
+            {showTopGap && (
               <TaskDropGap
                 depth={depth}
-                active={activeKey === beforeKey}
+                active={activeKey === `before:${task.taskId}`}
                 label="Hier einfügen (gleiche Ebene)"
                 onActivate={() => setDropTarget({ kind: 'before', taskId: task.taskId })}
                 onDrop={() => {
@@ -413,6 +419,11 @@ export function Et2TaskList({
               />
             )}
             <li
+              className={
+                taskIndex > 0
+                  ? 'border-t border-zinc-100 dark:border-zinc-800'
+                  : undefined
+              }
               onDragOver={(e) => {
                 if (!dragId || !canNestOn(task.taskId)) return
                 e.preventDefault()

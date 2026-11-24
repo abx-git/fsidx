@@ -131,8 +131,8 @@ function TaskDropGap({
         <div
           className={`h-0.5 w-full rounded-full transition ${
             active
-              ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-              : 'bg-violet-200/80 dark:bg-violet-800/60'
+              ? 'bg-blue-700 shadow-[0_0_0_2px] shadow-blue-500 dark:shadow-blue-600'
+              : 'bg-blue-200/80 dark:bg-blue-800/60'
           }`}
         />
       </div>
@@ -347,7 +347,7 @@ export function Et2TaskList({
       ref={listFocusRef}
       data-et2-task-list
       tabIndex={0}
-      className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-300/50 dark:focus-visible:ring-violet-700/40"
+      className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-300/50 dark:focus-visible:ring-blue-700/40"
       onKeyDown={handleListKeyDown}
     >
     <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -371,8 +371,8 @@ export function Et2TaskList({
             <div
               className={`h-0.5 w-full rounded-full transition ${
                 activeKey === 'root'
-                  ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-                  : 'bg-violet-200/80 dark:bg-violet-800/60'
+                  ? 'bg-blue-700 shadow-[0_0_0_2px] shadow-blue-500 dark:shadow-blue-600'
+                  : 'bg-blue-200/80 dark:bg-blue-800/60'
               }`}
             />
           </div>
@@ -428,9 +428,9 @@ export function Et2TaskList({
               }}
             >
             <div
-              className={`group flex items-stretch gap-0.5 text-left text-xs hover:bg-violet-50 dark:hover:bg-violet-950/30 ${
-                selected ? 'bg-violet-100/80 dark:bg-violet-950/40' : ''
-              } ${nestHighlight ? 'ring-2 ring-inset ring-violet-400 bg-violet-50/50 dark:bg-violet-950/20' : ''}`}
+              className={`group flex items-stretch gap-0.5 text-left text-xs hover:bg-blue-50 dark:hover:bg-blue-950/30 ${
+                selected ? 'bg-blue-100/80 dark:bg-blue-950/40' : ''
+              } ${nestHighlight ? 'ring-2 ring-inset ring-blue-600 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
               style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
               onContextMenu={
                 canWrite
@@ -458,7 +458,7 @@ export function Et2TaskList({
               {hasKids ? (
                 <button
                   type="button"
-                  className="mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-violet-100 dark:hover:bg-violet-900/50"
+                  className="mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/50"
                   aria-expanded={!collapsed}
                   aria-label={collapsed ? 'Aufklappen' : 'Einklappen'}
                   onClick={() => toggleCollapse(task.taskId)}
@@ -497,7 +497,7 @@ export function Et2TaskList({
                     data-et2-inline-title
                     ref={inlineInputRef}
                     type="text"
-                    className={`w-full min-w-0 rounded border border-violet-300 bg-white px-1 py-0.5 text-xs font-medium outline-none ring-violet-400 focus:ring-1 dark:border-violet-700 dark:bg-zinc-900/50 ${
+                    className={`w-full min-w-0 rounded border border-blue-300 bg-white px-1 py-0.5 text-xs font-medium outline-none ring-blue-600 focus:ring-1 dark:border-blue-700 dark:bg-zinc-900/50 ${
                       done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
                     }`}
                     value={inlineTitle ?? task.title}
@@ -523,7 +523,7 @@ export function Et2TaskList({
                   </span>
                 )}
                 {task.status && (
-                  <span className="mt-0.5 inline-flex rounded-full bg-white/80 px-1 py-0.5 text-[9px] font-normal text-violet-800 dark:bg-zinc-900">
+                  <span className="mt-0.5 inline-flex rounded-full bg-white/80 px-1 py-0.5 text-[9px] font-normal text-blue-800 dark:bg-zinc-900">
                     {et2TaskStatusLabel(task.status)}
                   </span>
                 )}
@@ -539,7 +539,7 @@ export function Et2TaskList({
                       </span>
                     )}
                     {cmd && (
-                      <span className="inline-flex items-center gap-0.5 text-violet-700">
+                      <span className="inline-flex items-center gap-0.5 text-blue-700">
                         <Terminal className="h-2.5 w-2.5" /> Befehl
                       </span>
                     )}

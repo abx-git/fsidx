@@ -107,7 +107,7 @@ export function Et2NewTaskDialog({
             type="button"
             disabled={saving}
             onClick={() => void handleSubmit()}
-            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Anlegen

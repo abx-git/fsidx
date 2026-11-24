@@ -190,14 +190,14 @@ export function FileBrowser({
                   {row.kind === 'directory' ? (
                     <Folder className="h-4 w-4 shrink-0 text-amber-500" />
                   ) : isTskJsonPath(row.path) ? (
-                    <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
+                    <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
                   ) : (
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}
                   <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{row.name}</span>
                   {meta && (
                     <span title="Metadaten-JSON vorhanden" className="inline-flex">
-                      <FileJson className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                      <FileJson className="h-3.5 w-3.5 shrink-0 text-blue-700" />
                     </span>
                   )}
                   {inSearch && (

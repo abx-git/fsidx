@@ -29,7 +29,7 @@ export function LegacyTaskNotice({
           type="button"
           disabled={!canWrite}
           onClick={onCreateTsk}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-800 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
         >
           <ListTodo className="h-3.5 w-3.5" />
           Neue .tsk.json im übergeordneten Ordner

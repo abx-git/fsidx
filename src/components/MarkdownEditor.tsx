@@ -250,7 +250,7 @@ export function MarkdownEditor({
               ) : canWrite ? (
                 <p
                   className={`text-sm text-zinc-400 ${
-                    viewHighlightLine === 1 ? 'md-preview-line-focus rounded-sm bg-violet-500/10' : ''
+                    viewHighlightLine === 1 ? 'md-preview-line-focus rounded-sm bg-blue-700/10' : ''
                   }`}
                   data-md-source-start="1"
                   data-md-source-end="1"

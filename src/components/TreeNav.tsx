@@ -193,7 +193,7 @@ function TreeNode({
           <span className="truncate">{node.name || '(root)'}</span>
           {taskCount > 0 && (
             <span
-              className="ml-auto inline-flex items-center gap-0.5 rounded bg-violet-100 px-1 text-[10px] font-medium text-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+              className="ml-auto inline-flex items-center gap-0.5 rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-200"
               title={`${taskCount} Aufgaben im Teilbaum`}
             >
               <CheckSquare className="h-2.5 w-2.5" />

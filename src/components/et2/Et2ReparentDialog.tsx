@@ -68,7 +68,7 @@ export function Et2ReparentDialog({
           </button>
           <button
             type="button"
-            className="rounded-md bg-violet-600 px-3 py-1.5 text-sm text-white hover:bg-violet-500"
+            className="rounded-md bg-blue-800 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
             onClick={() => onConfirm(choice === '__root__' ? null : choice)}
           >
             Übernehmen

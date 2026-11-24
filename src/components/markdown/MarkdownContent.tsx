@@ -154,7 +154,7 @@ function buildMdComponents(
 }
 
 const lineFocusClass =
-  'md-preview-line-focus rounded-sm bg-violet-500/10 shadow-[inset_3px_0_0] shadow-violet-500 dark:bg-violet-400/10'
+  'md-preview-line-focus rounded-sm bg-blue-700/10 shadow-[inset_3px_0_0] shadow-blue-700 dark:bg-blue-400/10'
 
 function blockClassForLine(
   node: HastElement | undefined,

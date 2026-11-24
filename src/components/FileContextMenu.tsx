@@ -139,7 +139,7 @@ export function FileContextMenu({
               onClose()
             }}
           >
-            <ListTodo className="h-4 w-4 shrink-0 text-violet-600" />
+            <ListTodo className="h-4 w-4 shrink-0 text-blue-800" />
             <span>Aufgabenübersicht (Unterbaum)</span>
           </button>
         )}
@@ -197,7 +197,7 @@ export function FileContextMenu({
               onClose()
             }}
           >
-            <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />
+            <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
             <span>Neue .tsk.json</span>
           </button>
         )}
@@ -303,9 +303,9 @@ export function FileContextMenu({
           }}
         >
           {hasSidecar ? (
-            <Pencil className="h-4 w-4 text-violet-500" />
+            <Pencil className="h-4 w-4 text-blue-700" />
           ) : (
-            <FileJson className="h-4 w-4 text-violet-500" />
+            <FileJson className="h-4 w-4 text-blue-700" />
           )}
           {hasSidecar ? 'Metadaten bearbeiten' : 'Metadaten-JSON erstellen'}
         </button>
@@ -321,7 +321,7 @@ export function FileContextMenu({
             onClose()
           }}
         >
-          <Pencil className="h-4 w-4 shrink-0 text-violet-500" />
+          <Pencil className="h-4 w-4 shrink-0 text-blue-700" />
           <span>Datei umbenennen…</span>
         </button>
       )}

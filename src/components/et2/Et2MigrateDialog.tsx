@@ -94,7 +94,7 @@ export function Et2MigrateDialog({
           </p>
 
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-4 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800/50">
-            <FileUp className="h-5 w-5 text-violet-500" />
+            <FileUp className="h-5 w-5 text-blue-700" />
             <span>JSON-Datei wählen…</span>
             <input type="file" accept="application/json,.json" className="hidden" onChange={onPickFile} />
           </label>
@@ -137,7 +137,7 @@ export function Et2MigrateDialog({
             type="button"
             disabled={!dryRun || !canWrite || applying}
             onClick={() => void handleApply()}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+            className="rounded-lg bg-blue-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
           >
             {applying ? 'Schreibe…' : 'Auf Platte schreiben'}
           </button>

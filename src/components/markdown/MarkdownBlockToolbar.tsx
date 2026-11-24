@@ -147,7 +147,7 @@ export function MarkdownBlockToolbar({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-0.5 border-b border-violet-200/80 bg-white/95 px-2 py-1 backdrop-blur-sm dark:border-violet-900/50 dark:bg-zinc-950/95 ${className}`}
+      className={`flex flex-wrap items-center gap-0.5 border-b border-blue-200/80 bg-white/95 px-2 py-1 backdrop-blur-sm dark:border-blue-900/50 dark:bg-zinc-950/95 ${className}`}
       role="toolbar"
       aria-label="Markdown formatieren"
     >

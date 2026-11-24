@@ -45,14 +45,14 @@ export function Et2TaskContentEditor({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border-t border-violet-200 bg-violet-50/20 dark:border-violet-900/50 dark:bg-violet-950/15">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-violet-100 px-3 py-2 dark:border-violet-900/40">
+    <div className="flex min-h-0 flex-1 flex-col border-t border-blue-200 bg-blue-50/20 dark:border-blue-900/50 dark:bg-blue-950/15">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-blue-100 px-3 py-2 dark:border-blue-900/40">
         <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Inhalt</span>
         <button
           type="button"
           disabled={!canWrite || !dirty || saving || loading}
           onClick={() => void onSave()}
-          className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-lg bg-blue-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
         >
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
           Speichern
@@ -65,7 +65,7 @@ export function Et2TaskContentEditor({
         </p>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="shrink-0 border-b border-violet-100 px-3 py-3 dark:border-violet-900/40">
+          <div className="shrink-0 border-b border-blue-100 px-3 py-3 dark:border-blue-900/40">
             {taskPath && taskRefFromPath(taskPath) && (
               <label className="mb-3 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Status

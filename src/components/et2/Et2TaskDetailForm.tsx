@@ -108,7 +108,7 @@ export function Et2TaskDetailForm({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-violet-600 dark:text-violet-300">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-blue-800 dark:text-blue-300">
           Karte
         </p>
         <button

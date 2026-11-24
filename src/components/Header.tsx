@@ -114,7 +114,7 @@ export function Header({
                 <button
                   type="button"
                   onClick={onEt2Migrate}
-                  className="inline-flex items-center gap-1 rounded-md border border-violet-200 px-2 py-1 text-[11px] text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200"
+                  className="inline-flex items-center gap-1 rounded-md border border-blue-200 px-2 py-1 text-[11px] text-blue-800 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-200"
                 >
                   <Import className="h-3 w-3" />
                   ET2-Import
@@ -162,7 +162,7 @@ export function Header({
             <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-300">
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5 rounded border-zinc-300 text-violet-600"
+                className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-800"
                 checked={searchTasksOnly}
                 onChange={(e) => onSearchTasksOnlyChange(e.target.checked)}
               />

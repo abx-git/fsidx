@@ -74,7 +74,7 @@ export function Et2TaskPanel({
         />
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
           <p className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <ListTodo className="h-3.5 w-3.5 text-violet-500" />
+            <ListTodo className="h-3.5 w-3.5 text-blue-700" />
             {loading ? (
               <>
                 Laden…
@@ -93,7 +93,7 @@ export function Et2TaskPanel({
               type="button"
               disabled={!canWrite || !selectedTaskPath}
               onClick={onNewSubtask}
-              className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 px-2 py-1 text-[11px] font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-800 dark:text-violet-200"
+              className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 px-2 py-1 text-[11px] font-medium text-blue-800 hover:bg-blue-50 disabled:opacity-40 dark:border-blue-800 dark:text-blue-200"
               title="Unteraufgabe in derselben tasks.json — kein neuer Ordner"
             >
               <GitBranch className="h-3 w-3" />
@@ -135,7 +135,7 @@ export function Et2TaskPanel({
                     role="button"
                     tabIndex={0}
                     className={`flex w-full cursor-pointer flex-col gap-0.5 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${
-                      selected ? 'border-l-2 border-violet-500 bg-violet-50/90 dark:bg-violet-950/25' : ''
+                      selected ? 'border-l-2 border-blue-700 bg-blue-50/90 dark:bg-blue-950/25' : ''
                     }`}
                     style={{ paddingLeft: `${1 + depth * 0.75}rem`, paddingRight: '1rem' }}
                     onClick={() => onSelectTask(task.relativePath)}
@@ -157,7 +157,7 @@ export function Et2TaskPanel({
                                 ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
                                 : task.status === 'cancelled'
                                   ? 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                  : 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200'
+                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200'
                           }`}
                         >
                           {statusLabel}
@@ -166,7 +166,7 @@ export function Et2TaskPanel({
                     </span>
                     {folderLabel && (
                       <span
-                        className="w-fit text-[11px] text-violet-700 hover:underline dark:text-violet-300"
+                        className="w-fit text-[11px] text-blue-700 hover:underline dark:text-blue-300"
                         onClick={(e) => {
                           e.stopPropagation()
                           onSelectScope(folderScopePath)

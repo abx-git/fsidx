@@ -127,7 +127,7 @@ export function MarkdownTextareaWithToolbar({
       }}
       placeholder={placeholder}
       spellCheck
-      className={`w-full border-0 bg-white px-3 py-2 font-mono text-sm leading-relaxed text-zinc-900 outline-none focus:ring-2 focus:ring-inset focus:ring-violet-500/25 disabled:opacity-60 dark:bg-zinc-950 dark:text-zinc-100 ${
+      className={`w-full border-0 bg-white px-3 py-2 font-mono text-sm leading-relaxed text-zinc-900 outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/25 disabled:opacity-60 dark:bg-zinc-950 dark:text-zinc-100 ${
         stickyToolbar ? 'min-h-[min(60vh,480px)] resize-none' : `resize-y ${minHeightClass}`
       } ${className}`}
     />

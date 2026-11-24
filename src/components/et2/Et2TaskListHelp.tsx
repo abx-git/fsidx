@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-zinc-100 pt-2 first:border-t-0 first:pt-0 dark:border-zinc-800">
-      <p className="mb-1 font-medium text-violet-900 dark:text-violet-200">{title}</p>
+      <p className="mb-1 font-medium text-blue-900 dark:text-blue-200">{title}</p>
       <ul className="list-none space-y-1 text-zinc-600 dark:text-zinc-300">{children}</ul>
     </div>
   )
@@ -13,7 +13,7 @@ function HelpSection({ title, children }: { title: string; children: React.React
 function HelpRow({ keys, desc }: { keys: string; desc: string }) {
   return (
     <li className="flex gap-2">
-      <span className="w-28 shrink-0 font-mono text-[10px] text-violet-800 dark:text-violet-300">{keys}</span>
+      <span className="w-28 shrink-0 font-mono text-[10px] text-blue-800 dark:text-blue-300">{keys}</span>
       <span>{desc}</span>
     </li>
   )
@@ -42,7 +42,7 @@ export function Et2TaskListHelp({ canWrite }: { canWrite: boolean }) {
         aria-expanded={open}
         title="Hilfe"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-violet-200 text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/50"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:text-blue-200 dark:hover:bg-blue-950/50"
       >
         <HelpCircle className="h-3.5 w-3.5" />
       </button>
@@ -52,7 +52,7 @@ export function Et2TaskListHelp({ canWrite }: { canWrite: boolean }) {
           role="dialog"
           aria-label="Aufgabenliste – Bedienung"
         >
-          <p className="mb-2 text-xs font-semibold text-violet-900 dark:text-violet-100">Bedienung</p>
+          <p className="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">Bedienung</p>
 
           <HelpSection title="Maus">
             <HelpRow keys="Klick" desc="Aufgabe auswählen" />

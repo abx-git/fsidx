@@ -114,7 +114,7 @@ export function MetadataEditor({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isNew && (
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-900 dark:bg-violet-950 dark:text-violet-200">
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-900 dark:bg-blue-950 dark:text-blue-200">
               Neu
             </span>
           )}
@@ -128,7 +128,7 @@ export function MetadataEditor({
               type="button"
               onClick={() => onViewModeChange('form')}
               className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
-                viewMode === 'form' ? 'bg-violet-600 text-white' : ''
+                viewMode === 'form' ? 'bg-blue-800 text-white' : ''
               }`}
             >
               <FormInput className="h-3.5 w-3.5" />
@@ -141,7 +141,7 @@ export function MetadataEditor({
                 onViewModeChange('source')
               }}
               className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
-                viewMode === 'source' ? 'bg-violet-600 text-white' : ''
+                viewMode === 'source' ? 'bg-blue-800 text-white' : ''
               }`}
             >
               <Braces className="h-3.5 w-3.5" />
@@ -152,7 +152,7 @@ export function MetadataEditor({
             type="button"
             disabled={!dirty || saving || !data}
             onClick={handleSave}
-            className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg bg-blue-800 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Speichern
@@ -205,7 +205,7 @@ export function MetadataEditor({
                 Zieldatei: <code>{targetPath}</code> — Schema:{' '}
                 <a
                   href={`${import.meta.env.BASE_URL}schemas/file-metadata.v1.schema.json`}
-                  className="text-violet-600 underline"
+                  className="text-blue-800 underline"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -226,7 +226,7 @@ export function MetadataEditor({
             <button
               type="button"
               onClick={applySource}
-              className="self-start rounded-lg bg-violet-600 px-3 py-1.5 text-sm text-white"
+              className="self-start rounded-lg bg-blue-800 px-3 py-1.5 text-sm text-white"
             >
               JSON übernehmen
             </button>

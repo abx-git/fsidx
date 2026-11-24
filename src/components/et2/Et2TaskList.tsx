@@ -138,9 +138,6 @@ function TaskDropGap({
           }`}
         />
       </div>
-      {active && (
-        <p className="mt-0.5 text-[9px] font-medium text-violet-700 dark:text-violet-300">{label}</p>
-      )}
     </li>
   )
 }
@@ -342,9 +339,8 @@ export function Et2TaskList({
     <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
       {canWrite && dragId && (
         <li
-          className={`border-b border-transparent px-3 py-1.5 text-[10px] ${
-            activeKey === 'root' ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50' : 'text-zinc-400'
-          }`}
+          className="list-none px-2 py-0.5"
+          title="Wurzelebene"
           onDragOver={(e) => {
             e.preventDefault()
             setDropTarget({ kind: 'root' })
@@ -357,7 +353,15 @@ export function Et2TaskList({
             clearDrag()
           }}
         >
-          Hier ablegen → Wurzelebene (ohne übergeordnete Aufgabe)
+          <div className="flex h-2 items-center">
+            <div
+              className={`h-0.5 w-full rounded-full transition ${
+                activeKey === 'root'
+                  ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+                  : 'bg-violet-200/80 dark:bg-violet-800/60'
+              }`}
+            />
+          </div>
         </li>
       )}
       {visible.map((task) => {
@@ -547,11 +551,6 @@ export function Et2TaskList({
                 </button>
               )}
             </div>
-            {nestHighlight && (
-              <p className="px-3 pb-1 text-[9px] text-violet-700 dark:text-violet-300">
-                Als Unteraufgabe von „{task.title}“
-              </p>
-            )}
           </li>
             {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
               <TaskDropGap

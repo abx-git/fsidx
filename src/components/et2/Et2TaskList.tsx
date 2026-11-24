@@ -94,12 +94,14 @@ function dropTargetKey(target: TaskDropTarget): string {
 
 function TaskDropGap({
   active,
+  dragActive,
   depth,
   label,
   onActivate,
   onDrop,
 }: {
   active: boolean
+  dragActive: boolean
   depth: number
   label: string
   onActivate: () => void
@@ -109,32 +111,49 @@ function TaskDropGap({
     <li
       className="list-none py-0.5"
       style={{ paddingLeft: `${0.5 + depth * 0.75}rem`, paddingRight: '0.5rem' }}
-      onDragEnter={(e) => {
-        e.preventDefault()
-        onActivate()
-      }}
-      onDragOver={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onActivate()
-      }}
-      onDrop={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onDrop()
-      }}
+      onDragEnter={
+        dragActive
+          ? (e) => {
+              e.preventDefault()
+              onActivate()
+            }
+          : undefined
+      }
+      onDragOver={
+        dragActive
+          ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onActivate()
+            }
+          : undefined
+      }
+      onDrop={
+        dragActive
+          ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onDrop()
+            }
+          : undefined
+      }
     >
       <div
-        className={`flex h-2 items-center rounded transition ${
-          active ? '' : 'opacity-60 hover:opacity-100'
-        }`}
-        title={label}
+        className={`flex h-2 items-center rounded ${
+          dragActive ? 'transition' : ''
+        } ${dragActive && !active ? 'opacity-60' : ''}`}
+        title={dragActive ? label : undefined}
+        aria-hidden={!dragActive}
       >
         <div
-          className={`h-0.5 w-full rounded-full transition ${
-            active
-              ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-              : 'bg-violet-200/80 dark:bg-violet-800/60'
+          className={`h-0.5 w-full rounded-full ${
+            dragActive ? 'transition' : ''
+          } ${
+            !dragActive
+              ? 'bg-transparent'
+              : active
+                ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+                : 'bg-violet-200/80 dark:bg-violet-800/60'
           }`}
         />
       </div>
@@ -173,6 +192,8 @@ export function Et2TaskList({
   const listRef = useRef<HTMLUListElement>(null)
   const listFocusRef = useRef<HTMLDivElement>(null)
   const inlineInputRef = useRef<HTMLInputElement>(null)
+  const prevSelectedTaskRef = useRef<string | null>(null)
+  const skipListFocusOnceRef = useRef(false)
 
   useEffect(() => {
     setCollapsedIds(readCollapsed(tskPath))
@@ -238,9 +259,13 @@ export function Et2TaskList({
       const idx = visible.findIndex((t) => t.relativePath === selectedTaskRef)
       if (idx < 0) return
       const next = visible[idx + (direction === 'up' ? -1 : 1)]
-      if (next) onSelectTask(next.relativePath)
+      if (next) {
+        onSelectTask(next.relativePath)
+        setEditingTaskId(null)
+        window.requestAnimationFrame(() => focusList())
+      }
     },
-    [visible, selectedTaskRef, onSelectTask],
+    [visible, selectedTaskRef, onSelectTask, focusList],
   )
 
   const mindmapKeyCtx = useMemo(
@@ -277,6 +302,7 @@ export function Et2TaskList({
 
   useEffect(() => {
     if (!titleFocusTick || !selectedTaskId) return
+    skipListFocusOnceRef.current = true
     setEditingTaskId(selectedTaskId)
     window.setTimeout(() => startInlineEdit(selectedTaskId), 50)
   }, [titleFocusTick, selectedTaskId, startInlineEdit])
@@ -286,12 +312,13 @@ export function Et2TaskList({
   }, [selectedTaskId, editingTaskId])
 
   useEffect(() => {
-    if (editingTaskId === selectedTaskId) {
-      const ae = document.activeElement
-      if (ae === inlineInputRef.current) return
-      window.requestAnimationFrame(() => inlineInputRef.current?.focus())
+    if (prevSelectedTaskRef.current === selectedTaskRef) return
+    prevSelectedTaskRef.current = selectedTaskRef
+    if (skipListFocusOnceRef.current) {
+      skipListFocusOnceRef.current = false
       return
     }
+    if (!selectedTaskRef || editingTaskId) return
     const active = document.activeElement
     if (
       active instanceof HTMLElement &&
@@ -299,9 +326,8 @@ export function Et2TaskList({
     ) {
       return
     }
-    if (active === listFocusRef.current) return
-    focusList()
-  }, [tasks, selectedTaskRef, editingTaskId, selectedTaskId, focusList])
+    window.requestAnimationFrame(() => focusList())
+  }, [selectedTaskRef, editingTaskId, focusList])
 
   const canNestOn = useCallback(
     (targetId: string) => {
@@ -333,32 +359,43 @@ export function Et2TaskList({
       ref={listFocusRef}
       data-et2-task-list
       tabIndex={0}
-      className="outline-none focus:ring-2 focus:ring-inset focus:ring-violet-300/50 dark:focus:ring-violet-700/40"
+      className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-300/50 dark:focus-visible:ring-violet-700/40"
       onKeyDown={handleListKeyDown}
     >
     <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
-      {canWrite && dragId && (
+      {canWrite && (
         <li
           className="list-none px-2 py-0.5"
-          title="Wurzelebene"
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDropTarget({ kind: 'root' })
-          }}
-          onDrop={(e) => {
-            e.preventDefault()
-            setDropTarget({ kind: 'root' })
-            if (!dragId) return
-            onNestTask?.(dragId, null)
-            clearDrag()
-          }}
+          title={dragId ? 'Wurzelebene' : undefined}
+          aria-hidden={!dragId}
+          onDragOver={
+            dragId
+              ? (e) => {
+                  e.preventDefault()
+                  setDropTarget({ kind: 'root' })
+                }
+              : undefined
+          }
+          onDrop={
+            dragId
+              ? (e) => {
+                  e.preventDefault()
+                  setDropTarget({ kind: 'root' })
+                  if (!dragId) return
+                  onNestTask?.(dragId, null)
+                  clearDrag()
+                }
+              : undefined
+          }
         >
           <div className="flex h-2 items-center">
             <div
-              className={`h-0.5 w-full rounded-full transition ${
-                activeKey === 'root'
-                  ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
-                  : 'bg-violet-200/80 dark:bg-violet-800/60'
+              className={`h-0.5 w-full rounded-full ${dragId ? 'transition' : ''} ${
+                !dragId
+                  ? 'bg-transparent'
+                  : activeKey === 'root'
+                    ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+                    : 'bg-violet-200/80 dark:bg-violet-800/60'
               }`}
             />
           </div>
@@ -385,14 +422,17 @@ export function Et2TaskList({
         const inlineEditing = selected && editingTaskId === task.taskId
         return (
           <Fragment key={task.relativePath}>
-            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
+            {canWrite && onReorderTask && (
               <TaskDropGap
                 depth={depth}
+                dragActive={Boolean(dragId)}
                 active={activeKey === beforeKey}
                 label="Hier einfügen (gleiche Ebene)"
-                onActivate={() => setDropTarget({ kind: 'before', taskId: task.taskId })}
+                onActivate={() =>
+                  dragId && canReorderAt(task.taskId) && setDropTarget({ kind: 'before', taskId: task.taskId })
+                }
                 onDrop={() => {
-                  if (!dragId) return
+                  if (!dragId || !canReorderAt(task.taskId)) return
                   onReorderTask(dragId, task.taskId, 'before')
                   clearDrag()
                 }}
@@ -461,7 +501,8 @@ export function Et2TaskList({
                 tabIndex={-1}
                 className="min-w-0 flex-1 cursor-pointer py-2 pr-1 text-left"
                 onClick={(e) => {
-                  onSelectTask(task.relativePath)
+                  if (e.detail > 1) return
+                  if (selectedTaskRef !== task.relativePath) onSelectTask(task.relativePath)
                   if (e.shiftKey) {
                     onOpenTaskDetail?.(task.relativePath)
                     return
@@ -489,7 +530,9 @@ export function Et2TaskList({
                     placeholder={DEFAULT_NEW_TASK_TITLE}
                     onChange={(e) => onInlineTitleChange(e.target.value)}
                     onKeyDown={handleListKeyDown}
-                    onBlur={() => {
+                    onBlur={(e) => {
+                      const next = e.relatedTarget
+                      if (next instanceof Node && listFocusRef.current?.contains(next)) return
                       setEditingTaskId(null)
                       window.requestAnimationFrame(() => focusList())
                     }}
@@ -498,13 +541,11 @@ export function Et2TaskList({
                   />
                 ) : (
                   <span
-                    className={`flex flex-wrap items-center gap-1.5 font-medium ${
+                    className={`block min-h-[1.375rem] truncate font-medium ${
                       done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
-                    } ${selected ? 'rounded px-1 ring-1 ring-violet-300/60 dark:ring-violet-700/50' : ''}`}
+                    }`}
                   >
-                    {selected && inlineTitle != null && inlineTitle !== task.title
-                      ? inlineTitle
-                      : task.title || DEFAULT_NEW_TASK_TITLE}
+                    {task.title || DEFAULT_NEW_TASK_TITLE}
                   </span>
                 )}
                 {task.status && (
@@ -552,14 +593,17 @@ export function Et2TaskList({
               )}
             </div>
           </li>
-            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
+            {canWrite && onReorderTask && (
               <TaskDropGap
                 depth={depth}
+                dragActive={Boolean(dragId)}
                 active={activeKey === afterKey}
                 label="Hier einfügen (gleiche Ebene)"
-                onActivate={() => setDropTarget({ kind: 'after', taskId: task.taskId })}
+                onActivate={() =>
+                  dragId && canReorderAt(task.taskId) && setDropTarget({ kind: 'after', taskId: task.taskId })
+                }
                 onDrop={() => {
-                  if (!dragId) return
+                  if (!dragId || !canReorderAt(task.taskId)) return
                   onReorderTask(dragId, task.taskId, 'after')
                   clearDrag()
                 }}

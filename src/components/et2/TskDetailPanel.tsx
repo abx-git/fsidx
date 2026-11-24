@@ -134,9 +134,11 @@ export function TskDetailPanel({
             </button>
           )}
         </div>
-        <p className="mt-1 text-[10px] text-zinc-500">
-          {editorSaving ? 'Speichern…' : editorDirty ? 'Wird gespeichert…' : 'Gespeichert'}
-        </p>
+        {(editorSaving || editorDirty) && (
+          <p className="mt-1 text-[10px] text-zinc-500" aria-live="polite">
+            {editorSaving ? 'Speichern…' : 'Änderungen ausstehend…'}
+          </p>
+        )}
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
             Ein Klick = Auswahl · Doppelklick = Titel bearbeiten · Shift+Klick oder ⋯ =

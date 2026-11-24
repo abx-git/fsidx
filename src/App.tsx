@@ -32,8 +32,11 @@ import { lockAllVaults } from './lib/vault/vault-session'
 import { VaultUnlockDialog } from './components/vault/VaultUnlockDialog'
 import { deletePathFromStore } from './lib/delete-workspace'
 import {
+  moveDirectoryInStore,
   moveFileInStore,
   normalizeRenameFileNameInput,
+  pathIsUnderDir,
+  remapSubtreePath,
   renameFileInStore,
   resolveMoveFilePath,
 } from './lib/move-workspace'
@@ -135,6 +138,7 @@ function App() {
     registerSidecarFile,
     removeIndexedPath,
     moveIndexedFile,
+    moveIndexedDirectory,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,
@@ -1226,18 +1230,76 @@ function App() {
     ],
   )
 
-  const handleMoveFileToDirectory = useCallback(
-    async (filePath: string, destDirPath: string) => {
+  const handleMoveEntryToDirectory = useCallback(
+    async (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => {
       if (!fileSources || !canWrite || !manifest) return
-      const from = filePath.replace(/\\/g, '/')
-      const newPath = resolveMoveFilePath(from, destDirPath.replace(/\\/g, '/'))
+      const from = sourcePath.replace(/\\/g, '/')
+      const destDir = destDirPath.replace(/\\/g, '/')
+      if (kind === 'directory') {
+        if (!from) return
+        const oldEntry = manifest.entries.find((e) => e.path === from && e.kind === 'directory')
+        try {
+          const { newPath, rows } = await moveDirectoryInStore(
+            fileSources,
+            from,
+            destDir,
+            manifest,
+          )
+          const selPath = selectedNode?.path ?? null
+          const { newRootId, selectionId } = moveIndexedDirectory(from, newPath, rows, selPath)
+          if (fileSources.kind === 'handles' && fileSources.vaultRoots?.length) {
+            const roots = fileSources.vaultRoots.map((r) => {
+              if (r === from) return newPath
+              if (r.startsWith(`${from}/`)) return remapSubtreePath(from, newPath, r)
+              return r
+            })
+            setFileSources((prev) => (prev ? { ...prev, vaultRoots: roots } : prev))
+          }
+          if (selectionId) setSelectedId(selectionId)
+          else if (oldEntry && selectedId === oldEntry.id && newRootId) setSelectedId(newRootId)
+          if (pathIsUnderDir(from, currentPath)) {
+            setCurrentPath(remapSubtreePath(from, newPath, currentPath))
+          }
+          if (fileView && pathIsUnderDir(from, fileView.path)) {
+            const np = remapSubtreePath(from, newPath, fileView.path)
+            setFileView((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    path: np,
+                    name: np.split('/').pop() ?? prev.name,
+                    id: selectionId && prev.path === selPath ? selectionId : prev.id,
+                  }
+                : prev,
+            )
+          }
+          if (selectedTskTaskRef) {
+            const ref = taskRefFromPath(selectedTskTaskRef)
+            if (ref && pathIsUnderDir(from, ref.bundlePath)) {
+              setSelectedTskTaskRef(
+                makeBundledTaskRef(remapSubtreePath(from, newPath, ref.bundlePath), ref.taskId),
+              )
+            }
+          }
+          if (aggregateTasksDir !== null && pathIsUnderDir(from, aggregateTasksDir)) {
+            setAggregateTasksDir(remapSubtreePath(from, newPath, aggregateTasksDir))
+          }
+          void et2Tasks.reload()
+          if (aggregateTasksDir !== null) void aggregateEt2Tasks.reload()
+        } catch (err) {
+          window.alert(err instanceof Error ? err.message : 'Ordner konnte nicht verschoben werden')
+        }
+        return
+      }
+
+      const newPath = resolveMoveFilePath(from, destDir)
       if (newPath === from) return
       const oldEntry = manifest.entries.find((e) => e.path === from)
       try {
         const { row, sidecarRow } = await moveFileInStore(
           fileSources,
           from,
-          destDirPath,
+          destDir,
           indexedFilePaths,
         )
         applyRelocatedFileInIndex(from, row, sidecarRow, oldEntry?.id)
@@ -1245,7 +1307,25 @@ function App() {
         window.alert(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen')
       }
     },
-    [fileSources, canWrite, manifest, indexedFilePaths, applyRelocatedFileInIndex],
+    [
+      fileSources,
+      canWrite,
+      manifest,
+      indexedFilePaths,
+      applyRelocatedFileInIndex,
+      moveIndexedDirectory,
+      setFileSources,
+      selectedId,
+      setSelectedId,
+      currentPath,
+      setCurrentPath,
+      fileView,
+      et2Tasks,
+      aggregateTasksDir,
+      aggregateEt2Tasks,
+      selectedNode?.path,
+      selectedTskTaskRef,
+    ],
   )
 
   const handleRenameFile = useCallback(
@@ -1529,7 +1609,7 @@ function App() {
               indexedFilePaths={indexedPathList}
               onContextMenu={setContextMenu}
               canWrite={canWrite}
-              onDropFileToDir={(path, dir) => void handleMoveFileToDirectory(path, dir)}
+              onDropFileToDir={(path, dir, kind) => void handleMoveEntryToDirectory(path, dir, kind)}
               vaultRoots={fileSources?.vaultRoots}
             />
           </div>

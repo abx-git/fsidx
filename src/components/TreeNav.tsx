@@ -41,7 +41,7 @@ interface TreeNavProps {
   indexedFilePaths?: string[]
   onContextMenu?: (target: ContextMenuTarget) => void
   canWrite?: boolean
-  onDropFileToDir?: (filePath: string, destDirPath: string) => void
+  onDropFileToDir?: (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => void
   vaultRoots?: string[]
 }
 
@@ -62,7 +62,7 @@ interface TreeNodeProps {
   canWrite?: boolean
   dropTargetPath: string | null
   onDropTargetPath: (path: string | null) => void
-  onDropFileToDir?: (filePath: string, destDirPath: string) => void
+  onDropFileToDir?: (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => void
   vaultRoots?: string[]
 }
 
@@ -200,7 +200,7 @@ function TreeNode({
             e.stopPropagation()
             onDropTargetPath(null)
             const payload = parseFsidxFileDrag(e.dataTransfer.getData(fsidxFileDragMime()))
-            if (payload) onDropFileToDir?.(payload.path, node.path)
+            if (payload) onDropFileToDir?.(payload.path, node.path, payload.kind ?? 'file')
           }}
           className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
         >

@@ -1,11 +1,43 @@
 import { describe, expect, it } from 'vitest'
 import {
+  moveDirectoryValidationError,
   moveFileValidationError,
   normalizeRenameFileNameInput,
+  pathIsUnderDir,
+  remapSubtreePath,
   renameFileValidationError,
+  resolveMoveDirectoryPath,
   resolveMoveFilePath,
   resolveRenameFilePath,
 } from './move-workspace'
+
+describe('resolveMoveDirectoryPath', () => {
+  it('legt Ordner im Ziel an', () => {
+    expect(resolveMoveDirectoryPath('a/b', 'x')).toBe('x/b')
+    expect(resolveMoveDirectoryPath('proj', '')).toBe('proj')
+  })
+})
+
+describe('moveDirectoryValidationError', () => {
+  it('verhindert Verschieben in Unterordner', () => {
+    expect(moveDirectoryValidationError('a/b', 'a/b/c', new Set())).toMatch(/Unterordner/)
+    expect(moveDirectoryValidationError('a/b', 'x', new Set())).toBeNull()
+  })
+})
+
+describe('remapSubtreePath', () => {
+  it('ersetzt Präfix', () => {
+    expect(remapSubtreePath('old', 'new', 'old/x/y')).toBe('new/x/y')
+    expect(remapSubtreePath('old', 'new', 'old')).toBe('new')
+  })
+})
+
+describe('pathIsUnderDir', () => {
+  it('erkennt Nachfahren', () => {
+    expect(pathIsUnderDir('a', 'a/b')).toBe(true)
+    expect(pathIsUnderDir('a', 'b/a')).toBe(false)
+  })
+})
 
 describe('resolveMoveFilePath', () => {
   it('legt Datei im Zielordner an', () => {

@@ -200,6 +200,48 @@ export function useFileIndex() {
     [],
   )
 
+  const moveIndexedDirectory = useCallback(
+    (
+      fromDirPath: string,
+      newDirPath: string,
+      rows: RawFileRow[],
+      selectionPath?: string | null,
+    ): { newRootId: string | null; selectionId: string | null } => {
+      let newRootId: string | null = null
+      let selectionId: string | null = null
+      setManifest((m) => {
+        if (!m) return m
+        let updated = removePathFromManifest(m, fromDirPath, 'directory')
+        if (!updated) return m
+        const sorted = [...rows].sort((a, b) => {
+          const da = a.relativePath.split('/').length
+          const db = b.relativePath.split('/').length
+          if (da !== db) return da - db
+          if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1
+          return a.relativePath.localeCompare(b.relativePath)
+        })
+        for (const row of sorted) {
+          updated = appendFileToManifest(updated, row)
+        }
+        newRootId = updated.entries.find((e) => e.path === newDirPath)?.id ?? null
+        if (selectionPath) {
+          const from = fromDirPath.replace(/\\/g, '/')
+          const sel = selectionPath.replace(/\\/g, '/')
+          if (sel === from || sel.startsWith(`${from}/`)) {
+            const remapped =
+              sel === from
+                ? newDirPath
+                : `${newDirPath}/${sel.slice(from.length + 1)}`
+            selectionId = updated.entries.find((e) => e.path === remapped)?.id ?? null
+          }
+        }
+        return updated
+      })
+      return { newRootId, selectionId }
+    },
+    [],
+  )
+
   const selectedNode = useMemo((): IndexNode | null => {
     if (!manifest || !selectedId) return null
     const entry = manifest.entries.find((e) => e.id === selectedId)
@@ -481,6 +523,7 @@ export function useFileIndex() {
     registerSidecarFile,
     removeIndexedPath,
     moveIndexedFile,
+    moveIndexedDirectory,
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,

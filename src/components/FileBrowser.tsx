@@ -221,12 +221,17 @@ export function FileBrowser({
             <li key={row.id}>
               <button
                 type="button"
-                draggable={canWrite && row.kind === 'file'}
+                draggable={canWrite}
                 onDragStart={(e) => {
-                  if (!canWrite || row.kind !== 'file') return
+                  if (!canWrite) return
                   e.dataTransfer.setData(
                     fsidxFileDragMime(),
-                    JSON.stringify({ path: row.path, id: row.id, name: row.name }),
+                    JSON.stringify({
+                      path: row.path,
+                      id: row.id,
+                      name: row.name,
+                      kind: row.kind,
+                    }),
                   )
                   e.dataTransfer.effectAllowed = 'move'
                 }}

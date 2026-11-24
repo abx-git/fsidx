@@ -170,6 +170,8 @@ export function Et2TaskList({
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskDropTarget | null>(null)
+  /** Inline-Titel nur bei Doppelklick oder neuer Aufgabe (titleFocusTick). */
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const listFocusRef = useRef<HTMLDivElement>(null)
@@ -177,7 +179,21 @@ export function Et2TaskList({
 
   useEffect(() => {
     setCollapsedIds(readCollapsed(tskPath))
+    setEditingTaskId(null)
   }, [tskPath])
+
+  const focusList = useCallback(() => {
+    listFocusRef.current?.focus({ preventScroll: true })
+  }, [])
+
+  const startInlineEdit = useCallback((taskId: string) => {
+    setEditingTaskId(taskId)
+    window.requestAnimationFrame(() => {
+      inlineInputRef.current?.focus()
+      const v = inlineInputRef.current?.value ?? ''
+      if (!v.trim() || v === DEFAULT_NEW_TASK_TITLE) onInlineTitleChange?.('')
+    })
+  }, [onInlineTitleChange])
 
   useEffect(() => {
     if (!menuTaskId) return
@@ -263,14 +279,32 @@ export function Et2TaskList({
   )
 
   useEffect(() => {
-    if (!titleFocusTick) return
-    window.setTimeout(() => {
-      const el = inlineInputRef.current
-      if (!el) return
-      el.focus()
-      if (!el.value.trim() || el.value === DEFAULT_NEW_TASK_TITLE) onInlineTitleChange?.('')
-    }, 50)
-  }, [titleFocusTick, onInlineTitleChange])
+    if (!titleFocusTick || !selectedTaskId) return
+    setEditingTaskId(selectedTaskId)
+    window.setTimeout(() => startInlineEdit(selectedTaskId), 50)
+  }, [titleFocusTick, selectedTaskId, startInlineEdit])
+
+  useEffect(() => {
+    if (editingTaskId && editingTaskId !== selectedTaskId) setEditingTaskId(null)
+  }, [selectedTaskId, editingTaskId])
+
+  useEffect(() => {
+    if (editingTaskId === selectedTaskId) {
+      const ae = document.activeElement
+      if (ae === inlineInputRef.current) return
+      window.requestAnimationFrame(() => inlineInputRef.current?.focus())
+      return
+    }
+    const active = document.activeElement
+    if (
+      active instanceof HTMLElement &&
+      active.closest('[data-et2-detail-field], [data-et2-task-list-menu], [data-et2-inline-title]')
+    ) {
+      return
+    }
+    if (active === listFocusRef.current) return
+    focusList()
+  }, [tasks, selectedTaskRef, editingTaskId, selectedTaskId, focusList])
 
   const canNestOn = useCallback(
     (targetId: string) => {
@@ -344,6 +378,7 @@ export function Et2TaskList({
           dropTarget?.kind === 'nest' && dropTarget.taskId === task.taskId
         const beforeKey = `before:${task.taskId}`
         const afterKey = `after:${task.taskId}`
+        const inlineEditing = selected && editingTaskId === task.taskId
         return (
           <Fragment key={task.relativePath}>
             {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
@@ -421,43 +456,51 @@ export function Et2TaskList({
                 role="button"
                 tabIndex={-1}
                 className="min-w-0 flex-1 cursor-pointer py-2 pr-1 text-left"
-                onClick={() => {
+                onClick={(e) => {
                   onSelectTask(task.relativePath)
-                  window.requestAnimationFrame(() => inlineInputRef.current?.focus())
+                  if (e.shiftKey) {
+                    onOpenTaskDetail?.(task.relativePath)
+                    return
+                  }
+                  if (editingTaskId !== task.taskId) {
+                    setEditingTaskId(null)
+                    focusList()
+                  }
                 }}
-                onDoubleClick={() => {
+                onDoubleClick={(e) => {
+                  e.preventDefault()
                   onSelectTask(task.relativePath)
-                  onOpenTaskDetail?.(task.relativePath)
+                  if (canWrite && onInlineTitleChange) startInlineEdit(task.taskId)
                 }}
               >
-                {selected && canWrite && onInlineTitleChange ? (
+                {inlineEditing && canWrite && onInlineTitleChange ? (
                   <input
                     data-et2-inline-title
                     ref={inlineInputRef}
                     type="text"
-                    className={`w-full min-w-0 rounded border border-transparent bg-white/60 px-1 py-0.5 text-xs font-medium outline-none ring-violet-400 focus:border-violet-300 focus:ring-1 dark:bg-zinc-900/50 dark:focus:border-violet-700 ${
+                    className={`w-full min-w-0 rounded border border-violet-300 bg-white px-1 py-0.5 text-xs font-medium outline-none ring-violet-400 focus:ring-1 dark:border-violet-700 dark:bg-zinc-900/50 ${
                       done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
                     }`}
                     value={inlineTitle ?? task.title}
                     placeholder={DEFAULT_NEW_TASK_TITLE}
                     onChange={(e) => onInlineTitleChange(e.target.value)}
                     onKeyDown={handleListKeyDown}
-                    onFocus={(e) => {
-                      if (e.target.value === DEFAULT_NEW_TASK_TITLE) onInlineTitleChange('')
+                    onBlur={() => {
+                      setEditingTaskId(null)
+                      window.requestAnimationFrame(() => focusList())
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      onOpenTaskDetail?.(task.relativePath)
-                    }}
+                    onDoubleClick={(e) => e.stopPropagation()}
                   />
                 ) : (
                   <span
                     className={`flex flex-wrap items-center gap-1.5 font-medium ${
                       done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
-                    }`}
+                    } ${selected ? 'rounded px-1 ring-1 ring-violet-300/60 dark:ring-violet-700/50' : ''}`}
                   >
-                    {task.title || DEFAULT_NEW_TASK_TITLE}
+                    {selected && inlineTitle != null && inlineTitle !== task.title
+                      ? inlineTitle
+                      : task.title || DEFAULT_NEW_TASK_TITLE}
                   </span>
                 )}
                 {task.status && (
@@ -533,9 +576,35 @@ export function Et2TaskList({
           <div
             ref={menuRef}
             role="menu"
+            data-et2-task-list-menu
             className={rowMenuClass}
             style={{ top: menuPos.top, left: menuPos.left }}
           >
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                const row = tasks.find((t) => t.taskId === menuTaskId)
+                setMenuTaskId(null)
+                if (row) onOpenTaskDetail?.(row.relativePath)
+              }}
+            >
+              <span>Detailansicht</span>
+              <span className="text-zinc-400">Shift+Klick</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full justify-between gap-4 px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              onClick={() => {
+                setMenuTaskId(null)
+                if (canWrite) startInlineEdit(menuTaskId)
+              }}
+            >
+              <span>Titel bearbeiten</span>
+              <span className="text-zinc-400">Doppelklick</span>
+            </button>
             <button
               type="button"
               role="menuitem"

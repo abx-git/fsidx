@@ -139,8 +139,8 @@ export function TskDetailPanel({
         </p>
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
-            Titel auf der Karte · Enter Geschwister · Tab Unteraufgabe · Shift+Pfeile Reihenfolge &
-            Einrückung · ↑↓ Auswahl · Doppelklick Details
+            Ein Klick = Auswahl · Doppelklick = Titel bearbeiten · Shift+Klick oder ⋯ =
+            Detailansicht · Enter Geschwister · Tab Unteraufgabe · Shift+Pfeile · ↑↓ Auswahl
           </p>
         )}
       </div>
@@ -187,7 +187,7 @@ export function TskDetailPanel({
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center">
             <p className="text-xs text-zinc-500">
               {selectedTaskRef
-                ? 'Doppelklick auf die Karte öffnet Status, Beschreibung und weitere Felder.'
+                ? 'Shift+Klick auf die Karte oder „Detailansicht“ im Kontextmenü (⋯).'
                 : 'Aufgabe in der Liste wählen.'}
             </p>
             {selectedTaskRef && (

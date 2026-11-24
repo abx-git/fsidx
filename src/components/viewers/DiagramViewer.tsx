@@ -2,9 +2,11 @@ import { ViewerShell } from './ViewerShell'
 import { MermaidDiagram } from '../markdown/diagrams/MermaidDiagram'
 import { PlantUmlDiagram } from '../markdown/diagrams/PlantUmlDiagram'
 import { isMermaidSource, isPlantUmlSource } from '../../lib/plantuml'
+import { isDrawioPath, isDrawioSource } from '../../lib/drawio'
 import { fileExtension } from '../../lib/file-viewers'
+import { DrawioDiagram } from '../markdown/diagrams/DrawioDiagram'
 
-export type DiagramViewerKind = 'mermaid' | 'plantuml' | 'auto'
+export type DiagramViewerKind = 'mermaid' | 'plantuml' | 'drawio' | 'auto'
 
 interface DiagramViewerProps {
   fileName: string
@@ -17,11 +19,17 @@ interface DiagramViewerProps {
   kind?: DiagramViewerKind
 }
 
-function resolveKind(path: string, text: string, kind: DiagramViewerKind): 'mermaid' | 'plantuml' {
+function resolveKind(
+  path: string,
+  text: string,
+  kind: DiagramViewerKind,
+): 'mermaid' | 'plantuml' | 'drawio' {
   if (kind !== 'auto') return kind
+  if (isDrawioPath(path)) return 'drawio'
   const ext = fileExtension(path)
   if (ext === 'puml' || ext === 'plantuml' || ext === 'iuml' || ext === 'wsd') return 'plantuml'
   if (ext === 'mmd' || ext === 'mermaid') return 'mermaid'
+  if (isDrawioSource(text)) return 'drawio'
   if (isPlantUmlSource(text)) return 'plantuml'
   if (isMermaidSource(text)) return 'mermaid'
   return 'mermaid'
@@ -51,6 +59,8 @@ export function DiagramViewer({
       <div className="min-h-[50vh] p-4">
         {resolved === 'plantuml' ? (
           <PlantUmlDiagram source={text} />
+        ) : resolved === 'drawio' ? (
+          <DrawioDiagram source={text} />
         ) : (
           <MermaidDiagram source={text} />
         )}

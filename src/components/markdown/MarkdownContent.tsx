@@ -7,6 +7,8 @@ import type { FileSourceStore } from '../../lib/file-sources'
 import { mdBlockDataAttrs } from '../../lib/markdown-view-click'
 import { preprocessObsidianEmbeds } from '../../lib/markdown-assets'
 import { isMermaidSource, isPlantUmlSource } from '../../lib/plantuml'
+import { isDrawioSource } from '../../lib/drawio'
+import { DrawioDiagram } from './diagrams/DrawioDiagram'
 import { MermaidDiagram } from './diagrams/MermaidDiagram'
 import { PlantUmlDiagram } from './diagrams/PlantUmlDiagram'
 import { hljsCodeClass, highlightMarkdownCode } from '../../lib/markdown-highlight'
@@ -109,6 +111,9 @@ function buildMdComponents(
       }
       if (lang === 'plantuml' || lang === 'puml' || (!lang && isPlantUmlSource(text))) {
         return <PlantUmlDiagram source={text} />
+      }
+      if (lang === 'drawio' || (!lang && isDrawioSource(text))) {
+        return <DrawioDiagram source={text} />
       }
 
       const { html, hlLanguage } = highlightMarkdownCode(text, lang)

@@ -2,6 +2,7 @@ import { extensionFromName } from './mime-hint'
 import { isMarkdownPath } from './file-sources'
 import { isOpenDocumentTextExtension, isSpreadsheetExtension } from './open-document-preview'
 import { isLinkJsonPath } from './link/link-paths'
+import { isDrawioPath } from './drawio'
 
 export type FileViewerKind =
   | 'markdown'
@@ -68,7 +69,7 @@ const VIDEO = new Set(['mp4', 'webm', 'ogv', 'mov', 'mkv'])
 const MENU_LABELS: Record<FileViewerKind, string> = {
   markdown: 'Markdown (Lesen / Bearbeiten)',
   image: 'Bildvorschau',
-  diagram: 'Diagramm (Mermaid / PlantUML)',
+  diagram: 'Diagramm (Mermaid / PlantUML / draw.io)',
   text: 'Text / Quellcode',
   json: 'JSON (formatiert)',
   link: 'Web-Link (eingebettet)',
@@ -90,7 +91,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   if (isMarkdownPath(path)) kinds.add('markdown')
   if (IMAGE.has(e)) kinds.add('image')
-  if (DIAGRAM.has(e)) kinds.add('diagram')
+  if (DIAGRAM.has(e) || isDrawioPath(path)) kinds.add('diagram')
   if (PDF.has(e)) kinds.add('pdf')
   if (AUDIO.has(e)) kinds.add('audio')
   if (VIDEO.has(e)) kinds.add('video')
@@ -128,6 +129,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 export function defaultViewerForFile(path: string, ext?: string): FileViewerKind {
   const e = fileExtension(path, ext)
   if (isMarkdownPath(path)) return 'markdown'
+  if (isDrawioPath(path)) return 'diagram'
   if (DIAGRAM.has(e)) return 'diagram'
   if (IMAGE.has(e)) return 'image'
   if (PDF.has(e)) return 'pdf'

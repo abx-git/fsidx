@@ -26,8 +26,7 @@ interface DetailPanelProps {
   metadataVisible: boolean
   onMetadataVisibleChange: (value: boolean) => void
   drawioDetailSlot?: ReactNode
-  detailFullscreen?: boolean
-  onDetailFullscreenChange?: (value: boolean) => void
+  drawioFullscreen?: boolean
 }
 
 export function DetailPanel({
@@ -50,12 +49,10 @@ export function DetailPanel({
   metadataVisible,
   onMetadataVisibleChange,
   drawioDetailSlot,
-  detailFullscreen = false,
-  onDetailFullscreenChange: _onDetailFullscreenChange,
+  drawioFullscreen = false,
 }: DetailPanelProps) {
-  void _onDetailFullscreenChange
-  const showViewer = viewerPinned && viewerSlot && !detailFullscreen
-  const showAggregateTasks = Boolean(aggregateTaskSlot) && !detailFullscreen
+  const showViewer = viewerPinned && viewerSlot && !drawioFullscreen
+  const showAggregateTasks = Boolean(aggregateTaskSlot) && !drawioFullscreen
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLinkDetail = Boolean(linkDetailSlot) && !showAggregateTasks && !showTskDetail
   const showDrawioDetail =
@@ -68,17 +65,11 @@ export function DetailPanel({
     !showLinkDetail &&
     !showDrawioDetail &&
     !showLegacyNotice &&
-    !detailFullscreen
+    !drawioFullscreen
 
   return (
-    <aside
-      className={`relative flex min-h-0 flex-col overflow-hidden border-zinc-200 dark:border-zinc-800 ${
-        detailFullscreen
-          ? 'fixed inset-0 z-[300] w-screen max-w-none border-l-0 bg-white dark:bg-zinc-950'
-          : 'relative h-full w-full flex-1 border-l'
-      }`}
-    >
-      {onSidebarWidthChange && !detailFullscreen && (
+    <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
+      {onSidebarWidthChange && !drawioFullscreen && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}
           maxWidth={sidebarMaxWidth}
@@ -87,7 +78,7 @@ export function DetailPanel({
         />
       )}
 
-      {!detailFullscreen && (
+      {!drawioFullscreen && (
       <div className="shrink-0 border-b border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
         <CollapsibleSection summary="Seitenleiste einstellen" className="px-1">
           <div className="space-y-1.5 pb-1">
@@ -131,8 +122,21 @@ export function DetailPanel({
         {showLinkDetail && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{linkDetailSlot}</div>
         )}
+        {showDrawioDetail && drawioFullscreen && (
+          <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-zinc-500">
+            draw.io-Editor im Vollbild (Esc oder „Vollbild aus“ zum Beenden).
+          </p>
+        )}
         {showDrawioDetail && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{drawioDetailSlot}</div>
+          <div
+            className={
+              drawioFullscreen
+                ? 'hidden'
+                : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+            }
+          >
+            {drawioDetailSlot}
+          </div>
         )}
 
         {showFileMetadata && (

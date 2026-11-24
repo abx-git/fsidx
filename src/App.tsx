@@ -1646,8 +1646,7 @@ function App() {
                 />
               ) : undefined
             }
-            detailFullscreen={drawioDetailFullscreen}
-            onDetailFullscreenChange={setDrawioDetailFullscreen}
+            drawioFullscreen={drawioDetailFullscreen}
             linkDetailSlot={
               activeLinkPath && selectedNode && !activeTskPath ? (
                 <LinkDetailPanel

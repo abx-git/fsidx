@@ -53,6 +53,15 @@ import { useEt2TaskSummaries } from './hooks/useEt2TaskSummaries'
 import { useEt2TaskEditor } from './hooks/useEt2TaskEditor'
 import { useEt2Autosave } from './hooks/useEt2Autosave'
 import { useTskFile } from './hooks/useTskFile'
+import { useLinkFile } from './hooks/useLinkFile'
+import { LinkDetailPanel } from './components/link/LinkDetailPanel'
+import { isLinkJsonPath } from './lib/link/link-paths'
+import {
+  createNewLinkFile,
+  normalizeLinkUrl,
+  writeLinkFileToStore,
+} from './lib/link/link-file'
+import type { FsidxLinkFile } from './types/link-file'
 import { TreeNav } from './components/TreeNav'
 import { FileBrowser } from './components/FileBrowser'
 import { DetailPanel } from './components/DetailPanel'
@@ -242,13 +251,28 @@ function App() {
     return selectedNode.path
   }, [selectedNode])
 
+  const activeLinkPath = useMemo(() => {
+    if (selectedNode?.kind !== 'file' || !isLinkJsonPath(selectedNode.path)) return null
+    return selectedNode.path
+  }, [selectedNode])
+
   const isLegacyTaskFile = useMemo(
     () => selectedNode?.kind === 'file' && isTaskFilePath(selectedNode.path),
     [selectedNode],
   )
 
   const tskFile = useTskFile(activeTskPath, fileSources)
+  const linkFile = useLinkFile(activeLinkPath, fileSources)
+  const [linkDraft, setLinkDraft] = useState<FsidxLinkFile | null>(null)
+  const [linkSaving, setLinkSaving] = useState(false)
+  const [linkSaveError, setLinkSaveError] = useState<string | null>(null)
   const et2TaskEditor = useEt2TaskEditor(selectedTskTaskRef, fileSources)
+
+  useEffect(() => {
+    if (linkFile.doc) setLinkDraft(linkFile.doc)
+    else setLinkDraft(null)
+    setLinkSaveError(null)
+  }, [linkFile.doc, activeLinkPath])
 
   useEffect(() => {
     if (!activeTskPath) {
@@ -273,8 +297,11 @@ function App() {
     if (fileView.viewer === 'markdown' && looksLikeOpaqueId(fileView.name)) {
       return { ...fileView, name: markdown.content.slice(0, 40) || 'Markdown' }
     }
+    if (fileView.viewer === 'link' && linkDraft && fileView.path === activeLinkPath) {
+      return { ...fileView, name: linkDraft.title }
+    }
     return fileView
-  }, [fileView, et2Tasks.tasks, markdown.content])
+  }, [fileView, et2Tasks.tasks, markdown.content, linkDraft, activeLinkPath])
 
 
   const inspectNode = useMemo(() => {
@@ -578,6 +605,79 @@ function App() {
       }
     },
     [fileSources, manifest, replaceManifest, selectedId, setSelectedId],
+  )
+
+  const handleSaveLinkFile = useCallback(async () => {
+    if (!activeLinkPath || !fileSources || !linkDraft || !canWrite) return
+    setLinkSaving(true)
+    setLinkSaveError(null)
+    try {
+      const { row } = await writeLinkFileToStore(fileSources, activeLinkPath, linkDraft)
+      registerSidecarFile(row)
+      await linkFile.reload()
+      if (fileView?.path === activeLinkPath) {
+        setFileView((prev) =>
+          prev ? { ...prev, name: linkDraft.title, size: row.size } : prev,
+        )
+      }
+    } catch (err) {
+      setLinkSaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
+    } finally {
+      setLinkSaving(false)
+    }
+  }, [
+    activeLinkPath,
+    fileSources,
+    linkDraft,
+    canWrite,
+    registerSidecarFile,
+    linkFile,
+    fileView?.path,
+  ])
+
+  const handleNewLinkFile = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Link anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const urlInput = window.prompt('Ziel-URL (https://…):')
+      if (urlInput === null || !urlInput.trim()) return
+      try {
+        const url = normalizeLinkUrl(urlInput)
+        const defaultTitle = (() => {
+          try {
+            return new URL(url).hostname
+          } catch {
+            return 'Link'
+          }
+        })()
+        const titleInput = window.prompt('Titel:', defaultTitle)
+        if (titleInput === null) return
+        const { linkPath, row } = await createNewLinkFile(fileSources, parentPath, {
+          url,
+          title: titleInput.trim() || defaultTitle,
+          indexedPaths: indexedPathList,
+        })
+        const newId = registerSidecarFile(row)
+        navigateToPath(parentPath, null)
+        if (newId) {
+          handleSelectEntry(newId)
+          openViewer('link', linkPath, row.name, newId, row.size)
+        }
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Link konnte nicht angelegt werden')
+      }
+    },
+    [
+      fileSources,
+      canWrite,
+      indexedPathList,
+      registerSidecarFile,
+      navigateToPath,
+      handleSelectEntry,
+      openViewer,
+    ],
   )
 
   const handleNewMarkdown = useCallback(
@@ -1202,6 +1302,7 @@ function App() {
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
       onNewVaultFolder={() => void handleNewVaultFolder(currentPath)}
       onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
+      onNewLinkFile={() => void handleNewLinkFile(currentPath)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
       onLockVault={handleVaultLock}
@@ -1395,6 +1496,33 @@ function App() {
                   editorTaskId={et2TaskEditor.taskId}
                   titleFocusTick={titleFocusTick}
                   fileSources={fileSources}
+                />
+              ) : undefined
+            }
+            linkDetailSlot={
+              activeLinkPath && selectedNode && !activeTskPath ? (
+                <LinkDetailPanel
+                  linkPath={activeLinkPath}
+                  fileName={selectedNode.name}
+                  doc={linkDraft}
+                  loading={linkFile.loading}
+                  loadError={linkFile.error}
+                  canWrite={canWrite}
+                  saving={linkSaving}
+                  saveError={linkSaveError}
+                  onChange={(patch) =>
+                    setLinkDraft((prev) => (prev ? { ...prev, ...patch } : prev))
+                  }
+                  onSave={() => void handleSaveLinkFile()}
+                  onOpenPreview={() =>
+                    openViewer(
+                      'link',
+                      activeLinkPath,
+                      linkDraft?.title ?? selectedNode.name,
+                      selectedNode.id,
+                      selectedNode.size,
+                    )
+                  }
                 />
               ) : undefined
             }

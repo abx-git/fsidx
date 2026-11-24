@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/fsidx-link.v1.schema.json",
+  "title": "fsidx link shortcut (fsidx-link-v1)",
+  "type": "object",
+  "required": ["format", "version", "title", "url"],
+  "properties": {
+    "format": { "const": "fsidx-link-v1" },
+    "version": { "const": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "format": "uri" },
+    "note": { "type": "string" }
+  },
+  "additionalProperties": true
+}

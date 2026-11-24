@@ -11,6 +11,9 @@ import { BinaryViewer } from './BinaryViewer'
 import { DiagramViewer } from './DiagramViewer'
 import { SpreadsheetViewer } from './SpreadsheetViewer'
 import { OpenDocumentViewer } from './OpenDocumentViewer'
+import { LinkViewer } from './LinkViewer'
+import { parseLinkFile } from '../../lib/link/link-file'
+import { useMemo } from 'react'
 
 export interface FileViewTarget {
   viewer: FileViewerKind
@@ -52,11 +55,28 @@ export function FileViewerRouter({
   const needsBlob = ['image', 'pdf', 'audio', 'video', 'binary'].includes(target.viewer)
   const blobState = useFileBlob(needsBlob ? target.path : null, fileSources)
   const textState = useFileText(
-    target.viewer === 'text' || target.viewer === 'json' || target.viewer === 'diagram'
+    target.viewer === 'text' ||
+      target.viewer === 'json' ||
+      target.viewer === 'diagram' ||
+      target.viewer === 'link'
       ? target.path
       : null,
     fileSources,
   )
+
+  const linkDoc = useMemo(() => {
+    if (target.viewer !== 'link' || !textState.text) return null
+    try {
+      return parseLinkFile(textState.text)
+    } catch {
+      return null
+    }
+  }, [target.viewer, textState.text])
+
+  const linkParseError =
+    target.viewer === 'link' && textState.text && !linkDoc
+      ? 'Link-Datei ungültig (fsidx-link-v1).'
+      : null
 
   if (target.viewer === 'markdown' && markdown) {
     return (
@@ -138,6 +158,19 @@ export function FileViewerRouter({
           kind="video"
           loading={blobState.loading}
           error={blobState.error}
+          onClose={onClose}
+          showBackButton={showBackButton}
+        />
+      )
+    case 'link':
+      return (
+        <LinkViewer
+          fileName={target.name}
+          filePath={target.path}
+          title={linkDoc?.title ?? target.name}
+          url={linkDoc?.url ?? ''}
+          loading={textState.loading}
+          error={textState.error ?? linkParseError}
           onClose={onClose}
           showBackButton={showBackButton}
         />

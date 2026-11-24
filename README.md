@@ -30,6 +30,11 @@ projekt/phase/
 
 - Schema: [`et2-tasks.v1.schema.json`](public/schemas/et2-tasks.v1.schema.json) (Inhalt von `*.tsk.json`)
 - Mapping Monolith → Dateien: [`docs/et2-mapping.md`](docs/et2-mapping.md)
+
+### Web-Link (`*.link.json`)
+
+- Format `fsidx-link-v1`: `title`, `url`, optional `note` — Schema [`fsidx-link.v1.schema.json`](public/schemas/fsidx-link.v1.schema.json)
+- Anlegen: **Anlegen → Web-Link**; Bearbeitung in der Seitenleiste; Doppelklick oder **Vorschau** zeigt die Zielseite in einem eingebetteten Browser (iframe). Viele Sites blockieren Einbettung → **Im Tab öffnen**.
 - Im Datei-Modus sind `.et2/`-Pfade standardmäßig ausgeblendet („**.et2 anzeigen**“ im Header).
 
 ### Scope (Teilbaum)

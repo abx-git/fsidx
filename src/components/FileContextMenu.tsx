@@ -44,6 +44,7 @@ const VIEWER_ICONS: Partial<Record<FileViewerKind, LucideIcon>> = {
   spreadsheet: FileSpreadsheet,
   opendocument: FileType,
   binary: Eye,
+  link: Eye,
 }
 
 interface FileContextMenuProps {

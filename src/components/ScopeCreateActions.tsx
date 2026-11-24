@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FolderPlus, Shield } from 'lucide-react'
+import { CheckSquare, FileText, FolderPlus, Link2, Shield } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface ScopeCreateActionsProps {
@@ -6,6 +6,7 @@ interface ScopeCreateActionsProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTskFile?: () => void
+  onNewLinkFile?: () => void
   onNewVaultFolder?: () => void
   compact?: boolean
   /** Optional extra chips after Markdown (e.g. header “Neue Aufgaben-Datei”). */
@@ -17,6 +18,7 @@ export function ScopeCreateActions({
   onNewFolder,
   onNewMarkdown,
   onNewTskFile,
+  onNewLinkFile,
   onNewVaultFolder,
   compact,
   extra,
@@ -38,6 +40,18 @@ export function ScopeCreateActions({
         >
           <CheckSquare className="h-3.5 w-3.5" />
           Aufgaben-Datei
+        </button>
+      )}
+      {onNewLinkFile && (
+        <button
+          type="button"
+          disabled={!canWrite}
+          onClick={onNewLinkFile}
+          className="inline-flex items-center gap-1 rounded-md bg-violet-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-40"
+          title="Neue Link-Datei (*.link.json) mit Web-Vorschau"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          Web-Link
         </button>
       )}
       {extra}

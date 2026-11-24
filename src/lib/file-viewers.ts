@@ -1,6 +1,7 @@
 import { extensionFromName } from './mime-hint'
 import { isMarkdownPath } from './file-sources'
 import { isOpenDocumentTextExtension, isSpreadsheetExtension } from './open-document-preview'
+import { isLinkJsonPath } from './link/link-paths'
 
 export type FileViewerKind =
   | 'markdown'
@@ -8,6 +9,7 @@ export type FileViewerKind =
   | 'diagram'
   | 'text'
   | 'json'
+  | 'link'
   | 'pdf'
   | 'audio'
   | 'video'
@@ -69,6 +71,7 @@ const MENU_LABELS: Record<FileViewerKind, string> = {
   diagram: 'Diagramm (Mermaid / PlantUML)',
   text: 'Text / Quellcode',
   json: 'JSON (formatiert)',
+  link: 'Web-Link (eingebettet)',
   pdf: 'PDF',
   audio: 'Audio abspielen',
   video: 'Video abspielen',
@@ -93,7 +96,8 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
   if (VIDEO.has(e)) kinds.add('video')
   if (isSpreadsheetExtension(e)) kinds.add('spreadsheet')
   if (isOpenDocumentTextExtension(e)) kinds.add('opendocument')
-  if (JSON_EXT.has(e)) {
+  if (isLinkJsonPath(path)) kinds.add('link')
+  if (JSON_EXT.has(e) && !isLinkJsonPath(path)) {
     kinds.add('json')
     kinds.add('text')
   }
@@ -108,6 +112,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
     'pdf',
     'video',
     'audio',
+    'link',
     'json',
     'text',
     'spreadsheet',
@@ -128,6 +133,7 @@ export function defaultViewerForFile(path: string, ext?: string): FileViewerKind
   if (PDF.has(e)) return 'pdf'
   if (VIDEO.has(e)) return 'video'
   if (AUDIO.has(e)) return 'audio'
+  if (isLinkJsonPath(path)) return 'link'
   if (JSON_EXT.has(e)) return 'json'
   if (TEXT.has(e)) return 'text'
   if (isSpreadsheetExtension(e)) return 'spreadsheet'

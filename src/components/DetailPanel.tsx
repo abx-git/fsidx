@@ -11,6 +11,7 @@ interface DetailPanelProps {
   node: IndexNode | null
   jsonPreview: string
   tskDetailSlot?: ReactNode
+  linkDetailSlot?: ReactNode
   aggregateTaskSlot?: ReactNode
   legacyNoticeSlot?: ReactNode
   viewerPinned: boolean
@@ -31,6 +32,7 @@ export function DetailPanel({
   node,
   jsonPreview,
   tskDetailSlot,
+  linkDetailSlot,
   aggregateTaskSlot,
   legacyNoticeSlot,
   viewerPinned,
@@ -48,9 +50,10 @@ export function DetailPanel({
   const showViewer = viewerPinned && viewerSlot
   const showAggregateTasks = Boolean(aggregateTaskSlot)
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
+  const showLinkDetail = Boolean(linkDetailSlot) && !showAggregateTasks && !showTskDetail
   const showLegacyNotice = Boolean(legacyNoticeSlot)
   const showFileMetadata =
-    metadataVisible && !showViewer && !showTskDetail && !showLegacyNotice
+    metadataVisible && !showViewer && !showTskDetail && !showLinkDetail && !showLegacyNotice
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
@@ -101,6 +104,9 @@ export function DetailPanel({
         {showLegacyNotice && <div className="shrink-0">{legacyNoticeSlot}</div>}
         {showTskDetail && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{tskDetailSlot}</div>
+        )}
+        {showLinkDetail && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{linkDetailSlot}</div>
         )}
 
         {showFileMetadata && (
@@ -157,7 +163,11 @@ export function DetailPanel({
           </div>
         )}
 
-        {!showTskDetail && !showLegacyNotice && !showFileMetadata && !showViewer && (
+        {!showTskDetail &&
+          !showLinkDetail &&
+          !showLegacyNotice &&
+          !showFileMetadata &&
+          !showViewer && (
           <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-zinc-500">
             Optional: Index-Metadaten unter „Seitenleiste einstellen“ aktivieren.
           </p>

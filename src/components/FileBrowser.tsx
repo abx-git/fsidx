@@ -1,5 +1,6 @@
-import { Folder, File, FileJson, ListTodo, Lock, Shield } from 'lucide-react'
+import { Folder, File, FileJson, Link2, ListTodo, Lock, Shield } from 'lucide-react'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
+import { isLinkJsonPath } from '../lib/link/link-paths'
 import type { IndexEntry, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
 import { defaultViewerForFile } from '../lib/file-viewers'
@@ -39,6 +40,7 @@ interface FileBrowserProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTskFile?: () => void
+  onNewLinkFile?: () => void
   onNewVaultFolder?: () => void
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
@@ -74,6 +76,7 @@ export function FileBrowser({
   onNewFolder,
   onNewMarkdown,
   onNewTskFile,
+  onNewLinkFile,
   onNewVaultFolder,
   vaultRoots = [],
   onUnlockVault,
@@ -134,6 +137,7 @@ export function FileBrowser({
             onNewFolder={onNewFolder}
             onNewMarkdown={onNewMarkdown}
             onNewTskFile={onNewTskFile}
+            onNewLinkFile={onNewLinkFile}
             onNewVaultFolder={onNewVaultFolder}
           />
         )}
@@ -261,6 +265,8 @@ export function FileBrowser({
                     <Folder className="h-4 w-4 shrink-0 text-amber-500" />
                   ) : isTskJsonPath(row.path) ? (
                     <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
+                  ) : isLinkJsonPath(row.path) ? (
+                    <Link2 className="h-4 w-4 shrink-0 text-violet-700" />
                   ) : (
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}

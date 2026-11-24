@@ -46,6 +46,7 @@ export function DiagramViewer({
   kind = 'auto',
 }: DiagramViewerProps) {
   const resolved = resolveKind(filePath, text, kind)
+  const drawioChromeless = resolved === 'drawio'
 
   return (
     <ViewerShell
@@ -53,14 +54,21 @@ export function DiagramViewer({
       subtitle={filePath}
       onClose={onClose}
       showBackButton={showBackButton}
+      hideHeader={drawioChromeless && !showBackButton}
       loading={loading}
       error={error}
     >
-      <div className="min-h-[50vh] p-4">
+      <div
+        className={
+          drawioChromeless
+            ? 'flex h-full min-h-[50vh] flex-col'
+            : 'min-h-[50vh] p-4'
+        }
+      >
         {resolved === 'plantuml' ? (
           <PlantUmlDiagram source={text} />
         ) : resolved === 'drawio' ? (
-          <DrawioDiagram source={text} />
+          <DrawioDiagram source={text} chromeless className="min-h-0 flex-1" />
         ) : (
           <MermaidDiagram source={text} />
         )}

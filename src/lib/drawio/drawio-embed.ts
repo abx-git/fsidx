@@ -1,7 +1,24 @@
 export const DRAWIO_VIEWER_ORIGIN = 'https://viewer.diagrams.net'
 export const DRAWIO_EMBED_ORIGIN = 'https://embed.diagrams.net'
 
-export const DRAWIO_VIEWER_URL = `${DRAWIO_VIEWER_ORIGIN}/?embed=1&ui=min&spin=0&proto=json&nav=1&toolbar=0`
+/** Chromeless read-only (ohne diagrams.net-Toolbar/Navigation). */
+export const DRAWIO_VIEWER_URL = [
+  `${DRAWIO_VIEWER_ORIGIN}/?`,
+  [
+    'embed=1',
+    'proto=json',
+    'chrome=0',
+    'toolbar=0',
+    'nav=0',
+    'hide-pages=1',
+    'close=0',
+    'noExport=1',
+    'noPrint=1',
+    'lightbox=1',
+    'ui=min',
+    'spin=0',
+  ].join('&'),
+].join('')
 export const DRAWIO_EDITOR_URL = `${DRAWIO_EMBED_ORIGIN}/?embed=1&ui=atlas&spin=1&modified=since&proto=json&saveAndExit=0&noSaveBtn=1&nav=1`
 
 export type DrawioEmbedMessage = {

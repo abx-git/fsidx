@@ -40,7 +40,7 @@ projekt/phase/
 ### draw.io (`*.drawio`)
 
 - Anlegen: **Anlegen → draw.io**; der eingebettete **Editor** (diagrams.net) öffnet rechts in der Detailansicht. Änderungen werden automatisch in die Datei geschrieben (Netzwerk nötig).
-- **Panel verbreitern** (bis ca. 92 % der Fensterbreite) und **Vollbild** über die ganze App (Esc oder „Vollbild aus“ beendet); Vorschau weiter per Diagramm-Viewer oder Markdown-Block `drawio`.
+- **Panel verbreitern** (bis ca. 92 % der Fensterbreite) und **Vollbild** über die ganze App (Esc oder „Vollbild aus“ beendet). **Vorschau** (Viewer/Markdown) nutzt den chromeless-Modus von diagrams.net **ohne** deren Toolbar; in der angehefteten Seitenleiste zusätzlich ohne fsidx-Vorschau-Kopf.
 - Unterstützte Endungen: `.drawio`, `.dio`, `.drawio.xml`.
 
 ### Scope (Teilbaum)

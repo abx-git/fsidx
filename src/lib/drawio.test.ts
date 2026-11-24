@@ -10,6 +10,15 @@ describe('isDrawioPath', () => {
   })
 })
 
+describe('draw.io viewer embed URL', () => {
+  it('nutzt chromeless Vorschau ohne Toolbar', async () => {
+    const { DRAWIO_VIEWER_URL } = await import('./drawio/drawio-embed')
+    expect(DRAWIO_VIEWER_URL).toContain('chrome=0')
+    expect(DRAWIO_VIEWER_URL).toContain('toolbar=0')
+    expect(DRAWIO_VIEWER_URL).not.toContain('nav=1')
+  })
+})
+
 describe('isDrawioSource', () => {
   it('detects mxfile', () => {
     expect(isDrawioSource('<mxfile host="app.diagrams.net"></mxfile>')).toBe(true)

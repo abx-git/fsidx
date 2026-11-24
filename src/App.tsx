@@ -26,6 +26,10 @@ import {
 import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
+import { createVaultFolderInScope } from './lib/vault/create-vault-folder'
+import { unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
+import { lockAllVaults } from './lib/vault/vault-session'
+import { VaultUnlockDialog } from './components/vault/VaultUnlockDialog'
 import { deletePathFromStore } from './lib/delete-workspace'
 import {
   moveFileInStore,
@@ -121,7 +125,13 @@ function App() {
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,
+    setFileSources,
+    replaceManifest,
   } = useFileIndex()
+
+  const [vaultUnlockTarget, setVaultUnlockTarget] = useState<string | null>(null)
+  const [vaultUiTick, setVaultUiTick] = useState(0)
+  void vaultUiTick
 
   const { pinned: viewerPinned, setPinned: setViewerPinned } = useViewerPanelPinned()
   const { visible: detailMetadataVisible, setVisible: setDetailMetadataVisible } =
@@ -479,6 +489,8 @@ function App() {
     clearSidecarDrafts()
     setFileView(null)
     setMetadataTarget(null)
+    lockAllVaults()
+    setVaultUnlockTarget(null)
     clearIndex()
   }, [clearIndex])
 
@@ -507,6 +519,47 @@ function App() {
       }
     },
     [fileSources, canWrite, registerSidecarFile, navigateToPath],
+  )
+
+  const handleNewVaultFolder = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Tresor anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const name = window.prompt('Name des Tresors:', 'Tresor')
+      if (name === null || !name.trim()) return
+      try {
+        const { rows, vaultRoot } = await createVaultFolderInScope(fileSources, parentPath, name)
+        for (const row of rows) registerSidecarFile(row)
+        setFileSources((prev) => {
+          if (!prev) return prev
+          const roots = new Set(prev.vaultRoots ?? [])
+          roots.add(vaultRoot)
+          return { ...prev, vaultRoots: [...roots] }
+        })
+        navigateToPath(vaultRoot, null)
+        setVaultUnlockTarget(vaultRoot)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Tresor konnte nicht angelegt werden')
+      }
+    },
+    [fileSources, canWrite, registerSidecarFile, navigateToPath, setFileSources],
+  )
+
+  const handleVaultUnlock = useCallback(
+    async (key: CryptoKey) => {
+      if (!fileSources || !manifest || !vaultUnlockTarget) return
+      const { manifest: next } = await unlockVaultAndMergeIndex(
+        fileSources,
+        manifest,
+        vaultUnlockTarget,
+        key,
+      )
+      replaceManifest(next)
+      setVaultUiTick((t) => t + 1)
+    },
+    [fileSources, manifest, vaultUnlockTarget, replaceManifest],
   )
 
   const handleNewMarkdown = useCallback(
@@ -1129,7 +1182,10 @@ function App() {
       canWrite={canWrite}
       onNewFolder={() => void handleNewFolder(currentPath)}
       onNewMarkdown={() => void handleNewMarkdown(currentPath)}
+      onNewVaultFolder={() => void handleNewVaultFolder(currentPath)}
       onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
+      vaultRoots={fileSources?.vaultRoots}
+      onUnlockVault={(root) => setVaultUnlockTarget(root)}
     />
   )
 
@@ -1416,6 +1472,13 @@ function App() {
             ? () => void handleDeleteContextTarget()
             : undefined
         }
+      />
+
+      <VaultUnlockDialog
+        open={vaultUnlockTarget !== null}
+        vaultLabel={vaultUnlockTarget?.split('/').pop() ?? 'Tresor'}
+        onClose={() => setVaultUnlockTarget(null)}
+        onUnlock={handleVaultUnlock}
       />
     </div>
   )

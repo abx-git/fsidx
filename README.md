@@ -38,6 +38,14 @@ Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z.�
 
 Mit **Schreibzugriff** legst du **Ordner**, **Markdown** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 
+### Verschlüsselter Tresor (Vault)
+
+Ordner-Typ **Tresor** (Toolbar „Anlegen“ → Tresor): gleiche Krypto wie [x-be.de/vault](https://www.x-be.de/vault/) — **AES-GCM-256**, Datei- und Ordnernamen als Base64URL, PBKDF2 (250 000, Salt `encrypted-vault-v1-salt`).
+
+- Marker: `.fsidx-vault.json` (`fsidx-vault-v1`) bleibt im Klartext im Tresor-Root; alle anderen Namen/Inhalte sind verschlüsselt.
+- Ohne Entsperren siehst du nur den Ordner; mit Passwort oder 32-Byte-Schlüsseldatei werden Inhalte im Index angezeigt und Lesen/Schreiben entschlüsselt im RAM.
+- Bestehende Vault-Ordner von x-be können übernommen werden: `.fsidx-vault.json` im Vault-Root anlegen (Schema: [`fsidx-vault.v1.schema.json`](public/schemas/fsidx-vault.v1.schema.json)).
+
 ## Sidecar-Metadaten (JSON Schema)
 
 - Schema: [`public/schemas/file-metadata.v1.schema.json`](public/schemas/file-metadata.v1.schema.json) (auch live unter `/fsidx/schemas/...` auf GitHub Pages)

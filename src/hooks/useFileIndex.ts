@@ -400,9 +400,15 @@ export function useFileIndex() {
     void clearWorkspaceStorage()
   }, [])
 
+  const replaceManifest = useCallback((next: FileIndexManifest) => {
+    setManifest(next)
+  }, [])
+
   return {
     manifest,
     fileSources,
+    setFileSources,
+    replaceManifest,
     progress,
     currentPath,
     setCurrentPath,

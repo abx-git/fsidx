@@ -2,6 +2,9 @@ import type { RawFileRow } from './build-manifest'
 import type { FileSourceStore } from './file-sources'
 import { writeTextToStore } from './file-sources'
 import { sanitizePathSegment } from './et2/sanitize-segment'
+import { isVaultUnlocked } from './vault/vault-session'
+import { vaultRootForPath } from './vault/vault-paths'
+import { writeTextToVaultStore } from './vault/vault-io'
 export function sanitizeNewName(input: string, fallback: string): string {
   const trimmed = input.trim()
   const base = sanitizePathSegment(trimmed || fallback, fallback)
@@ -58,7 +61,12 @@ export async function createMarkdownInScope(
   const relativePath = parentPath ? `${parentPath}/${safe}` : safe
   const heading = title?.trim() || safe.replace(/\.(md|markdown)$/i, '')
   const text = `# ${heading}\n\n`
-  await writeTextToStore(store, relativePath, text)
+  const vaultRoot = vaultRootForPath(relativePath, new Set(store.vaultRoots ?? []))
+  if (vaultRoot && isVaultUnlocked(vaultRoot)) {
+    await writeTextToVaultStore(store, relativePath, text)
+  } else {
+    await writeTextToStore(store, relativePath, text)
+  }
   const row: RawFileRow = {
     relativePath,
     name: safe,

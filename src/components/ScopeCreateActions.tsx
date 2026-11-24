@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FolderPlus } from 'lucide-react'
+import { CheckSquare, FileText, FolderPlus, Shield } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface ScopeCreateActionsProps {
@@ -6,6 +6,7 @@ interface ScopeCreateActionsProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTskFile?: () => void
+  onNewVaultFolder?: () => void
   compact?: boolean
   /** Optional extra chips after Markdown (e.g. header “Neue Aufgaben-Datei”). */
   extra?: ReactNode
@@ -16,6 +17,7 @@ export function ScopeCreateActions({
   onNewFolder,
   onNewMarkdown,
   onNewTskFile,
+  onNewVaultFolder,
   compact,
   extra,
 }: ScopeCreateActionsProps) {
@@ -43,6 +45,12 @@ export function ScopeCreateActions({
         <FolderPlus className="h-3.5 w-3.5 text-amber-500" />
         Ordner
       </button>
+      {onNewVaultFolder && (
+        <button type="button" disabled={!canWrite} onClick={onNewVaultFolder} className={chip}>
+          <Shield className="h-3.5 w-3.5 text-blue-800" />
+          Tresor
+        </button>
+      )}
       <button type="button" disabled={!canWrite} onClick={onNewMarkdown} className={chip}>
         <FileText className="h-3.5 w-3.5 text-sky-500" />
         Markdown

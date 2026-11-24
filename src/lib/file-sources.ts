@@ -1,20 +1,33 @@
+import {
+  readBlobFromVaultStore,
+  readTextFromVaultStore,
+  vaultIoApplies,
+  writeTextToVaultStore,
+} from './vault/vault-io'
+
 export type FileSourceStore =
   | {
       kind: 'handles'
       rootName: string
       root: FileSystemDirectoryHandle
       handles: Map<string, FileSystemFileHandle>
+      /** Pfade zu Ordnern mit `.fsidx-vault.json` */
+      vaultRoots?: string[]
     }
   | {
       kind: 'files'
       rootName: string
       files: Map<string, File>
+      vaultRoots?: string[]
     }
 
 export async function readTextFromStore(
   store: FileSourceStore,
   relativePath: string,
 ): Promise<string> {
+  if (vaultIoApplies(store, relativePath)) {
+    return readTextFromVaultStore(store, relativePath)
+  }
   if (store.kind === 'files') {
     const file = store.files.get(relativePath)
     if (!file) throw new Error('Datei nicht im Ordner-Snapshot gefunden.')
@@ -84,6 +97,10 @@ export async function writeTextToStore(
   relativePath: string,
   text: string,
 ): Promise<void> {
+  if (vaultIoApplies(store, relativePath)) {
+    await writeTextToVaultStore(store, relativePath, text)
+    return
+  }
   if (store.kind === 'files') {
     throw new Error(
       'Sidecar speichern: Ordner erneut mit Chrome/Edge öffnen (Schreibzugriff). Legacy-Picker ist nur lesend — nutze Download.',
@@ -110,6 +127,9 @@ export async function readBlobFromStore(
   store: FileSourceStore,
   relativePath: string,
 ): Promise<Blob> {
+  if (vaultIoApplies(store, relativePath)) {
+    return readBlobFromVaultStore(store, relativePath)
+  }
   if (store.kind === 'files') {
     const file = store.files.get(relativePath)
     if (!file) throw new Error('Datei nicht im Ordner-Snapshot gefunden.')

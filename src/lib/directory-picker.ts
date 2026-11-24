@@ -1,6 +1,8 @@
 import type { RawFileRow } from './build-manifest'
 import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
+import { directoryHasVaultMarker } from './vault/vault-index'
+import { VAULT_MARKER_FILENAME } from './vault/marker'
 
 export const DIRECTORY_PICKER_ID = 'fsidx-root'
 
@@ -19,15 +21,17 @@ export async function requestDirectoryPermission(
 
 export async function fileSourcesFromDirectoryHandle(
   handle: FileSystemDirectoryHandle,
-): Promise<FileSourceStore> {
+): Promise<FileSourceStore & { vaultRoots: string[] }> {
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
-  await walkDirectoryHandle(handle, '', rows, handles)
+  const vaultRoots: string[] = []
+  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
   return {
     kind: 'handles',
     rootName: handle.name,
     root: handle,
     handles,
+    vaultRoots,
   }
 }
 
@@ -44,11 +48,18 @@ export async function pickDirectoryWithFsApi(): Promise<{
   })
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
-  await walkDirectoryHandle(handle, '', rows, handles)
+  const vaultRoots: string[] = []
+  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
   return {
     rootName: handle.name,
     rows,
-    fileSources: { kind: 'handles', rootName: handle.name, root: handle, handles },
+    fileSources: {
+      kind: 'handles',
+      rootName: handle.name,
+      root: handle,
+      handles,
+      vaultRoots,
+    },
     rootHandle: handle,
   }
 }
@@ -58,6 +69,7 @@ async function walkDirectoryHandle(
   prefix: string,
   rows: RawFileRow[],
   handles: Map<string, FileSystemFileHandle>,
+  vaultRoots: string[],
 ): Promise<void> {
   for await (const [name, child] of dirHandle.entries()) {
     const relativePath = prefix ? `${prefix}/${name}` : name
@@ -68,7 +80,27 @@ async function walkDirectoryHandle(
         name,
         kind: 'directory',
       })
-      await walkDirectoryHandle(child, relativePath, rows, handles)
+      const isVault = await directoryHasVaultMarker(child)
+      if (isVault) {
+        vaultRoots.push(relativePath)
+        try {
+          const marker = await child.getFileHandle(VAULT_MARKER_FILENAME)
+          const markerPath = relativePath ? `${relativePath}/${VAULT_MARKER_FILENAME}` : VAULT_MARKER_FILENAME
+          handles.set(markerPath, marker)
+          const file = await marker.getFile()
+          rows.push({
+            relativePath: markerPath,
+            name: VAULT_MARKER_FILENAME,
+            kind: 'file',
+            size: file.size,
+            lastModified: file.lastModified,
+          })
+        } catch {
+          /* marker missing despite detection race */
+        }
+        continue
+      }
+      await walkDirectoryHandle(child, relativePath, rows, handles, vaultRoots)
     } else {
       let size: number | undefined
       let lastModified: number | undefined

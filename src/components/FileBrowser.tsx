@@ -1,4 +1,4 @@
-import { Folder, File, FileJson, ListTodo } from 'lucide-react'
+import { Folder, File, FileJson, ListTodo, Lock, Shield } from 'lucide-react'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import type { IndexEntry, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
@@ -11,6 +11,8 @@ import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
 import { fsidxFileDragMime } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
+import { shouldHideFromFileList } from '../lib/vault/vault-paths'
+import { isVaultUnlocked } from '../lib/vault/vault-session'
 
 interface FileBrowserProps {
   rootName: string
@@ -37,6 +39,9 @@ interface FileBrowserProps {
   onNewFolder: () => void
   onNewMarkdown: () => void
   onNewTskFile?: () => void
+  onNewVaultFolder?: () => void
+  vaultRoots?: string[]
+  onUnlockVault?: (vaultRoot: string) => void
 }
 
 type Row = {
@@ -68,8 +73,15 @@ export function FileBrowser({
   onNewFolder,
   onNewMarkdown,
   onNewTskFile,
+  onNewVaultFolder,
+  vaultRoots = [],
+  onUnlockVault,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
+  const scopeVaultRoot =
+    vaultRoots.find((r) => scopePath === r || scopePath.startsWith(`${r}/`)) ?? null
+  const scopeVaultLocked =
+    scopeVaultRoot !== null && !isVaultUnlocked(scopeVaultRoot)
 
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
@@ -94,6 +106,10 @@ export function FileBrowser({
     if (row.kind === 'directory') return true
     if (isSidecarForIndexedFile(row.path, indexedFilePaths)) return false
     if (isEt2InternalPath(row.path, showEt2DotFiles)) return false
+    if (shouldHideFromFileList(row.path)) return false
+    if (row.kind === 'file' && scopeVaultLocked && scopeVaultRoot) {
+      if (row.path.startsWith(`${scopeVaultRoot}/`)) return false
+    }
     return true
   })
 
@@ -113,7 +129,25 @@ export function FileBrowser({
             onNewFolder={onNewFolder}
             onNewMarkdown={onNewMarkdown}
             onNewTskFile={onNewTskFile}
+            onNewVaultFolder={onNewVaultFolder}
           />
+        )}
+        {!inSearch && scopeVaultLocked && scopeVaultRoot && (
+          <div className="flex items-center justify-between gap-2 border-b border-blue-100 bg-blue-50/80 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/30">
+            <p className="flex items-center gap-1.5 text-xs text-blue-900 dark:text-blue-100">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              Verschlüsselter Tresor — Inhalte nur nach Entsperren sichtbar.
+            </p>
+            {onUnlockVault && (
+              <button
+                type="button"
+                className="shrink-0 rounded-md bg-blue-800 px-2 py-1 text-[11px] font-medium text-white hover:bg-blue-700"
+                onClick={() => onUnlockVault(scopeVaultRoot)}
+              >
+                Entsperren…
+              </button>
+            )}
+          </div>
         )}
         {inSearch && (
           <>
@@ -187,7 +221,9 @@ export function FileBrowser({
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  {row.kind === 'directory' ? (
+                  {row.kind === 'directory' && vaultRoots.includes(row.path) ? (
+                    <Shield className="h-4 w-4 shrink-0 text-blue-800" />
+                  ) : row.kind === 'directory' ? (
                     <Folder className="h-4 w-4 shrink-0 text-amber-500" />
                   ) : isTskJsonPath(row.path) ? (
                     <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />

@@ -49,3 +49,12 @@ export function inferVaultRootsFromMarkerEntries(entryPaths: readonly string[]):
   }
   return [...roots]
 }
+
+/** Alle bekannten Tresor-Wurzeln zusammenführen (leeres Array blockiert nicht andere Quellen). */
+export function mergeVaultRootLists(...lists: (readonly string[] | undefined)[]): string[] {
+  const roots = new Set<string>()
+  for (const list of lists) {
+    for (const root of list ?? []) roots.add(root)
+  }
+  return [...roots]
+}

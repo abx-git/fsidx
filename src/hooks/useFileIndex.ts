@@ -8,7 +8,7 @@ import {
   supportsDirectoryPicker,
 } from '../lib/directory-picker'
 import type { FileSourceStore } from '../lib/file-sources'
-import { inferVaultRootsFromMarkerEntries } from '../lib/vault/vault-paths'
+import { inferVaultRootsFromMarkerEntries, mergeVaultRootLists } from '../lib/vault/vault-paths'
 import { reconcileLockedVaultsInManifest } from '../lib/vault/vault-refresh'
 import { lockAllVaults } from '../lib/vault/vault-session'
 import { resetIdCounter } from '../lib/id'
@@ -254,13 +254,14 @@ export function useFileIndex() {
             const sources = await fileSourcesFromDirectoryHandle(handle)
             if (!cancelled) {
               lockAllVaults()
-              const vaultRoots =
-                sources.vaultRoots ??
-                session.vaultRoots ??
-                inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path))
+              const vaultRoots = mergeVaultRootLists(
+                sources.vaultRoots,
+                session.vaultRoots,
+                inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
+              )
               const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
               setManifest(reconciled)
-              setFileSources(sources)
+              setFileSources({ ...sources, vaultRoots })
               setNeedsFolderReconnect(false)
               setProgress({ phase: 'ready', scanned: reconciled.entries.length })
             }
@@ -270,9 +271,10 @@ export function useFileIndex() {
 
         if (!cancelled) {
           lockAllVaults()
-          const vaultRoots =
-            session.vaultRoots ??
-            inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path))
+          const vaultRoots = mergeVaultRootLists(
+            session.vaultRoots,
+            inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
+          )
           const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
           setManifest(reconciled)
           setFileSources(null)
@@ -320,19 +322,24 @@ export function useFileIndex() {
       const { rootName, rows, fileSources: sources, rootHandle } = await pickDirectoryWithFsApi()
       setProgress({ phase: 'building', scanned: rows.length })
       lockAllVaults()
+      const vaultRoots = mergeVaultRootLists(
+        sources.vaultRoots,
+        inferVaultRootsFromMarkerEntries(rows.map((r) => r.relativePath)),
+      )
+      const sourcesWithVaults = { ...sources, vaultRoots }
       const built = reconcileLockedVaultsInManifest(
         buildManifestFromRows(rootName, rows),
-        sources.vaultRoots ?? [],
+        vaultRoots,
       )
       setManifest(built)
-      setFileSources(sources)
+      setFileSources(sourcesWithVaults)
       setSourceKind('handles')
       setCurrentPath('')
       setSelectedId(null)
       setSearchQuery('')
       setProgress({ phase: 'ready', scanned: rows.length })
       await saveDirectoryHandle(rootHandle)
-      persistNow(built, 'handles', '', null, sources.vaultRoots)
+      persistNow(built, 'handles', '', null, vaultRoots)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setProgress((p) => (p.phase === 'reading' ? { phase: 'idle', scanned: 0 } : p))
@@ -398,13 +405,18 @@ export function useFileIndex() {
         const sources = await fileSourcesFromDirectoryHandle(handle)
         lockAllVaults()
         if (manifest) {
-          const reconciled = reconcileLockedVaultsInManifest(manifest, sources.vaultRoots ?? [])
+          const vaultRoots = mergeVaultRootLists(
+            sources.vaultRoots,
+            inferVaultRootsFromMarkerEntries(manifest.entries.map((e) => e.path)),
+          )
+          const reconciled = reconcileLockedVaultsInManifest(manifest, vaultRoots)
           setManifest(reconciled)
           setProgress({ phase: 'ready', scanned: reconciled.entries.length })
+          setFileSources({ ...sources, vaultRoots })
         } else {
           setProgress({ phase: 'ready', scanned: 0 })
+          setFileSources(sources)
         }
-        setFileSources(sources)
         setSourceKind('handles')
         return
       }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { inferVaultRootsFromMarkerEntries, isPathUnderVaultRoot, vaultRootForPath } from './vault-paths'
+import {
+  inferVaultRootsFromMarkerEntries,
+  isPathUnderVaultRoot,
+  mergeVaultRootLists,
+  vaultRootForPath,
+} from './vault-paths'
 
 describe('vaultRootForPath', () => {
   it('treats workspace root vault', () => {
@@ -12,6 +17,14 @@ describe('vaultRootForPath', () => {
     const roots = new Set(['Tresor'])
     expect(vaultRootForPath('Tresor/a.md', roots)).toBe('Tresor')
     expect(vaultRootForPath('anders/x.md', roots)).toBeNull()
+  })
+})
+
+describe('mergeVaultRootLists', () => {
+  it('merges empty scan with marker manifest', () => {
+    expect(
+      mergeVaultRootLists([], undefined, ['Tresor'], inferVaultRootsFromMarkerEntries(['Tresor/.fsidx-vault.json'])),
+    ).toEqual(expect.arrayContaining(['Tresor']))
   })
 })
 

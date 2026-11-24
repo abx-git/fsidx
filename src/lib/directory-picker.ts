@@ -3,6 +3,7 @@ import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
 import { isVaultDirectory } from './vault/vault-detect'
 import { VAULT_MARKER_FILENAME } from './vault/marker'
+import { inferVaultRootsFromMarkerEntries } from './vault/vault-paths'
 import { setVaultOpaqueOnDiskCount } from './vault/vault-session'
 
 export const DIRECTORY_PICKER_ID = 'fsidx-root'
@@ -18,6 +19,12 @@ export async function requestDirectoryPermission(
   if (current === 'granted') return true
   if (current === 'denied') return false
   return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted'
+}
+
+function augmentVaultRootsFromRows(rows: RawFileRow[], vaultRoots: string[]): void {
+  for (const root of inferVaultRootsFromMarkerEntries(rows.map((r) => r.relativePath))) {
+    if (!vaultRoots.includes(root)) vaultRoots.push(root)
+  }
 }
 
 async function absorbVaultFolder(
@@ -67,6 +74,7 @@ export async function fileSourcesFromDirectoryHandle(
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
   await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
+  augmentVaultRootsFromRows(rows, vaultRoots)
   return {
     kind: 'handles',
     rootName: handle.name,
@@ -91,6 +99,7 @@ export async function pickDirectoryWithFsApi(): Promise<{
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
   await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
+  augmentVaultRootsFromRows(rows, vaultRoots)
   return {
     rootName: handle.name,
     rows,

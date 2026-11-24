@@ -3,8 +3,8 @@ import type { FileSourceStore } from './file-sources'
 import { writeTextToStore } from './file-sources'
 import { sanitizePathSegment } from './et2/sanitize-segment'
 import { isVaultUnlocked } from './vault/vault-session'
-import { vaultRootForPath } from './vault/vault-paths'
-import { writeTextToVaultStore } from './vault/vault-io'
+import { isPathUnderVaultRoot, vaultRootForPath } from './vault/vault-paths'
+import { ensureVaultDirectoryOnDisk, writeTextToVaultStore } from './vault/vault-io'
 export function sanitizeNewName(input: string, fallback: string): string {
   const trimmed = input.trim()
   const base = sanitizePathSegment(trimmed || fallback, fallback)
@@ -42,7 +42,16 @@ export async function createDirectoryInScope(
 ): Promise<{ relativePath: string; row: RawFileRow }> {
   const safe = sanitizeNewName(folderName, 'Neuer Ordner')
   const relativePath = parentPath ? `${parentPath}/${safe}` : safe
-  await ensureDirectoryOnDisk(store, relativePath)
+  const vaultRoot = vaultRootForPath(relativePath, new Set(store.vaultRoots ?? []))
+  if (
+    vaultRoot !== null &&
+    isVaultUnlocked(vaultRoot) &&
+    isPathUnderVaultRoot(relativePath, vaultRoot)
+  ) {
+    await ensureVaultDirectoryOnDisk(store, vaultRoot, relativePath)
+  } else {
+    await ensureDirectoryOnDisk(store, relativePath)
+  }
   return { relativePath, row: directoryRow(relativePath) }
 }
 

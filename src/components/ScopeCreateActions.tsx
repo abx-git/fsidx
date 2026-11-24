@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FolderPlus, Link2, Shield } from 'lucide-react'
+import { CheckSquare, FileText, FolderPlus, Link2, PenLine, Shield } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface ScopeCreateActionsProps {
@@ -7,6 +7,7 @@ interface ScopeCreateActionsProps {
   onNewMarkdown: () => void
   onNewTskFile?: () => void
   onNewLinkFile?: () => void
+  onNewDrawioFile?: () => void
   onNewVaultFolder?: () => void
   compact?: boolean
   /** Optional extra chips after Markdown (e.g. header “Neue Aufgaben-Datei”). */
@@ -19,6 +20,7 @@ export function ScopeCreateActions({
   onNewMarkdown,
   onNewTskFile,
   onNewLinkFile,
+  onNewDrawioFile,
   onNewVaultFolder,
   compact,
   extra,
@@ -52,6 +54,18 @@ export function ScopeCreateActions({
         >
           <Link2 className="h-3.5 w-3.5" />
           Web-Link
+        </button>
+      )}
+      {onNewDrawioFile && (
+        <button
+          type="button"
+          disabled={!canWrite}
+          onClick={onNewDrawioFile}
+          className="inline-flex items-center gap-1 rounded-md bg-orange-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-40"
+          title="Neue draw.io-Datei (*.drawio) mit Editor in der Detailansicht"
+        >
+          <PenLine className="h-3.5 w-3.5" />
+          draw.io
         </button>
       )}
       {extra}

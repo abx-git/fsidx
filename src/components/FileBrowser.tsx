@@ -1,4 +1,5 @@
-import { Folder, File, FileJson, Link2, ListTodo, Lock, Shield } from 'lucide-react'
+import { Folder, File, FileJson, Link2, ListTodo, Lock, PenLine, Shield } from 'lucide-react'
+import { isDrawioPath } from '../lib/drawio'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isLinkJsonPath } from '../lib/link/link-paths'
 import type { IndexEntry, IndexNode } from '../types'
@@ -41,6 +42,7 @@ interface FileBrowserProps {
   onNewMarkdown: () => void
   onNewTskFile?: () => void
   onNewLinkFile?: () => void
+  onNewDrawioFile?: () => void
   onNewVaultFolder?: () => void
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
@@ -77,6 +79,7 @@ export function FileBrowser({
   onNewMarkdown,
   onNewTskFile,
   onNewLinkFile,
+  onNewDrawioFile,
   onNewVaultFolder,
   vaultRoots = [],
   onUnlockVault,
@@ -138,6 +141,7 @@ export function FileBrowser({
             onNewMarkdown={onNewMarkdown}
             onNewTskFile={onNewTskFile}
             onNewLinkFile={onNewLinkFile}
+            onNewDrawioFile={onNewDrawioFile}
             onNewVaultFolder={onNewVaultFolder}
           />
         )}
@@ -267,6 +271,8 @@ export function FileBrowser({
                     <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
                   ) : isLinkJsonPath(row.path) ? (
                     <Link2 className="h-4 w-4 shrink-0 text-violet-700" />
+                  ) : isDrawioPath(row.path) ? (
+                    <PenLine className="h-4 w-4 shrink-0 text-orange-700" />
                   ) : (
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}

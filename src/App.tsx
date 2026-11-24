@@ -55,7 +55,11 @@ import { useEt2Autosave } from './hooks/useEt2Autosave'
 import { useTskFile } from './hooks/useTskFile'
 import { useLinkFile } from './hooks/useLinkFile'
 import { LinkDetailPanel } from './components/link/LinkDetailPanel'
+import { DrawioDetailPanel } from './components/drawio/DrawioDetailPanel'
 import { isLinkJsonPath } from './lib/link/link-paths'
+import { isDrawioPath } from './lib/drawio'
+import { createDrawioInScope } from './lib/drawio/create-drawio'
+import { useDrawioFile } from './hooks/useDrawioFile'
 import {
   createNewLinkFile,
   normalizeLinkUrl,
@@ -150,7 +154,12 @@ function App() {
     setWidthPx: setSidebarWidthPx,
     minWidth: sidebarMinWidth,
     maxWidth: sidebarMaxWidth,
+    maxWidthForDrawio,
   } = useViewerSidebarLayout()
+  const [drawioDetailFullscreen, setDrawioDetailFullscreen] = useState(false)
+  const [drawioSaving, setDrawioSaving] = useState(false)
+  const [drawioSaveError, setDrawioSaveError] = useState<string | null>(null)
+  const drawioSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -158,7 +167,11 @@ function App() {
       setFileView(null)
       return
     }
-    if (isTskJsonPath(selectedNode.path) || isTaskFilePath(selectedNode.path)) {
+    if (
+      isTskJsonPath(selectedNode.path) ||
+      isTaskFilePath(selectedNode.path) ||
+      isDrawioPath(selectedNode.path)
+    ) {
       setFileView(null)
       return
     }
@@ -256,6 +269,11 @@ function App() {
     return selectedNode.path
   }, [selectedNode])
 
+  const activeDrawioPath = useMemo(() => {
+    if (selectedNode?.kind !== 'file' || !isDrawioPath(selectedNode.path)) return null
+    return selectedNode.path
+  }, [selectedNode])
+
   const isLegacyTaskFile = useMemo(
     () => selectedNode?.kind === 'file' && isTaskFilePath(selectedNode.path),
     [selectedNode],
@@ -263,6 +281,7 @@ function App() {
 
   const tskFile = useTskFile(activeTskPath, fileSources)
   const linkFile = useLinkFile(activeLinkPath, fileSources)
+  const drawioFile = useDrawioFile(activeDrawioPath, fileSources)
   const [linkDraft, setLinkDraft] = useState<FsidxLinkFile | null>(null)
   const [linkSaving, setLinkSaving] = useState(false)
   const [linkSaveError, setLinkSaveError] = useState<string | null>(null)
@@ -634,6 +653,115 @@ function App() {
     linkFile,
     fileView?.path,
   ])
+
+  const sidebarMaxWidthEffective = useMemo(
+    () => (activeDrawioPath ? maxWidthForDrawio() : sidebarMaxWidth),
+    [activeDrawioPath, maxWidthForDrawio, sidebarMaxWidth],
+  )
+
+  const handleWidenDrawioPanel = useCallback(() => {
+    const target = Math.min(
+      maxWidthForDrawio(),
+      Math.max(sidebarWidthPx, Math.floor(window.innerWidth * 0.72)),
+    )
+    setSidebarWidthPx(target, maxWidthForDrawio())
+  }, [maxWidthForDrawio, setSidebarWidthPx, sidebarWidthPx])
+
+  useEffect(() => {
+    if (!activeDrawioPath) setDrawioDetailFullscreen(false)
+  }, [activeDrawioPath])
+
+  useEffect(() => {
+    if (!drawioDetailFullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawioDetailFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [drawioDetailFullscreen])
+
+  const persistDrawioXml = useCallback(
+    async (xml: string, drawioPath: string) => {
+      if (!fileSources || !canWrite) return
+      const name = drawioPath.split('/').pop() ?? drawioPath
+      await writeTextToStore(fileSources, drawioPath, xml)
+      registerSidecarFile({
+        relativePath: drawioPath,
+        name,
+        kind: 'file',
+        size: new Blob([xml]).size,
+        lastModified: Date.now(),
+      })
+    },
+    [fileSources, canWrite, registerSidecarFile],
+  )
+
+  const handleDrawioXmlChange = useCallback(
+    (xml: string) => {
+      if (!activeDrawioPath || !canWrite) return
+      drawioFile.setXml(xml)
+      setDrawioSaveError(null)
+      if (drawioSaveTimerRef.current) clearTimeout(drawioSaveTimerRef.current)
+      drawioSaveTimerRef.current = setTimeout(() => {
+        void (async () => {
+          setDrawioSaving(true)
+          try {
+            await persistDrawioXml(xml, activeDrawioPath)
+          } catch (err) {
+            setDrawioSaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
+          } finally {
+            setDrawioSaving(false)
+          }
+        })()
+      }, 700)
+    },
+    [activeDrawioPath, canWrite, drawioFile, persistDrawioXml],
+  )
+
+  const handleNewDrawioFile = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Diagramm anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const nameInput = window.prompt('Dateiname:', 'Diagramm.drawio')
+      if (nameInput === null) return
+      try {
+        const { row } = await createDrawioInScope(
+          fileSources,
+          parentPath,
+          nameInput.trim() || undefined,
+          indexedPathList,
+        )
+        const newId = registerSidecarFile(row)
+        navigateToPath(parentPath, null)
+        const widen = Math.min(
+          maxWidthForDrawio(),
+          Math.max(sidebarWidthPx, 720, Math.floor(window.innerWidth * 0.55)),
+        )
+        setSidebarWidthPx(widen, maxWidthForDrawio())
+        if (newId) handleSelectEntry(newId)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Diagramm konnte nicht angelegt werden')
+      }
+    },
+    [
+      fileSources,
+      canWrite,
+      indexedPathList,
+      registerSidecarFile,
+      navigateToPath,
+      handleSelectEntry,
+      maxWidthForDrawio,
+      setSidebarWidthPx,
+      sidebarWidthPx,
+    ],
+  )
 
   const handleNewLinkFile = useCallback(
     async (parentPath: string) => {
@@ -1303,6 +1431,7 @@ function App() {
       onNewVaultFolder={() => void handleNewVaultFolder(currentPath)}
       onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
       onNewLinkFile={() => void handleNewLinkFile(currentPath)}
+      onNewDrawioFile={() => void handleNewDrawioFile(currentPath)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
       onLockVault={handleVaultLock}
@@ -1499,6 +1628,26 @@ function App() {
                 />
               ) : undefined
             }
+            drawioDetailSlot={
+              activeDrawioPath && selectedNode && !activeTskPath && !activeLinkPath ? (
+                <DrawioDetailPanel
+                  filePath={activeDrawioPath}
+                  fileName={selectedNode.name}
+                  xml={drawioFile.xml}
+                  loading={drawioFile.loading}
+                  loadError={drawioFile.error}
+                  canWrite={canWrite}
+                  saving={drawioSaving}
+                  saveError={drawioSaveError}
+                  fullscreen={drawioDetailFullscreen}
+                  onToggleFullscreen={() => setDrawioDetailFullscreen((v) => !v)}
+                  onXmlChange={handleDrawioXmlChange}
+                  onWidenPanel={handleWidenDrawioPanel}
+                />
+              ) : undefined
+            }
+            detailFullscreen={drawioDetailFullscreen}
+            onDetailFullscreenChange={setDrawioDetailFullscreen}
             linkDetailSlot={
               activeLinkPath && selectedNode && !activeTskPath ? (
                 <LinkDetailPanel
@@ -1549,7 +1698,7 @@ function App() {
             onSidebarWidthChange={setSidebarWidthPx}
             sidebarWidthPx={sidebarWidthPx}
             sidebarMinWidth={sidebarMinWidth}
-            sidebarMaxWidth={sidebarMaxWidth}
+            sidebarMaxWidth={sidebarMaxWidthEffective}
             metadataVisible={detailMetadataVisible}
             onMetadataVisibleChange={setDetailMetadataVisible}
           />

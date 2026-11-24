@@ -37,11 +37,17 @@ projekt/phase/
 - Anlegen: **Anlegen → Web-Link**; Bearbeitung in der Seitenleiste; Doppelklick oder **Vorschau** zeigt die Zielseite in einem eingebetteten Browser (iframe). Viele Sites blockieren Einbettung → **Im Tab öffnen**.
 - Im Datei-Modus sind `.et2/`-Pfade standardmäßig ausgeblendet („**.et2 anzeigen**“ im Header).
 
+### draw.io (`*.drawio`)
+
+- Anlegen: **Anlegen → draw.io**; der eingebettete **Editor** (diagrams.net) öffnet rechts in der Detailansicht. Änderungen werden automatisch in die Datei geschrieben (Netzwerk nötig).
+- **Panel verbreitern** (bis ca. 92 % der Fensterbreite) und **Vollbild** (Esc beendet); Vorschau weiter per Diagramm-Viewer oder Markdown-Block `drawio`.
+- Unterstützte Endungen: `.drawio`, `.dio`, `.drawio.xml`.
+
 ### Scope (Teilbaum)
 
 Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. In der Kopfzeile filtert **Nur Aufgaben** die Suche auf ET2-Aufgabentitel. Am Ordner-Kontextmenü erzeugt **Aufgabenübersicht (Unterbaum)** eine lesende Gesamtliste aller Aufgaben im Unterbaum (Bearbeitung weiterhin in den jeweiligen `*.tsk.json`). Mit Schreibzugriff lassen sich **Dateien aus der Mitte per Drag & Drop auf einen Ordner im linken Baum** verschieben (inkl. Metadaten-Sidecar `.json`, falls vorhanden). Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
-Mit **Schreibzugriff** legst du **Ordner**, **Markdown** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
+Mit **Schreibzugriff** legst du **Ordner**, **Markdown**, **draw.io**, **Web-Link** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 
 ### Verschlüsselter Tresor (Vault)
 

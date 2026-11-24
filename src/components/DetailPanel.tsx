@@ -25,6 +25,9 @@ interface DetailPanelProps {
   sidebarMaxWidth?: number
   metadataVisible: boolean
   onMetadataVisibleChange: (value: boolean) => void
+  drawioDetailSlot?: ReactNode
+  detailFullscreen?: boolean
+  onDetailFullscreenChange?: (value: boolean) => void
 }
 
 export function DetailPanel({
@@ -46,18 +49,36 @@ export function DetailPanel({
   sidebarMaxWidth = 960,
   metadataVisible,
   onMetadataVisibleChange,
+  drawioDetailSlot,
+  detailFullscreen = false,
+  onDetailFullscreenChange: _onDetailFullscreenChange,
 }: DetailPanelProps) {
-  const showViewer = viewerPinned && viewerSlot
-  const showAggregateTasks = Boolean(aggregateTaskSlot)
+  void _onDetailFullscreenChange
+  const showViewer = viewerPinned && viewerSlot && !detailFullscreen
+  const showAggregateTasks = Boolean(aggregateTaskSlot) && !detailFullscreen
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLinkDetail = Boolean(linkDetailSlot) && !showAggregateTasks && !showTskDetail
-  const showLegacyNotice = Boolean(legacyNoticeSlot)
+  const showDrawioDetail =
+    Boolean(drawioDetailSlot) && !showAggregateTasks && !showTskDetail && !showLinkDetail
+  const showLegacyNotice = Boolean(legacyNoticeSlot) && !showDrawioDetail
   const showFileMetadata =
-    metadataVisible && !showViewer && !showTskDetail && !showLinkDetail && !showLegacyNotice
+    metadataVisible &&
+    !showViewer &&
+    !showTskDetail &&
+    !showLinkDetail &&
+    !showDrawioDetail &&
+    !showLegacyNotice &&
+    !detailFullscreen
 
   return (
-    <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
-      {onSidebarWidthChange && (
+    <aside
+      className={`relative flex min-h-0 flex-col overflow-hidden border-zinc-200 dark:border-zinc-800 ${
+        detailFullscreen
+          ? 'fixed inset-0 z-[300] w-screen max-w-none border-l-0 bg-white dark:bg-zinc-950'
+          : 'relative h-full w-full flex-1 border-l'
+      }`}
+    >
+      {onSidebarWidthChange && !detailFullscreen && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}
           maxWidth={sidebarMaxWidth}
@@ -66,6 +87,7 @@ export function DetailPanel({
         />
       )}
 
+      {!detailFullscreen && (
       <div className="shrink-0 border-b border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
         <CollapsibleSection summary="Seitenleiste einstellen" className="px-1">
           <div className="space-y-1.5 pb-1">
@@ -90,6 +112,7 @@ export function DetailPanel({
           </div>
         </CollapsibleSection>
       </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showViewer && (
@@ -107,6 +130,9 @@ export function DetailPanel({
         )}
         {showLinkDetail && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{linkDetailSlot}</div>
+        )}
+        {showDrawioDetail && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{drawioDetailSlot}</div>
         )}
 
         {showFileMetadata && (
@@ -165,6 +191,7 @@ export function DetailPanel({
 
         {!showTskDetail &&
           !showLinkDetail &&
+          !showDrawioDetail &&
           !showLegacyNotice &&
           !showFileMetadata &&
           !showViewer && (

@@ -17,7 +17,12 @@ import { getTaskCommand } from '../../lib/et2/task-command'
 import { isTaskMarkedDone, tagChipClass, tagsWithoutCompletedTag } from '../../lib/et2/task-tags'
 import { taskLinkHref } from '../../lib/et2/task-link'
 import { collectDescendantTaskIds, taskHasChildren } from '../../lib/et2/task-bundle-ops'
-import { isArrowKey, shouldHandleEt2TaskListShortcuts } from '../../lib/et2/task-list-keyboard'
+import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
+import {
+  handleEt2MindmapListKey,
+  handleEt2MindmapNavigateKey,
+  shouldHandleEt2TaskListShortcuts,
+} from '../../lib/et2/task-list-keyboard'
 import { taskRefFromPath } from '../../lib/et2/paths'
 import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
@@ -66,6 +71,11 @@ interface Et2TaskListProps {
   onIndentTask?: (taskId: string) => void
   onOutdentTask?: (taskId: string) => void
   canWrite: boolean
+  /** Titel der aktuell gewählten Aufgabe (Inline-Editor auf der Karte). */
+  inlineTitle?: string
+  onInlineTitleChange?: (value: string) => void
+  titleFocusTick?: number
+  onOpenTaskDetail?: (taskRef: string) => void
 }
 
 const rowMenuClass =
@@ -150,6 +160,10 @@ export function Et2TaskList({
   onIndentTask,
   onOutdentTask,
   canWrite,
+  inlineTitle,
+  onInlineTitleChange,
+  titleFocusTick = 0,
+  onOpenTaskDetail,
 }: Et2TaskListProps) {
   const [collapsedIds, setCollapsedIds] = useState(() => readCollapsed(tskPath))
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null)
@@ -158,6 +172,8 @@ export function Et2TaskList({
   const [dropTarget, setDropTarget] = useState<TaskDropTarget | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
+  const listFocusRef = useRef<HTMLDivElement>(null)
+  const inlineInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setCollapsedIds(readCollapsed(tskPath))
@@ -204,48 +220,57 @@ export function Et2TaskList({
     return taskRefFromPath(selectedTaskRef)?.taskId ?? null
   }, [selectedTaskRef])
 
+  const navigateVisible = useCallback(
+    (direction: 'up' | 'down') => {
+      const idx = visible.findIndex((t) => t.relativePath === selectedTaskRef)
+      if (idx < 0) return
+      const next = visible[idx + (direction === 'up' ? -1 : 1)]
+      if (next) onSelectTask(next.relativePath)
+    },
+    [visible, selectedTaskRef, onSelectTask],
+  )
+
+  const mindmapKeyCtx = useMemo(
+    () => ({
+      taskId: selectedTaskId,
+      canWrite,
+      onSibling: onAddSibling,
+      onSubtask: onAddSubtask,
+      onMoveSibling,
+      onIndent: onIndentTask,
+      onOutdent: onOutdentTask,
+      onNavigate: navigateVisible,
+    }),
+    [
+      selectedTaskId,
+      canWrite,
+      onAddSibling,
+      onAddSubtask,
+      onMoveSibling,
+      onIndentTask,
+      onOutdentTask,
+      navigateVisible,
+    ],
+  )
+
+  const handleListKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!shouldHandleEt2TaskListShortcuts(e.nativeEvent)) return
+      if (handleEt2MindmapListKey(e.nativeEvent, mindmapKeyCtx)) return
+      handleEt2MindmapNavigateKey(e.nativeEvent, mindmapKeyCtx)
+    },
+    [mindmapKeyCtx],
+  )
+
   useEffect(() => {
-    if (!canWrite) return
-    const onKey = (e: KeyboardEvent) => {
-      if (!shouldHandleEt2TaskListShortcuts(e)) return
-
-      if (
-        e.key === 'Enter' &&
-        !e.altKey &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.shiftKey &&
-        selectedTaskId &&
-        onAddSibling
-      ) {
-        e.preventDefault()
-        onAddSibling(selectedTaskId)
-        return
-      }
-
-      if (!selectedTaskId || !e.altKey || e.ctrlKey || e.metaKey || !isArrowKey(e)) return
-
-      const dir =
-        e.key === 'ArrowUp' || e.code === 'ArrowUp'
-          ? 'up'
-          : e.key === 'ArrowDown' || e.code === 'ArrowDown'
-            ? 'down'
-            : e.key === 'ArrowLeft' || e.code === 'ArrowLeft'
-              ? 'left'
-              : e.key === 'ArrowRight' || e.code === 'ArrowRight'
-                ? 'right'
-                : null
-      if (!dir) return
-      e.preventDefault()
-      e.stopPropagation()
-      if (dir === 'up') onMoveSibling?.(selectedTaskId, 'up')
-      else if (dir === 'down') onMoveSibling?.(selectedTaskId, 'down')
-      else if (dir === 'left') onOutdentTask?.(selectedTaskId)
-      else onIndentTask?.(selectedTaskId)
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [canWrite, selectedTaskId, onAddSibling, onMoveSibling, onIndentTask, onOutdentTask])
+    if (!titleFocusTick) return
+    window.setTimeout(() => {
+      const el = inlineInputRef.current
+      if (!el) return
+      el.focus()
+      if (!el.value.trim() || el.value === DEFAULT_NEW_TASK_TITLE) onInlineTitleChange?.('')
+    }, 50)
+  }, [titleFocusTick, onInlineTitleChange])
 
   const canNestOn = useCallback(
     (targetId: string) => {
@@ -273,6 +298,13 @@ export function Et2TaskList({
   const activeKey = dropTarget ? dropTargetKey(dropTarget) : null
 
   return (
+    <div
+      ref={listFocusRef}
+      data-et2-task-list
+      tabIndex={0}
+      className="outline-none focus:ring-2 focus:ring-inset focus:ring-violet-300/50 dark:focus:ring-violet-700/40"
+      onKeyDown={handleListKeyDown}
+    >
     <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
       {canWrite && dragId && (
         <li
@@ -385,23 +417,54 @@ export function Et2TaskList({
               ) : (
                 <span className="mt-1.5 inline-block h-6 w-6 shrink-0" />
               )}
-              <button
-                type="button"
-                className="min-w-0 flex-1 py-2 pr-1 text-left"
-                onClick={() => onSelectTask(task.relativePath)}
+              <div
+                role="button"
+                tabIndex={-1}
+                className="min-w-0 flex-1 cursor-pointer py-2 pr-1 text-left"
+                onClick={() => {
+                  onSelectTask(task.relativePath)
+                  window.requestAnimationFrame(() => inlineInputRef.current?.focus())
+                }}
+                onDoubleClick={() => {
+                  onSelectTask(task.relativePath)
+                  onOpenTaskDetail?.(task.relativePath)
+                }}
               >
-                <span
-                  className={`flex flex-wrap items-center gap-1.5 font-medium ${
-                    done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
-                  }`}
-                >
-                  {task.title}
-                  {task.status && (
-                    <span className="rounded-full bg-white/80 px-1 py-0.5 text-[9px] font-normal text-violet-800 dark:bg-zinc-900">
-                      {et2TaskStatusLabel(task.status)}
-                    </span>
-                  )}
-                </span>
+                {selected && canWrite && onInlineTitleChange ? (
+                  <input
+                    data-et2-inline-title
+                    ref={inlineInputRef}
+                    type="text"
+                    className={`w-full min-w-0 rounded border border-transparent bg-white/60 px-1 py-0.5 text-xs font-medium outline-none ring-violet-400 focus:border-violet-300 focus:ring-1 dark:bg-zinc-900/50 dark:focus:border-violet-700 ${
+                      done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
+                    }`}
+                    value={inlineTitle ?? task.title}
+                    placeholder={DEFAULT_NEW_TASK_TITLE}
+                    onChange={(e) => onInlineTitleChange(e.target.value)}
+                    onKeyDown={handleListKeyDown}
+                    onFocus={(e) => {
+                      if (e.target.value === DEFAULT_NEW_TASK_TITLE) onInlineTitleChange('')
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      onOpenTaskDetail?.(task.relativePath)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className={`flex flex-wrap items-center gap-1.5 font-medium ${
+                      done ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100'
+                    }`}
+                  >
+                    {task.title || DEFAULT_NEW_TASK_TITLE}
+                  </span>
+                )}
+                {task.status && (
+                  <span className="mt-0.5 inline-flex rounded-full bg-white/80 px-1 py-0.5 text-[9px] font-normal text-violet-800 dark:bg-zinc-900">
+                    {et2TaskStatusLabel(task.status)}
+                  </span>
+                )}
                 {(dueHint || effortLabel || visibleTags.length > 0 || href || cmd) && (
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-zinc-500">
                     {dueHint && (
@@ -425,7 +488,7 @@ export function Et2TaskList({
                     ))}
                   </span>
                 )}
-              </button>
+              </div>
               {canWrite && (
                 <button
                   type="button"
@@ -494,7 +557,7 @@ export function Et2TaskList({
               }}
             >
               <span>Nach oben</span>
-              <span className="text-zinc-400">Alt+↑</span>
+              <span className="text-zinc-400">Shift+↑</span>
             </button>
             <button
               type="button"
@@ -506,7 +569,7 @@ export function Et2TaskList({
               }}
             >
               <span>Nach unten</span>
-              <span className="text-zinc-400">Alt+↓</span>
+              <span className="text-zinc-400">Shift+↓</span>
             </button>
             <button
               type="button"
@@ -518,7 +581,7 @@ export function Et2TaskList({
               }}
             >
               <span>Einrücken</span>
-              <span className="text-zinc-400">Alt+→</span>
+              <span className="text-zinc-400">Shift+→</span>
             </button>
             <button
               type="button"
@@ -530,7 +593,7 @@ export function Et2TaskList({
               }}
             >
               <span>Ausrücken</span>
-              <span className="text-zinc-400">Alt+←</span>
+              <span className="text-zinc-400">Shift+←</span>
             </button>
             <div className="my-0.5 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
             <button
@@ -562,5 +625,6 @@ export function Et2TaskList({
           document.body,
         )}
     </ul>
+    </div>
   )
 }

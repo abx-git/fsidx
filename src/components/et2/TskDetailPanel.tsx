@@ -1,9 +1,8 @@
 import { Loader2, ListTodo, Pencil } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import type { FileSourceStore } from '../../lib/file-sources'
 import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
-import { DEFAULT_NEW_TASK_TITLE } from '../../lib/et2/constants'
 import { Et2TaskList } from './Et2TaskList'
 import { Et2TaskDetailForm } from './Et2TaskDetailForm'
 
@@ -104,17 +103,11 @@ export function TskDetailPanel({
   titleFocusTick = 0,
   fileSources = null,
 }: TskDetailPanelProps) {
-  const titleInputRef = useRef<HTMLInputElement>(null)
+  const [detailExpanded, setDetailExpanded] = useState(false)
 
   useEffect(() => {
-    if (!titleFocusTick) return
-    window.setTimeout(() => {
-      const el = titleInputRef.current
-      if (!el) return
-      el.focus()
-      if (!el.value.trim() || el.value === DEFAULT_NEW_TASK_TITLE) onTitleChange('')
-    }, 50)
-  }, [titleFocusTick, onTitleChange])
+    setDetailExpanded(false)
+  }, [tskPath])
 
   return (
     <div
@@ -146,8 +139,8 @@ export function TskDetailPanel({
         </p>
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
-            Enter = neue Aufgabe (gleiche Ebene) · Alt+↑↓ Reihenfolge · Alt+←/→ ein-/ausrücken · ⋯
-            für Unteraufgabe
+            Titel auf der Karte · Enter Geschwister · Tab Unteraufgabe · Shift+Pfeile Reihenfolge &
+            Einrückung · ↑↓ Auswahl · Doppelklick Details
           </p>
         )}
       </div>
@@ -181,17 +174,48 @@ export function TskDetailPanel({
             onIndentTask={onIndentTask}
             onOutdentTask={onOutdentTask}
             canWrite={canWrite}
+            inlineTitle={title}
+            onInlineTitleChange={onTitleChange}
+            titleFocusTick={titleFocusTick}
+            onOpenTaskDetail={() => setDetailExpanded(true)}
           />
         )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {editorLoading ? (
+        {!detailExpanded ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+            <p className="text-xs text-zinc-500">
+              {selectedTaskRef
+                ? 'Doppelklick auf die Karte öffnet Status, Beschreibung und weitere Felder.'
+                : 'Aufgabe in der Liste wählen.'}
+            </p>
+            {selectedTaskRef && (
+              <button
+                type="button"
+                className="rounded-md border border-violet-200 px-3 py-1 text-[11px] font-medium text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/40"
+                onClick={() => setDetailExpanded(true)}
+              >
+                Detailansicht öffnen
+              </button>
+            )}
+          </div>
+        ) : editorLoading ? (
           <p className="flex items-center justify-center gap-2 py-8 text-xs text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Aufgabe laden…
           </p>
         ) : (
           <>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-3 py-1 dark:border-zinc-800">
+              <span className="text-[10px] font-medium text-zinc-500">Detailansicht</span>
+              <button
+                type="button"
+                className="text-[10px] text-violet-700 hover:underline dark:text-violet-300"
+                onClick={() => setDetailExpanded(false)}
+              >
+                Schließen
+              </button>
+            </div>
             {editorError && (
               <p className="mx-3 mb-2 shrink-0 rounded bg-red-50 px-2 py-1 text-xs text-red-800 dark:bg-red-950/40">
                 {editorError}
@@ -222,7 +246,7 @@ export function TskDetailPanel({
               onEffortChange={onEffortChange}
               onEffortUnitChange={onEffortUnitChange}
               onDelete={onDeleteFromDetail}
-              titleInputRef={titleInputRef}
+              hideTitleField
               assetDocPath={tskPath}
               fileSources={fileSources}
             />

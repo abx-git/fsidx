@@ -27,7 +27,7 @@ import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { createVaultFolderInScope } from './lib/vault/create-vault-folder'
-import { unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
+import { closeVaultInSession, unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
 import { lockAllVaults } from './lib/vault/vault-session'
 import { VaultUnlockDialog } from './components/vault/VaultUnlockDialog'
 import { deletePathFromStore } from './lib/delete-workspace'
@@ -565,6 +565,19 @@ function App() {
       }
     },
     [fileSources, manifest, vaultUnlockTarget, replaceManifest],
+  )
+
+  const handleVaultLock = useCallback(
+    (vaultRoot: string) => {
+      if (!manifest) return
+      const next = closeVaultInSession(fileSources, manifest, vaultRoot)
+      replaceManifest(next)
+      setVaultUiTick((t) => t + 1)
+      if (selectedId && !next.entries.some((e) => e.id === selectedId)) {
+        setSelectedId(null)
+      }
+    },
+    [fileSources, manifest, replaceManifest, selectedId, setSelectedId],
   )
 
   const handleNewMarkdown = useCallback(
@@ -1191,6 +1204,7 @@ function App() {
       onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
+      onLockVault={handleVaultLock}
     />
   )
 

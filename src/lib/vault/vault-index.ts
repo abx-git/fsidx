@@ -6,6 +6,7 @@ import {
   encryptVaultContent,
   encryptVaultName,
 } from './crypto'
+import { findDecryptedEntryInDir } from './vault-disk-lookup'
 
 export interface VaultDiskRef {
   /** Pfad im fsidx-Manifest (Klartext) */
@@ -106,12 +107,46 @@ export async function readDecryptedVaultFile(
   return decryptVaultContent(key, encrypted)
 }
 
+export async function updateEncryptedVaultFileContent(
+  key: CryptoKey,
+  fileHandle: FileSystemFileHandle,
+  content: Uint8Array | ArrayBuffer,
+): Promise<void> {
+  const encryptedContent = await encryptVaultContent(
+    key,
+    content instanceof Uint8Array ? content : new Uint8Array(content),
+  )
+  const writable = await fileHandle.createWritable()
+  const buffer = encryptedContent.buffer.slice(
+    encryptedContent.byteOffset,
+    encryptedContent.byteOffset + encryptedContent.byteLength,
+  ) as ArrayBuffer
+  await writable.write(buffer)
+  await writable.close()
+}
+
 export async function writeEncryptedVaultFile(
   key: CryptoKey,
   dirHandle: FileSystemDirectoryHandle,
   plainFileName: string,
   content: Uint8Array | ArrayBuffer,
+  existingHandle?: FileSystemFileHandle,
 ): Promise<FileSystemFileHandle> {
+  if (existingHandle) {
+    await updateEncryptedVaultFileContent(key, existingHandle, content)
+    return existingHandle
+  }
+
+  const found = await findDecryptedEntryInDir(key, dirHandle, plainFileName)
+  if (found?.handle.kind === 'file') {
+    const fileHandle = found.handle as FileSystemFileHandle
+    await updateEncryptedVaultFileContent(key, fileHandle, content)
+    return fileHandle
+  }
+  if (found?.handle.kind === 'directory') {
+    throw new Error(`„${plainFileName}" ist ein Ordner im Tresor.`)
+  }
+
   const encryptedName = await encryptVaultName(key, plainFileName)
   const encryptedContent = await encryptVaultContent(
     key,
@@ -133,6 +168,14 @@ export async function createEncryptedVaultDirectory(
   parent: FileSystemDirectoryHandle,
   plainName: string,
 ): Promise<FileSystemDirectoryHandle> {
+  const found = await findDecryptedEntryInDir(key, parent, plainName)
+  if (found?.handle.kind === 'directory') {
+    return found.handle as FileSystemDirectoryHandle
+  }
+  if (found?.handle.kind === 'file') {
+    throw new Error(`„${plainName}" existiert als Datei im Tresor.`)
+  }
+
   const encryptedName = await encryptVaultName(key, plainName)
   return parent.getDirectoryHandle(encryptedName, { create: true })
 }

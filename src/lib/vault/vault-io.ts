@@ -1,8 +1,8 @@
 import type { FileSourceStore } from '../file-sources'
+import { findDecryptedEntryInDir } from './vault-disk-lookup'
 import { vaultRootForPath } from './vault-paths'
-import { getVaultSession } from './vault-session'
+import { getVaultSession, upsertVaultDiskRef } from './vault-session'
 import { readDecryptedVaultFile, writeEncryptedVaultFile, createEncryptedVaultDirectory } from './vault-index'
-import { encryptVaultName } from './crypto'
 import { VAULT_MARKER_FILENAME } from './marker'
 
 async function resolveVaultDir(
@@ -25,8 +25,11 @@ async function resolveVaultDir(
       ? logicalDir.split('/').filter(Boolean)
       : logicalDir.slice(vaultRoot.length + 1).split('/').filter(Boolean)
   for (const plainSeg of innerParts) {
-    const encrypted = await encryptVaultName(key, plainSeg)
-    dir = await dir.getDirectoryHandle(encrypted)
+    const found = await findDecryptedEntryInDir(key, dir, plainSeg)
+    if (!found || found.handle.kind !== 'directory') {
+      throw new Error(`Tresor-Ordner nicht gefunden: ${plainSeg}`)
+    }
+    dir = found.handle as FileSystemDirectoryHandle
   }
   return dir
 }
@@ -84,8 +87,19 @@ export async function writeTextToVaultStore(
   const parentLogical = parts.join('/')
   const parentDir = await resolveVaultDir(store, vaultRoot, parentLogical)
   const encoded = new TextEncoder().encode(text)
-  const handle = await writeEncryptedVaultFile(session.key, parentDir, fileName, encoded)
+  const existingHandle = store.handles.get(relativePath)
+  const handle = await writeEncryptedVaultFile(
+    session.key,
+    parentDir,
+    fileName,
+    encoded,
+    existingHandle,
+  )
   store.handles.set(relativePath, handle)
+  upsertVaultDiskRef(vaultRoot, {
+    logicalPath: relativePath,
+    encryptedName: handle.name,
+  })
   return handle
 }
 

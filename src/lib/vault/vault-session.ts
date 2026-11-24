@@ -41,6 +41,12 @@ export function getVaultSession(vaultRoot: string): VaultSessionEntry | null {
   return sessions.get(vaultRoot) ?? null
 }
 
+export function upsertVaultDiskRef(vaultRoot: string, ref: VaultDiskRef): void {
+  const entry = sessions.get(vaultRoot)
+  if (!entry) return
+  entry.diskRefs.set(ref.logicalPath, ref)
+}
+
 export function unlockedVaultRoots(): string[] {
   return [...sessions.keys()]
 }

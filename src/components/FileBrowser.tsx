@@ -42,6 +42,7 @@ interface FileBrowserProps {
   onNewVaultFolder?: () => void
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
+  onLockVault?: (vaultRoot: string) => void
 }
 
 type Row = {
@@ -76,13 +77,15 @@ export function FileBrowser({
   onNewVaultFolder,
   vaultRoots = [],
   onUnlockVault,
+  onLockVault,
 }: FileBrowserProps) {
   const inSearch = searchQuery.trim().length > 0
   const activeVaultRoot = scopeVaultRoot(scopePath, vaultRoots)
   const workspaceIsVault = vaultRoots.includes('')
-  const scopeVaultLocked =
-    (workspaceIsVault || activeVaultRoot !== null) &&
-    !isVaultUnlocked(workspaceIsVault ? '' : activeVaultRoot ?? '')
+  const vaultRootKey = workspaceIsVault ? '' : activeVaultRoot ?? ''
+  const inVaultScope = workspaceIsVault || activeVaultRoot !== null
+  const scopeVaultLocked = inVaultScope && !isVaultUnlocked(vaultRootKey)
+  const scopeVaultOpen = inVaultScope && isVaultUnlocked(vaultRootKey)
 
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
@@ -159,6 +162,21 @@ export function FileBrowser({
               onClick={() => onUnlockVault(workspaceIsVault ? '' : activeVaultRoot ?? '')}
             >
               Entsperren…
+            </button>
+          </div>
+        )}
+        {!inSearch && scopeVaultOpen && onLockVault && (
+          <div className="flex items-center justify-between gap-2 border-b-2 border-emerald-300 bg-emerald-50/90 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-950/40">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-950 dark:text-emerald-100">
+              <Shield className="h-4 w-4 shrink-0 text-emerald-700" />
+              Tresor ist entsperrt — Inhalte liegen nur im Arbeitsspeicher verschlüsselt vor.
+            </p>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-emerald-700 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900"
+              onClick={() => onLockVault(vaultRootKey)}
+            >
+              Sperren
             </button>
           </div>
         )}

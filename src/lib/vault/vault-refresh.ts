@@ -3,7 +3,7 @@ import type { FileSourceStore } from '../file-sources'
 import type { RawFileRow } from '../build-manifest'
 import { buildManifestFromRows } from '../build-manifest'
 import { indexVaultDirectory } from './vault-index'
-import { isVaultUnlocked, setVaultUnlocked } from './vault-session'
+import { isVaultUnlocked, lockVault, setVaultUnlocked } from './vault-session'
 import { isPathUnderVaultRoot, vaultMarkerPathForRoot } from './vault-paths'
 
 /** Entfernt alle Manifest-Kinder unter `vaultRoot` (außer Marker), vor erneutem Entschlüsseln. */
@@ -78,6 +78,17 @@ export function reconcileLockedVaultsInManifest(
     }
   }
   return next
+}
+
+/** Tresor in dieser Sitzung schließen: Schlüssel verwerfen, Manifest bereinigen. */
+export function closeVaultInSession(
+  store: FileSourceStore | null,
+  manifest: FileIndexManifest,
+  vaultRoot: string,
+): FileIndexManifest {
+  lockVault(vaultRoot)
+  if (store?.kind === 'handles') purgeVaultHandles(store, vaultRoot)
+  return lockVaultAndStripManifest(manifest, vaultRoot)
 }
 
 export function lockVaultAndStripManifest(

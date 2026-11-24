@@ -19,6 +19,7 @@ import {
   indentEt2Task,
   moveEt2TaskSibling,
   nestEt2TaskUnder,
+  reorderEt2TaskRelative,
   outdentEt2Task,
   reparentEt2Task,
 } from './lib/et2/tasks-bundle'
@@ -810,6 +811,25 @@ function App() {
     [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
   )
 
+  const handleEt2ReorderTask = useCallback(
+    async (taskId: string, anchorTaskId: string, place: 'before' | 'after') => {
+      if (!activeTskPath || !fileSources || !canWrite) return
+      try {
+        const { row } = await reorderEt2TaskRelative(
+          fileSources,
+          activeTskPath,
+          taskId,
+          anchorTaskId,
+          place,
+        )
+        await reloadTskBundleOnDisk(activeTskPath, row)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Umsortieren fehlgeschlagen')
+      }
+    },
+    [activeTskPath, fileSources, canWrite, reloadTskBundleOnDisk],
+  )
+
   const handleEt2MoveSibling = useCallback(
     async (taskId: string, direction: 'up' | 'down') => {
       if (!activeTskPath || !fileSources || !canWrite) return
@@ -1260,6 +1280,9 @@ function App() {
                   onDeleteTask={(taskId) => void handleEt2DeleteTask(taskId)}
                   onReparentTask={(taskId) => setReparentTaskId(taskId)}
                   onNestTask={(taskId, parentId) => void handleEt2NestTask(taskId, parentId)}
+                  onReorderTask={(taskId, anchor, place) =>
+                    void handleEt2ReorderTask(taskId, anchor, place)
+                  }
                   onMoveSibling={(taskId, dir) => void handleEt2MoveSibling(taskId, dir)}
                   onIndentTask={(taskId) => void handleEt2Indent(taskId)}
                   onOutdentTask={(taskId) => void handleEt2Outdent(taskId)}

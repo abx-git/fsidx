@@ -15,6 +15,7 @@ import {
   insertTaskSiblingAfter,
   moveTaskAmongSiblings,
   outdentTaskInTree,
+  reorderTaskRelativeToSibling,
   reparentTaskInList,
 } from './task-bundle-ops'
 import type { Et2TaskKind } from '../../types/et2-task'
@@ -290,6 +291,18 @@ export async function nestEt2TaskUnder(
 ): Promise<{ row: RawFileRow }> {
   return mutateTasksBundleFile(store, bundleFilePath, (tasks) =>
     reparentTaskInList(tasks, taskId, newParentId),
+  )
+}
+
+export async function reorderEt2TaskRelative(
+  store: FileSourceStore,
+  bundleFilePath: string,
+  taskId: string,
+  anchorTaskId: string,
+  place: 'before' | 'after',
+): Promise<{ row: RawFileRow }> {
+  return mutateTasksBundleFile(store, bundleFilePath, (tasks) =>
+    reorderTaskRelativeToSibling(tasks, taskId, anchorTaskId, place),
   )
 }
 

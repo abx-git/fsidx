@@ -21,6 +21,7 @@ interface TskDetailPanelProps {
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
   onNestTask?: (taskId: string, newParentId: string | null) => void
+  onReorderTask?: (taskId: string, anchorTaskId: string, place: 'before' | 'after') => void
   onMoveSibling?: (taskId: string, direction: 'up' | 'down') => void
   onIndentTask?: (taskId: string) => void
   onOutdentTask?: (taskId: string) => void
@@ -69,6 +70,7 @@ export function TskDetailPanel({
   onDeleteTask,
   onReparentTask,
   onNestTask,
+  onReorderTask,
   onMoveSibling,
   onIndentTask,
   onOutdentTask,
@@ -174,6 +176,7 @@ export function TskDetailPanel({
             onDeleteTask={onDeleteTask}
             onReparentTask={onReparentTask}
             onNestTask={onNestTask}
+            onReorderTask={onReorderTask}
             onMoveSibling={onMoveSibling}
             onIndentTask={onIndentTask}
             onOutdentTask={onOutdentTask}

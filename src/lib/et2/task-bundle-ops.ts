@@ -110,6 +110,45 @@ export function indentTaskInTree(tasks: Et2TaskRecord[], taskId: string): Et2Tas
   return reparentTaskInList(tasks, taskId, newParentId)
 }
 
+/**
+ * Aufgabe auf die Ebene von `anchor` setzen und davor/danach einsortieren.
+ */
+export function reorderTaskRelativeToSibling(
+  tasks: Et2TaskRecord[],
+  taskId: string,
+  anchorTaskId: string,
+  place: 'before' | 'after',
+): Et2TaskRecord[] {
+  if (taskId === anchorTaskId) return tasks
+  const anchor = tasks.find((t) => t.id === anchorTaskId)
+  const task = tasks.find((t) => t.id === taskId)
+  if (!anchor || !task) return tasks
+
+  const parentId = anchor.parentId ?? null
+  if (wouldCreateTaskCycle(tasks, taskId, parentId)) {
+    throw new Error('Ungültige Verschachtelung (Zyklus).')
+  }
+
+  const others = tasks.filter((t) => t.id !== taskId)
+  const moved: Et2TaskRecord = { ...task, parentId }
+  const sibs = siblingsOf(others, parentId)
+  const anchorPos = sibs.findIndex((s) => s.id === anchorTaskId)
+  if (anchorPos < 0) return tasks
+  const at = place === 'before' ? anchorPos : anchorPos + 1
+  const nextSibs = [...sibs.slice(0, at), moved, ...sibs.slice(at)]
+  const orderById = new Map(nextSibs.map((t, i) => [t.id, i]))
+
+  return tasks.map((t) => {
+    if (t.id === taskId) {
+      return { ...t, parentId, order: orderById.get(taskId)! }
+    }
+    if ((t.parentId ?? null) === parentId && orderById.has(t.id)) {
+      return { ...t, order: orderById.get(t.id)! }
+    }
+    return t
+  })
+}
+
 /** Neue Aufgabe direkt unter dem Anker (gleiche Ebene, sortiert danach). */
 export function insertTaskSiblingAfter(
   tasks: Et2TaskRecord[],

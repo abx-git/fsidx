@@ -6,7 +6,7 @@ import {
   Terminal,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Et2TaskSummary } from '../../types/et2-task'
 import { et2TaskStatusLabel } from '../../lib/et2/task-status-labels'
@@ -61,6 +61,7 @@ interface Et2TaskListProps {
   onDeleteTask: (taskId: string) => void
   onReparentTask: (taskId: string) => void
   onNestTask?: (taskId: string, newParentId: string | null) => void
+  onReorderTask?: (taskId: string, anchorTaskId: string, place: 'before' | 'after') => void
   onMoveSibling?: (taskId: string, direction: 'up' | 'down') => void
   onIndentTask?: (taskId: string) => void
   onOutdentTask?: (taskId: string) => void
@@ -69,6 +70,70 @@ interface Et2TaskListProps {
 
 const rowMenuClass =
   'fixed z-[80] min-w-[11rem] rounded-md border border-zinc-200 bg-white py-0.5 text-[11px] shadow-lg dark:border-zinc-700 dark:bg-zinc-900'
+
+type TaskDropTarget =
+  | { kind: 'root' }
+  | { kind: 'nest'; taskId: string }
+  | { kind: 'before'; taskId: string }
+  | { kind: 'after'; taskId: string }
+
+function dropTargetKey(target: TaskDropTarget): string {
+  if (target.kind === 'root') return 'root'
+  return `${target.kind}:${target.taskId}`
+}
+
+function TaskDropGap({
+  active,
+  depth,
+  label,
+  onActivate,
+  onDrop,
+}: {
+  active: boolean
+  depth: number
+  label: string
+  onActivate: () => void
+  onDrop: () => void
+}) {
+  return (
+    <li
+      className="list-none py-0.5"
+      style={{ paddingLeft: `${0.5 + depth * 0.75}rem`, paddingRight: '0.5rem' }}
+      onDragEnter={(e) => {
+        e.preventDefault()
+        onActivate()
+      }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onActivate()
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onDrop()
+      }}
+    >
+      <div
+        className={`flex h-2 items-center rounded transition ${
+          active ? '' : 'opacity-60 hover:opacity-100'
+        }`}
+        title={label}
+      >
+        <div
+          className={`h-0.5 w-full rounded-full transition ${
+            active
+              ? 'bg-violet-500 shadow-[0_0_0_2px] shadow-violet-300 dark:shadow-violet-600'
+              : 'bg-violet-200/80 dark:bg-violet-800/60'
+          }`}
+        />
+      </div>
+      {active && (
+        <p className="mt-0.5 text-[9px] font-medium text-violet-700 dark:text-violet-300">{label}</p>
+      )}
+    </li>
+  )
+}
 
 export function Et2TaskList({
   tskPath,
@@ -80,6 +145,7 @@ export function Et2TaskList({
   onDeleteTask,
   onReparentTask,
   onNestTask,
+  onReorderTask,
   onMoveSibling,
   onIndentTask,
   onOutdentTask,
@@ -89,7 +155,7 @@ export function Et2TaskList({
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const [dropTargetId, setDropTargetId] = useState<string | 'root' | null>(null)
+  const [dropTarget, setDropTarget] = useState<TaskDropTarget | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
@@ -181,7 +247,7 @@ export function Et2TaskList({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [canWrite, selectedTaskId, onAddSibling, onMoveSibling, onIndentTask, onOutdentTask])
 
-  const canDropOn = useCallback(
+  const canNestOn = useCallback(
     (targetId: string) => {
       if (!dragId || dragId === targetId) return false
       const descendants = collectDescendantTaskIds(records, dragId)
@@ -190,33 +256,42 @@ export function Et2TaskList({
     [dragId, records],
   )
 
+  const canReorderAt = useCallback(
+    (anchorTaskId: string) => {
+      if (!dragId || dragId === anchorTaskId) return false
+      const descendants = collectDescendantTaskIds(records, dragId)
+      return !descendants.has(anchorTaskId)
+    },
+    [dragId, records],
+  )
+
+  const clearDrag = () => {
+    setDragId(null)
+    setDropTarget(null)
+  }
+
+  const activeKey = dropTarget ? dropTargetKey(dropTarget) : null
+
   return (
-    <ul
-      ref={listRef}
-      className="divide-y divide-zinc-100 dark:divide-zinc-800"
-      onDragOver={(e) => {
-        if (!dragId) return
-        if (e.target === listRef.current) {
-          e.preventDefault()
-          setDropTargetId('root')
-        }
-      }}
-      onDragLeave={() => setDropTargetId(null)}
-      onDrop={(e) => {
-        if (!dragId || dropTargetId !== 'root') return
-        e.preventDefault()
-        onNestTask?.(dragId, null)
-        setDragId(null)
-        setDropTargetId(null)
-      }}
-    >
+    <ul ref={listRef} className="divide-y divide-zinc-100 dark:divide-zinc-800">
       {canWrite && dragId && (
         <li
-          className={`px-3 py-1 text-[10px] ${
-            dropTargetId === 'root' ? 'bg-violet-100 text-violet-900' : 'text-zinc-400'
+          className={`border-b border-transparent px-3 py-1.5 text-[10px] ${
+            activeKey === 'root' ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50' : 'text-zinc-400'
           }`}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDropTarget({ kind: 'root' })
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDropTarget({ kind: 'root' })
+            if (!dragId) return
+            onNestTask?.(dragId, null)
+            clearDrag()
+          }}
         >
-          Hier ablegen → Wurzelebene
+          Hier ablegen → Wurzelebene (ohne übergeordnete Aufgabe)
         </li>
       )}
       {visible.map((task) => {
@@ -233,29 +308,44 @@ export function Et2TaskList({
         const effortLabel = formatEffortDisplay(task.effort, task.effortUnit)
         const visibleTags = tagsWithoutCompletedTag(task.tags ?? []).slice(0, 4)
 
-        const dropHighlight = dropTargetId === task.taskId
+        const nestHighlight =
+          dropTarget?.kind === 'nest' && dropTarget.taskId === task.taskId
+        const beforeKey = `before:${task.taskId}`
+        const afterKey = `after:${task.taskId}`
         return (
-          <li
-            key={task.relativePath}
-            onDragOver={(e) => {
-              if (!dragId || !canDropOn(task.taskId)) return
-              e.preventDefault()
-              e.stopPropagation()
-              setDropTargetId(task.taskId)
-            }}
-            onDrop={(e) => {
-              if (!dragId || !canDropOn(task.taskId)) return
-              e.preventDefault()
-              e.stopPropagation()
-              onNestTask?.(dragId, task.taskId)
-              setDragId(null)
-              setDropTargetId(null)
-            }}
-          >
+          <Fragment key={task.relativePath}>
+            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
+              <TaskDropGap
+                depth={depth}
+                active={activeKey === beforeKey}
+                label="Hier einfügen (gleiche Ebene)"
+                onActivate={() => setDropTarget({ kind: 'before', taskId: task.taskId })}
+                onDrop={() => {
+                  if (!dragId) return
+                  onReorderTask(dragId, task.taskId, 'before')
+                  clearDrag()
+                }}
+              />
+            )}
+            <li
+              onDragOver={(e) => {
+                if (!dragId || !canNestOn(task.taskId)) return
+                e.preventDefault()
+                e.stopPropagation()
+                setDropTarget({ kind: 'nest', taskId: task.taskId })
+              }}
+              onDrop={(e) => {
+                if (!dragId || !canNestOn(task.taskId)) return
+                e.preventDefault()
+                e.stopPropagation()
+                onNestTask?.(dragId, task.taskId)
+                clearDrag()
+              }}
+            >
             <div
               className={`group flex items-stretch gap-0.5 text-left text-xs hover:bg-violet-50 dark:hover:bg-violet-950/30 ${
                 selected ? 'bg-violet-100/80 dark:bg-violet-950/40' : ''
-              } ${dropHighlight ? 'ring-2 ring-inset ring-violet-400' : ''}`}
+              } ${nestHighlight ? 'ring-2 ring-inset ring-violet-400 bg-violet-50/50 dark:bg-violet-950/20' : ''}`}
               style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
               onContextMenu={
                 canWrite
@@ -275,10 +365,7 @@ export function Et2TaskList({
                     setDragId(task.taskId)
                     e.dataTransfer.effectAllowed = 'move'
                   }}
-                  onDragEnd={() => {
-                    setDragId(null)
-                    setDropTargetId(null)
-                  }}
+                  onDragEnd={clearDrag}
                 >
                   <GripVertical className="h-3.5 w-3.5" />
                 </span>
@@ -354,7 +441,26 @@ export function Et2TaskList({
                 </button>
               )}
             </div>
+            {nestHighlight && (
+              <p className="px-3 pb-1 text-[9px] text-violet-700 dark:text-violet-300">
+                Als Unteraufgabe von „{task.title}“
+              </p>
+            )}
           </li>
+            {canWrite && dragId && onReorderTask && canReorderAt(task.taskId) && (
+              <TaskDropGap
+                depth={depth}
+                active={activeKey === afterKey}
+                label="Hier einfügen (gleiche Ebene)"
+                onActivate={() => setDropTarget({ kind: 'after', taskId: task.taskId })}
+                onDrop={() => {
+                  if (!dragId) return
+                  onReorderTask(dragId, task.taskId, 'after')
+                  clearDrag()
+                }}
+              />
+            )}
+          </Fragment>
         )
       })}
       {menuTaskId &&

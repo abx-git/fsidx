@@ -153,7 +153,11 @@ export function TskDetailPanel({
         </p>
       )}
 
-      <div className="flex min-h-0 flex-[0_1_40%] flex-col overflow-y-auto border-b border-zinc-200 dark:border-zinc-800">
+      <div
+        className={`flex min-h-0 flex-col overflow-y-auto border-b border-zinc-200 dark:border-zinc-800 ${
+          detailExpanded ? 'max-h-[30vh] shrink-0 flex-[0_0_auto]' : 'flex-[0_1_40%]'
+        }`}
+      >
         {loading ? (
           <p className="flex items-center gap-2 px-3 py-4 text-xs text-zinc-500">
             <Loader2 className="h-3 w-3 animate-spin" /> Laden…
@@ -208,8 +212,8 @@ export function TskDetailPanel({
           </p>
         ) : (
           <>
-            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-3 py-1 dark:border-zinc-800">
-              <span className="text-[10px] font-medium text-zinc-500">Detailansicht</span>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-2 py-0.5 dark:border-zinc-800">
+              <span className="text-[10px] font-medium text-zinc-500">Detail</span>
               <button
                 type="button"
                 className="text-[10px] text-blue-700 hover:underline dark:text-blue-300"

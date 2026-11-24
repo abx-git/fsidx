@@ -22,6 +22,11 @@ const EXT_HINTS: Record<string, string> = {
   mp3: 'audio/mpeg',
   mp4: 'video/mp4',
   zip: 'application/zip',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  odt: 'application/vnd.oasis.opendocument.text',
+  odp: 'application/vnd.oasis.opendocument.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
 }
 
 export function extensionFromName(name: string): string | undefined {

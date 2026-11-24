@@ -11,7 +11,7 @@ A **browser-only** single-page app that indexes every file in a folder you choos
    - **`stats`**: file count, folder count, total bytes, max depth.
 3. You browse via tree + breadcrumbs, search across paths and names, inspect per-node metadata, and **export/import** the full manifest as JSON.
 4. **Double-click `.md` files**: **Ansicht** (gerendertes Markdown) or **Bearbeiten** (Textarea with formatting toolbar). Autosave when the folder is writable.
-5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, Datei-Info. Doppelklick öffnet den Standard-Viewer für den Typ. **Markdown-Dateien** wie oben; Aufgaben-Beschreibungen nutzen dieselbe Formatierleiste. Bilder: `![](bild.png)` und `![[bild.png]]` im **gleichen Ordner** wie die `.md` bzw. `.tsk.json`.
+5. **Rechtsklick auf eine Datei** → **„Öffnen mit“**: je nach Typ u. a. Markdown, Bild, PDF, Audio/Video, JSON/Text, **Tabellen (ODS/XLS/XLSX)**, **OpenDocument (ODT/ODP)**, Datei-Info. Doppelklick öffnet den Standard-Viewer. ODS/Excel: Tabellen-Vorschau (SheetJS); ODT/ODP: vereinfachte Text-/Folienvorschau (kein LibreOffice-Layout). `.odb` nur Hinweis. **Markdown** wie oben; Bilder: `![](bild.png)` und `![[bild.png]]` im **gleichen Ordner** wie die `.md` bzw. `.tsk.json`.
 6. **Metadaten-JSON** weiterhin im Kontextmenü: Sidecar `datei.json` mit Schema-Editor (`file-metadata.v1`).
 7. **Aufgaben als Dateien** (`*.tsk.json`, Format `et2-tasks-v1`): beliebig viele Dateien pro Ordner, **ohne** `.et2/`. Links Baum, Mitte Dateiliste, rechts ET2-ähnliche Aufgabenliste + Detailfelder. Legacy `.et2/` bleibt lesbar.
 

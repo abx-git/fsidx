@@ -1,5 +1,6 @@
 import { extensionFromName } from './mime-hint'
 import { isMarkdownPath } from './file-sources'
+import { isOpenDocumentTextExtension, isSpreadsheetExtension } from './open-document-preview'
 
 export type FileViewerKind =
   | 'markdown'
@@ -10,6 +11,8 @@ export type FileViewerKind =
   | 'pdf'
   | 'audio'
   | 'video'
+  | 'spreadsheet'
+  | 'opendocument'
   | 'binary'
 
 export interface ViewerMenuOption {
@@ -69,6 +72,8 @@ const MENU_LABELS: Record<FileViewerKind, string> = {
   pdf: 'PDF',
   audio: 'Audio abspielen',
   video: 'Video abspielen',
+  spreadsheet: 'Tabelle (ODS / Excel)',
+  opendocument: 'OpenDocument (Text / Folien)',
   binary: 'Datei-Info & Download',
 }
 
@@ -86,6 +91,8 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
   if (PDF.has(e)) kinds.add('pdf')
   if (AUDIO.has(e)) kinds.add('audio')
   if (VIDEO.has(e)) kinds.add('video')
+  if (isSpreadsheetExtension(e)) kinds.add('spreadsheet')
+  if (isOpenDocumentTextExtension(e)) kinds.add('opendocument')
   if (JSON_EXT.has(e)) {
     kinds.add('json')
     kinds.add('text')
@@ -103,6 +110,8 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
     'audio',
     'json',
     'text',
+    'spreadsheet',
+    'opendocument',
     'binary',
   ]
 
@@ -121,5 +130,7 @@ export function defaultViewerForFile(path: string, ext?: string): FileViewerKind
   if (AUDIO.has(e)) return 'audio'
   if (JSON_EXT.has(e)) return 'json'
   if (TEXT.has(e)) return 'text'
+  if (isSpreadsheetExtension(e)) return 'spreadsheet'
+  if (isOpenDocumentTextExtension(e)) return 'opendocument'
   return 'binary'
 }

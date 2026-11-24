@@ -9,6 +9,8 @@ import { MediaViewer } from './MediaViewer'
 import { PdfViewer } from './PdfViewer'
 import { BinaryViewer } from './BinaryViewer'
 import { DiagramViewer } from './DiagramViewer'
+import { SpreadsheetViewer } from './SpreadsheetViewer'
+import { OpenDocumentViewer } from './OpenDocumentViewer'
 
 export interface FileViewTarget {
   viewer: FileViewerKind
@@ -161,6 +163,26 @@ export function FileViewerRouter({
           text={textState.text}
           loading={textState.loading}
           error={textState.error}
+          onClose={onClose}
+          showBackButton={showBackButton}
+        />
+      )
+    case 'spreadsheet':
+      return (
+        <SpreadsheetViewer
+          fileName={target.name}
+          filePath={target.path}
+          fileSources={fileSources}
+          onClose={onClose}
+          showBackButton={showBackButton}
+        />
+      )
+    case 'opendocument':
+      return (
+        <OpenDocumentViewer
+          fileName={target.name}
+          filePath={target.path}
+          fileSources={fileSources}
           onClose={onClose}
           showBackButton={showBackButton}
         />

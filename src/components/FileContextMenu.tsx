@@ -2,6 +2,8 @@ import {
   Copy,
   Eye,
   FileJson,
+  FileSpreadsheet,
+  FileType,
   FileText,
   FolderOpen,
   FolderPlus,
@@ -39,6 +41,8 @@ const VIEWER_ICONS: Partial<Record<FileViewerKind, LucideIcon>> = {
   pdf: Eye,
   audio: Eye,
   video: Eye,
+  spreadsheet: FileSpreadsheet,
+  opendocument: FileType,
   binary: Eye,
 }
 

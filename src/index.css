@@ -218,3 +218,8 @@ body {
 .metadata-form button[type='submit'] {
   display: none;
 }
+
+.office-preview-table td:empty::after {
+  content: '\00a0';
+  color: transparent;
+}

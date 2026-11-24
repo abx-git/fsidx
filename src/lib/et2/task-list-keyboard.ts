@@ -42,9 +42,11 @@ export type Et2MindmapKeyContext = {
   onIndent?: (taskId: string) => void
   onOutdent?: (taskId: string) => void
   onNavigate?: (direction: 'up' | 'down') => void
+  editingInline?: boolean
+  onEndInlineEdit?: () => void
 }
 
-/** Mindmap-Kürzel: Enter = Geschwister, Tab = Unteraufgabe, Shift+Pfeile = Reihenfolge/Einrückung. */
+/** Mindmap-Kürzel: Shift+Enter = Geschwister, Enter = Schnell-Edit beenden, Tab = Unteraufgabe. */
 type KeyLike = Pick<KeyboardEvent, 'key' | 'code' | 'shiftKey' | 'altKey' | 'ctrlKey' | 'metaKey'> & {
   preventDefault?: () => void
   stopPropagation?: () => void
@@ -61,10 +63,20 @@ export function handleEt2MindmapListKey(e: KeyLike, ctx: Et2MindmapKeyContext): 
     return true
   }
 
-  if (e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === 'Enter' && e.shiftKey) {
     e.preventDefault?.()
+    if (ctx.editingInline) ctx.onEndInlineEdit?.()
     ctx.onSibling?.(taskId)
     return true
+  }
+
+  if (e.key === 'Enter' && !e.shiftKey) {
+    if (ctx.editingInline) {
+      e.preventDefault?.()
+      ctx.onEndInlineEdit?.()
+      return true
+    }
+    return false
   }
 
   if (!e.shiftKey || !isArrowKey(e)) return false

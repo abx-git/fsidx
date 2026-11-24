@@ -247,6 +247,11 @@ export function Et2TaskList({
     [visible, selectedTaskRef, onSelectTask, focusList],
   )
 
+  const endInlineEdit = useCallback(() => {
+    setEditingTaskId(null)
+    window.requestAnimationFrame(() => focusList())
+  }, [focusList])
+
   const mindmapKeyCtx = useMemo(
     () => ({
       taskId: selectedTaskId,
@@ -257,6 +262,8 @@ export function Et2TaskList({
       onIndent: onIndentTask,
       onOutdent: onOutdentTask,
       onNavigate: navigateVisible,
+      editingInline: Boolean(editingTaskId && editingTaskId === selectedTaskId),
+      onEndInlineEdit: endInlineEdit,
     }),
     [
       selectedTaskId,
@@ -267,6 +274,8 @@ export function Et2TaskList({
       onIndentTask,
       onOutdentTask,
       navigateVisible,
+      editingTaskId,
+      endInlineEdit,
     ],
   )
 

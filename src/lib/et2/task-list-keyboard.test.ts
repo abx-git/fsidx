@@ -21,11 +21,31 @@ describe('handleEt2MindmapListKey', () => {
     expect(onSubtask).toHaveBeenCalledWith('t1')
   })
 
-  it('Enter legt Geschwister an', () => {
+  it('Shift+Enter legt Geschwister an', () => {
     const onSibling = vi.fn()
-    const e = { key: 'Enter', code: 'Enter', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, preventDefault: vi.fn() }
+    const e = { key: 'Enter', code: 'Enter', shiftKey: true, altKey: false, ctrlKey: false, metaKey: false, preventDefault: vi.fn() }
     handleEt2MindmapListKey(e, { ...base, onSibling, onSubtask: vi.fn(), onMoveSibling: vi.fn(), onIndent: vi.fn(), onOutdent: vi.fn() })
     expect(onSibling).toHaveBeenCalledWith('t1')
+  })
+
+  it('Enter beendet Schnell-Edit ohne Geschwister', () => {
+    const onSibling = vi.fn()
+    const onEnd = vi.fn()
+    const e = { key: 'Enter', code: 'Enter', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, preventDefault: vi.fn() }
+    expect(
+      handleEt2MindmapListKey(e, {
+        ...base,
+        editingInline: true,
+        onEndInlineEdit: onEnd,
+        onSibling,
+        onSubtask: vi.fn(),
+        onMoveSibling: vi.fn(),
+        onIndent: vi.fn(),
+        onOutdent: vi.fn(),
+      }),
+    ).toBe(true)
+    expect(onEnd).toHaveBeenCalled()
+    expect(onSibling).not.toHaveBeenCalled()
   })
 
   it('Shift+Pfeile sortiert und rückt ein', () => {

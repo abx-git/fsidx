@@ -144,7 +144,8 @@ export function TskDetailPanel({
         {canWrite && (
           <p className="mt-1 text-[10px] text-zinc-500">
             Ein Klick = Auswahl · Doppelklick = Titel bearbeiten · Shift+Klick oder ⋯ =
-            Detailansicht · Enter Geschwister · Tab Unteraufgabe · Shift+Pfeile · ↑↓ Auswahl
+            Detailansicht · Enter = Edit beenden · Shift+Enter Geschwister · Tab Unteraufgabe ·
+            Shift+Pfeile · ↑↓ Auswahl
           </p>
         )}
       </div>

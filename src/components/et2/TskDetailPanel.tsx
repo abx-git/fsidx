@@ -4,6 +4,7 @@ import type { Et2TaskSummary } from '../../types/et2-task'
 import type { FileSourceStore } from '../../lib/file-sources'
 import type { Et2EffortUnit, Et2TaskStatus } from '../../types/et2-tasks-bundle'
 import { Et2TaskList } from './Et2TaskList'
+import { Et2TaskListHelp } from './Et2TaskListHelp'
 import { Et2TaskDetailForm } from './Et2TaskDetailForm'
 
 interface TskDetailPanelProps {
@@ -122,17 +123,20 @@ export function TskDetailPanel({
               Aufgaben · {fileName}
             </span>
           </p>
-          {canWrite && onRenameTskFile && (
-            <button
-              type="button"
-              title="Datei umbenennen"
-              onClick={onRenameTskFile}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-200 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/50"
-            >
-              <Pencil className="h-3 w-3" />
-              Umbenennen
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <Et2TaskListHelp canWrite={canWrite} />
+            {canWrite && onRenameTskFile && (
+              <button
+                type="button"
+                title="Datei umbenennen"
+                onClick={onRenameTskFile}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-200 px-2 py-0.5 text-[10px] font-medium text-violet-800 hover:bg-violet-100 dark:border-violet-800 dark:text-violet-200 dark:hover:bg-violet-950/50"
+              >
+                <Pencil className="h-3 w-3" />
+                Umbenennen
+              </button>
+            )}
+          </div>
         </div>
         <p
           className="mt-1 h-4 overflow-hidden text-[10px] leading-4 text-zinc-500"
@@ -141,13 +145,6 @@ export function TskDetailPanel({
         >
           {editorSaving ? 'Speichern…' : editorDirty ? 'Änderungen ausstehend…' : null}
         </p>
-        {canWrite && (
-          <p className="mt-1 text-[10px] text-zinc-500">
-            Ein Klick = Auswahl · Doppelklick = Titel bearbeiten · Shift+Klick oder ⋯ =
-            Detailansicht · Enter = Edit beenden · Shift+Enter Geschwister · Tab Unteraufgabe ·
-            Shift+Pfeile · ↑↓ Auswahl
-          </p>
-        )}
       </div>
 
       {loadError && (

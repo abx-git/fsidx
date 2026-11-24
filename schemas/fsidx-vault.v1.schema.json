@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/fsidx-vault.v1.schema.json",
+  "title": "fsidx encrypted vault folder marker",
+  "type": "object",
+  "required": ["format", "version", "crypto"],
+  "properties": {
+    "format": { "const": "fsidx-vault-v1" },
+    "version": { "const": 1 },
+    "crypto": { "const": "encrypted-vault-v1" },
+    "title": { "type": "string" }
+  },
+  "additionalProperties": false
+}

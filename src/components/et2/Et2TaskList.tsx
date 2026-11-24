@@ -24,6 +24,7 @@ import {
   shouldHandleEt2TaskListShortcuts,
 } from '../../lib/et2/task-list-keyboard'
 import { taskRefFromPath } from '../../lib/et2/paths'
+import { useClampedMenuPosition } from '../../hooks/useClampedMenuPosition'
 import type { Et2TaskRecord } from '../../types/et2-tasks-bundle'
 
 const COLLAPSE_KEY = 'fsidx.tskCollapsed'
@@ -169,6 +170,11 @@ export function Et2TaskList({
   /** Inline-Titel nur bei Doppelklick oder neuer Aufgabe (titleFocusTick). */
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuAnchor = useMemo(
+    () => (menuPos ? { x: menuPos.left, y: menuPos.top } : null),
+    [menuPos],
+  )
+  const clampedMenuPos = useClampedMenuPosition(menuRef, menuAnchor, [menuTaskId])
   const listRef = useRef<HTMLUListElement>(null)
   const listFocusRef = useRef<HTMLDivElement>(null)
   const inlineInputRef = useRef<HTMLInputElement>(null)
@@ -603,7 +609,10 @@ export function Et2TaskList({
             role="menu"
             data-et2-task-list-menu
             className={rowMenuClass}
-            style={{ top: menuPos.top, left: menuPos.left }}
+            style={{
+              top: clampedMenuPos?.top ?? menuPos.top,
+              left: clampedMenuPos?.left ?? menuPos.left,
+            }}
           >
             <button
               type="button"

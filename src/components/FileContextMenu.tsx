@@ -13,7 +13,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition'
 import {
   viewerOptionsForFile,
   type FileViewerKind,
@@ -102,14 +103,25 @@ export function FileContextMenu({
     }
   }, [target, onClose])
 
+  const anchor = useMemo(
+    () => (target ? { x: target.x, y: target.y } : null),
+    [target],
+  )
+  const menuPos = useClampedMenuPosition(ref, anchor, [target?.id, target?.kind])
+
   if (!target) return null
+
+  const menuStyle = {
+    left: menuPos?.left ?? target.x,
+    top: menuPos?.top ?? target.y,
+  }
 
   if (target.kind === 'directory') {
     return (
       <div
         ref={ref}
         className="fixed z-50 min-w-[260px] max-w-[min(320px,90vw)] rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-        style={{ left: target.x, top: target.y }}
+        style={menuStyle}
         role="menu"
       >
         <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={target.path}>
@@ -250,7 +262,7 @@ export function FileContextMenu({
     <div
       ref={ref}
       className="fixed z-50 min-w-[260px] max-w-[min(320px,90vw)] rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-      style={{ left: target.x, top: target.y }}
+      style={menuStyle}
       role="menu"
     >
       <p className="truncate px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-100" title={fullPath}>

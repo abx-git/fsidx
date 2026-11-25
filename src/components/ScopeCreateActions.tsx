@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FolderPlus, Link2, PenLine, Shield } from 'lucide-react'
+import { CheckSquare, FileText, FolderPlus, LayoutGrid, Link2, PenLine, Shield } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface ScopeCreateActionsProps {
@@ -8,6 +8,7 @@ interface ScopeCreateActionsProps {
   onNewTskFile?: () => void
   onNewLinkFile?: () => void
   onNewDrawioFile?: () => void
+  onNewE2Board?: () => void
   onNewVaultFolder?: () => void
   compact?: boolean
   /** Optional extra chips after Markdown (e.g. header “Neue Aufgaben-Datei”). */
@@ -21,6 +22,7 @@ export function ScopeCreateActions({
   onNewTskFile,
   onNewLinkFile,
   onNewDrawioFile,
+  onNewE2Board,
   onNewVaultFolder,
   compact,
   extra,
@@ -65,6 +67,18 @@ export function ScopeCreateActions({
           aria-label="draw.io"
         >
           <PenLine className="h-4 w-4" />
+        </button>
+      )}
+      {onNewE2Board && (
+        <button
+          type="button"
+          disabled={!canWrite}
+          onClick={onNewE2Board}
+          className={iconBtn}
+          title="Neues E2-Board (*.e2.json) — Event Storming / DDD"
+          aria-label="E2-Board"
+        >
+          <LayoutGrid className="h-4 w-4" />
         </button>
       )}
       {extra}

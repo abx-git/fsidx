@@ -53,11 +53,18 @@ projekt/phase/
 - **Panel verbreitern** (bis ca. 92 % der Fensterbreite) und **Vollbild** über die ganze App (Esc oder „Vollbild aus“ beendet). **Vorschau** (Viewer/Markdown) nutzt den chromeless-Modus von diagrams.net **ohne** deren Toolbar; in der angehefteten Seitenleiste zusätzlich ohne fsidx-Vorschau-Kopf.
 - Unterstützte Endungen: `.drawio`, `.dio`, `.drawio.xml`.
 
+### E2 Domänenmodell (`*.e2.json`)
+
+- **[E2](https://github.com/abx-git/E2)** (Event Storming, DDD, BDD, …) — **nicht** dasselbe wie **ET2** (Aufgaben / `*.tsk.json`).
+- Anlegen: **Anlegen → E2-Board**; Bearbeitung in der Seitenleiste über eingebettetes **E2** (`/embed/`) inkl. Autosave in die Ordner-Datei (Netzwerk nötig; Host-Protokoll v1 ab E2 **0.2.3**).
+- Beliebig viele `.e2.json` pro Ordner; Wechsel zwischen Dateien speichert die vorherige Datei per `postMessage` (analog draw.io).
+- Optional: `VITE_E2_EMBED_ORIGIN` (Default `https://abx-git.github.io/E2`) für eine andere E2-Instanz.
+
 ### Scope (Teilbaum)
 
 Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. In der Kopfzeile filtert **Nur Aufgaben** die Suche auf ET2-Aufgabentitel. Am Ordner-Kontextmenü erzeugt **Aufgabenübersicht (Unterbaum)** eine lesende Gesamtliste aller Aufgaben im Unterbaum (Bearbeitung weiterhin in den jeweiligen `*.tsk.json`). Mit Schreibzugriff lassen sich **Dateien und Ordner aus der Mitte per Drag & Drop auf einen Ordner im linken Baum** verschieben (inkl. Unterbaum, Metadaten-Sidecar `.json` und Tresor-Marker; nicht in sich selbst oder in Unterordner). Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
-Mit **Schreibzugriff** legst du **Ordner**, **Markdown**, **draw.io**, **Web-Link** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
+Mit **Schreibzugriff** legst du **Ordner**, **Markdown**, **draw.io**, **E2-Board**, **Web-Link** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 
 ### Verschlüsselter Tresor (Vault)
 

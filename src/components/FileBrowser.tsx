@@ -1,5 +1,6 @@
-import { Folder, File, FileJson, Link2, ListTodo, Lock, PenLine, Shield } from 'lucide-react'
+import { Folder, File, FileJson, LayoutGrid, Link2, ListTodo, Lock, PenLine, Shield } from 'lucide-react'
 import { isDrawioPath } from '../lib/drawio'
+import { isE2JsonPath } from '../lib/e2/e2-board-paths'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isLinkJsonPath } from '../lib/link/link-paths'
 import type { IndexEntry, IndexNode } from '../types'
@@ -43,6 +44,7 @@ interface FileBrowserProps {
   onNewTskFile?: () => void
   onNewLinkFile?: () => void
   onNewDrawioFile?: () => void
+  onNewE2Board?: () => void
   onNewVaultFolder?: () => void
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
@@ -80,6 +82,7 @@ export function FileBrowser({
   onNewTskFile,
   onNewLinkFile,
   onNewDrawioFile,
+  onNewE2Board,
   onNewVaultFolder,
   vaultRoots = [],
   onUnlockVault,
@@ -142,6 +145,7 @@ export function FileBrowser({
             onNewTskFile={onNewTskFile}
             onNewLinkFile={onNewLinkFile}
             onNewDrawioFile={onNewDrawioFile}
+            onNewE2Board={onNewE2Board}
             onNewVaultFolder={onNewVaultFolder}
           />
         )}
@@ -278,6 +282,8 @@ export function FileBrowser({
                     <Link2 className="h-4 w-4 shrink-0 text-violet-700" />
                   ) : isDrawioPath(row.path) ? (
                     <PenLine className="h-4 w-4 shrink-0 text-orange-700" />
+                  ) : isE2JsonPath(row.path) ? (
+                    <LayoutGrid className="h-4 w-4 shrink-0 text-violet-700" />
                   ) : (
                     <File className="h-4 w-4 shrink-0 text-sky-500" />
                   )}

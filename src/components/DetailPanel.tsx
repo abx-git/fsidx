@@ -27,6 +27,8 @@ interface DetailPanelProps {
   onMetadataVisibleChange: (value: boolean) => void
   drawioDetailSlot?: ReactNode
   drawioFullscreen?: boolean
+  e2DetailSlot?: ReactNode
+  e2Fullscreen?: boolean
 }
 
 export function DetailPanel({
@@ -50,26 +52,36 @@ export function DetailPanel({
   onMetadataVisibleChange,
   drawioDetailSlot,
   drawioFullscreen = false,
+  e2DetailSlot,
+  e2Fullscreen = false,
 }: DetailPanelProps) {
-  const showViewer = viewerPinned && viewerSlot && !drawioFullscreen
-  const showAggregateTasks = Boolean(aggregateTaskSlot) && !drawioFullscreen
+  const detailFullscreen = drawioFullscreen || e2Fullscreen
+  const showViewer = viewerPinned && viewerSlot && !detailFullscreen
+  const showAggregateTasks = Boolean(aggregateTaskSlot) && !detailFullscreen
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLinkDetail = Boolean(linkDetailSlot) && !showAggregateTasks && !showTskDetail
+  const showE2Detail =
+    Boolean(e2DetailSlot) && !showAggregateTasks && !showTskDetail && !showLinkDetail
   const showDrawioDetail =
-    Boolean(drawioDetailSlot) && !showAggregateTasks && !showTskDetail && !showLinkDetail
-  const showLegacyNotice = Boolean(legacyNoticeSlot) && !showDrawioDetail
+    Boolean(drawioDetailSlot) &&
+    !showAggregateTasks &&
+    !showTskDetail &&
+    !showLinkDetail &&
+    !showE2Detail
+  const showLegacyNotice = Boolean(legacyNoticeSlot) && !showDrawioDetail && !showE2Detail
   const showFileMetadata =
     metadataVisible &&
     !showViewer &&
     !showTskDetail &&
     !showLinkDetail &&
     !showDrawioDetail &&
+    !showE2Detail &&
     !showLegacyNotice &&
-    !drawioFullscreen
+    !detailFullscreen
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
-      {onSidebarWidthChange && !drawioFullscreen && (
+      {onSidebarWidthChange && !detailFullscreen && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}
           maxWidth={sidebarMaxWidth}
@@ -78,7 +90,7 @@ export function DetailPanel({
         />
       )}
 
-      {!drawioFullscreen && (
+      {!detailFullscreen && (
       <div className="shrink-0 border-b border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
         <CollapsibleSection summary="Seitenleiste einstellen" className="px-1">
           <div className="space-y-1.5 pb-1">
@@ -136,6 +148,20 @@ export function DetailPanel({
             }
           >
             {drawioDetailSlot}
+          </div>
+        )}
+        {showE2Detail && e2Fullscreen && (
+          <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-zinc-500">
+            E2-Board im Vollbild (Esc oder „Vollbild aus“ zum Beenden).
+          </p>
+        )}
+        {showE2Detail && (
+          <div
+            className={
+              e2Fullscreen ? 'hidden' : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+            }
+          >
+            {e2DetailSlot}
           </div>
         )}
 
@@ -196,6 +222,7 @@ export function DetailPanel({
         {!showTskDetail &&
           !showLinkDetail &&
           !showDrawioDetail &&
+          !showE2Detail &&
           !showLegacyNotice &&
           !showFileMetadata &&
           !showViewer && (

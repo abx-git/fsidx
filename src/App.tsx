@@ -60,10 +60,14 @@ import { useTskFile } from './hooks/useTskFile'
 import { useLinkFile } from './hooks/useLinkFile'
 import { LinkDetailPanel } from './components/link/LinkDetailPanel'
 import { DrawioDetailPanel } from './components/drawio/DrawioDetailPanel'
+import { E2DetailPanel } from './components/e2/E2DetailPanel'
 import { isLinkJsonPath } from './lib/link/link-paths'
 import { isDrawioPath } from './lib/drawio'
 import { createDrawioInScope } from './lib/drawio/create-drawio'
 import { useDrawioFile } from './hooks/useDrawioFile'
+import { isE2JsonPath } from './lib/e2/e2-board-paths'
+import { createE2BoardInScope } from './lib/e2/create-e2-board'
+import { useE2File } from './hooks/useE2File'
 import {
   createNewLinkFile,
   normalizeLinkUrl,
@@ -165,6 +169,10 @@ function App() {
   const [drawioSaving, setDrawioSaving] = useState(false)
   const [drawioSaveError, setDrawioSaveError] = useState<string | null>(null)
   const drawioSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [e2DetailFullscreen, setE2DetailFullscreen] = useState(false)
+  const [e2Saving, setE2Saving] = useState(false)
+  const [e2SaveError, setE2SaveError] = useState<string | null>(null)
+  const e2SaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -175,7 +183,8 @@ function App() {
     if (
       isTskJsonPath(selectedNode.path) ||
       isTaskFilePath(selectedNode.path) ||
-      isDrawioPath(selectedNode.path)
+      isDrawioPath(selectedNode.path) ||
+      isE2JsonPath(selectedNode.path)
     ) {
       setFileView(null)
       return
@@ -284,6 +293,11 @@ function App() {
     return selectedNode.path
   }, [selectedNode])
 
+  const activeE2Path = useMemo(() => {
+    if (selectedNode?.kind !== 'file' || !isE2JsonPath(selectedNode.path)) return null
+    return selectedNode.path
+  }, [selectedNode])
+
   const isLegacyTaskFile = useMemo(
     () => selectedNode?.kind === 'file' && isTaskFilePath(selectedNode.path),
     [selectedNode],
@@ -292,6 +306,7 @@ function App() {
   const tskFile = useTskFile(activeTskPath, fileSources)
   const linkFile = useLinkFile(activeLinkPath, fileSources)
   const drawioFile = useDrawioFile(activeDrawioPath, fileSources)
+  const e2File = useE2File(activeE2Path, fileSources)
   const [linkDraft, setLinkDraft] = useState<FsidxLinkFile | null>(null)
   const [linkSaving, setLinkSaving] = useState(false)
   const [linkSaveError, setLinkSaveError] = useState<string | null>(null)
@@ -665,8 +680,8 @@ function App() {
   ])
 
   const sidebarMaxWidthEffective = useMemo(
-    () => (activeDrawioPath ? maxWidthForDrawio() : sidebarMaxWidth),
-    [activeDrawioPath, maxWidthForDrawio, sidebarMaxWidth],
+    () => (activeDrawioPath || activeE2Path ? maxWidthForDrawio() : sidebarMaxWidth),
+    [activeDrawioPath, activeE2Path, maxWidthForDrawio, sidebarMaxWidth],
   )
 
   const handleWidenDrawioPanel = useCallback(() => {
@@ -682,6 +697,10 @@ function App() {
   }, [activeDrawioPath])
 
   useEffect(() => {
+    if (!activeE2Path) setE2DetailFullscreen(false)
+  }, [activeE2Path])
+
+  useEffect(() => {
     if (!drawioDetailFullscreen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setDrawioDetailFullscreen(false)
@@ -694,6 +713,20 @@ function App() {
       document.body.style.overflow = prevOverflow
     }
   }, [drawioDetailFullscreen])
+
+  useEffect(() => {
+    if (!e2DetailFullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setE2DetailFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [e2DetailFullscreen])
 
   const persistDrawioXml = useCallback(
     async (xml: string, drawioPath: string) => {
@@ -733,6 +766,50 @@ function App() {
     [activeDrawioPath, canWrite, drawioFile, persistDrawioXml],
   )
 
+  const persistE2Json = useCallback(
+    async (json: string, e2Path: string) => {
+      if (!fileSources || !canWrite) return
+      const name = e2Path.split('/').pop() ?? e2Path
+      await writeTextToStore(fileSources, e2Path, json)
+      registerSidecarFile({
+        relativePath: e2Path,
+        name,
+        kind: 'file',
+        size: new Blob([json]).size,
+        lastModified: Date.now(),
+      })
+    },
+    [fileSources, canWrite, registerSidecarFile],
+  )
+
+  const handleE2JsonChange = useCallback(
+    (json: string, hostFileId: string, reason: 'autosave' | 'flush' = 'autosave') => {
+      if (!activeE2Path || !canWrite || hostFileId !== activeE2Path) return
+      e2File.setJson(json)
+      setE2SaveError(null)
+      const save = () => {
+        void (async () => {
+          setE2Saving(true)
+          try {
+            await persistE2Json(json, activeE2Path)
+          } catch (err) {
+            setE2SaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
+          } finally {
+            setE2Saving(false)
+          }
+        })()
+      }
+      if (reason === 'flush') {
+        if (e2SaveTimerRef.current) clearTimeout(e2SaveTimerRef.current)
+        save()
+        return
+      }
+      if (e2SaveTimerRef.current) clearTimeout(e2SaveTimerRef.current)
+      e2SaveTimerRef.current = setTimeout(save, 700)
+    },
+    [activeE2Path, canWrite, e2File, persistE2Json],
+  )
+
   const handleNewDrawioFile = useCallback(
     async (parentPath: string) => {
       if (!fileSources || !canWrite) {
@@ -758,6 +835,46 @@ function App() {
         if (newId) handleSelectEntry(newId)
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Diagramm konnte nicht angelegt werden')
+      }
+    },
+    [
+      fileSources,
+      canWrite,
+      indexedPathList,
+      registerSidecarFile,
+      navigateToPath,
+      handleSelectEntry,
+      maxWidthForDrawio,
+      setSidebarWidthPx,
+      sidebarWidthPx,
+    ],
+  )
+
+  const handleNewE2Board = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('E2-Board anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const nameInput = window.prompt('Dateiname:', 'Board.e2.json')
+      if (nameInput === null) return
+      try {
+        const { row } = await createE2BoardInScope(
+          fileSources,
+          parentPath,
+          nameInput.trim() || undefined,
+          indexedPathList,
+        )
+        const newId = registerSidecarFile(row)
+        navigateToPath(parentPath, null)
+        const widen = Math.min(
+          maxWidthForDrawio(),
+          Math.max(sidebarWidthPx, 720, Math.floor(window.innerWidth * 0.55)),
+        )
+        setSidebarWidthPx(widen, maxWidthForDrawio())
+        if (newId) handleSelectEntry(newId)
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'E2-Board konnte nicht angelegt werden')
       }
     },
     [
@@ -1517,6 +1634,7 @@ function App() {
       onNewTskFile={() => openNewEt2TaskWithDialog(currentPath)}
       onNewLinkFile={() => void handleNewLinkFile(currentPath)}
       onNewDrawioFile={() => void handleNewDrawioFile(currentPath)}
+      onNewE2Board={() => void handleNewE2Board(currentPath)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
       onLockVault={handleVaultLock}
@@ -1715,7 +1833,11 @@ function App() {
               ) : undefined
             }
             drawioDetailSlot={
-              activeDrawioPath && selectedNode && !activeTskPath && !activeLinkPath ? (
+              activeDrawioPath &&
+              selectedNode &&
+              !activeTskPath &&
+              !activeLinkPath &&
+              !activeE2Path ? (
                 <DrawioDetailPanel
                   filePath={activeDrawioPath}
                   fileName={selectedNode.name}
@@ -1733,6 +1855,29 @@ function App() {
               ) : undefined
             }
             drawioFullscreen={drawioDetailFullscreen}
+            e2DetailSlot={
+              activeE2Path &&
+              selectedNode &&
+              !activeTskPath &&
+              !activeLinkPath &&
+              !activeDrawioPath ? (
+                <E2DetailPanel
+                  filePath={activeE2Path}
+                  fileName={selectedNode.name}
+                  json={e2File.json}
+                  loading={e2File.loading}
+                  loadError={e2File.error}
+                  canWrite={canWrite}
+                  saving={e2Saving}
+                  saveError={e2SaveError}
+                  fullscreen={e2DetailFullscreen}
+                  onToggleFullscreen={() => setE2DetailFullscreen((v) => !v)}
+                  onJsonChange={handleE2JsonChange}
+                  onWidenPanel={handleWidenDrawioPanel}
+                />
+              ) : undefined
+            }
+            e2Fullscreen={e2DetailFullscreen}
             linkDetailSlot={
               activeLinkPath && selectedNode && !activeTskPath ? (
                 <LinkDetailPanel

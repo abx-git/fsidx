@@ -3,11 +3,13 @@ import { isMarkdownPath } from './file-sources'
 import { isOpenDocumentTextExtension, isSpreadsheetExtension } from './open-document-preview'
 import { isLinkJsonPath } from './link/link-paths'
 import { isDrawioPath } from './drawio'
+import { isE2JsonPath } from './e2/e2-board-paths'
 
 export type FileViewerKind =
   | 'markdown'
   | 'image'
   | 'diagram'
+  | 'e2-board'
   | 'text'
   | 'json'
   | 'link'
@@ -70,6 +72,7 @@ const MENU_LABELS: Record<FileViewerKind, string> = {
   markdown: 'Markdown (Lesen / Bearbeiten)',
   image: 'Bildvorschau',
   diagram: 'Diagramm (Mermaid / PlantUML / draw.io)',
+  'e2-board': 'E2 Domänenmodell (Event Storming / DDD)',
   text: 'Text / Quellcode',
   json: 'JSON (formatiert)',
   link: 'Web-Link (eingebettet)',
@@ -91,6 +94,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   if (isMarkdownPath(path)) kinds.add('markdown')
   if (IMAGE.has(e)) kinds.add('image')
+  if (isE2JsonPath(path)) kinds.add('e2-board')
   if (DIAGRAM.has(e) || isDrawioPath(path)) kinds.add('diagram')
   if (PDF.has(e)) kinds.add('pdf')
   if (AUDIO.has(e)) kinds.add('audio')
@@ -108,6 +112,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   const order: FileViewerKind[] = [
     'markdown',
+    'e2-board',
     'diagram',
     'image',
     'pdf',
@@ -129,6 +134,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 export function defaultViewerForFile(path: string, ext?: string): FileViewerKind {
   const e = fileExtension(path, ext)
   if (isMarkdownPath(path)) return 'markdown'
+  if (isE2JsonPath(path)) return 'e2-board'
   if (isDrawioPath(path)) return 'diagram'
   if (DIAGRAM.has(e)) return 'diagram'
   if (IMAGE.has(e)) return 'image'

@@ -13,6 +13,7 @@ import {
   sourceOffsetsForLineRange,
   type BlockEditSession,
 } from '../lib/markdown-block-edit'
+import { findPreviewBlockIndex, listPreviewBlocks } from '../lib/markdown-block-nav'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
 
@@ -68,6 +69,30 @@ export function MarkdownEditor({
   blockEditsRef.current = blockEdits
   const contentRef = useRef(content)
   contentRef.current = content
+  const undoStackRef = useRef<string[]>([])
+  const redoStackRef = useRef<string[]>([])
+  const undoBatchPendingRef = useRef(false)
+
+  const workingSource = useCallback(() => {
+    if (blockEditsRef.current.length === 0) return contentRef.current
+    return applyBlockEditsToSource(contentRef.current, blockEditsRef.current)
+  }, [])
+
+  const pushUndoSnapshot = useCallback(() => {
+    const snap = workingSource()
+    if (undoStackRef.current.at(-1) === snap) return
+    undoStackRef.current.push(snap)
+    if (undoStackRef.current.length > 100) undoStackRef.current.shift()
+    redoStackRef.current = []
+  }, [workingSource])
+
+  const flushPendingPersist = useCallback(() => {
+    if (!persistTimerRef.current) return
+    clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = null
+    onChange(applyBlockEditsToSource(contentRef.current, blockEditsRef.current))
+    undoBatchPendingRef.current = false
+  }, [onChange])
 
   useEffect(() => {
     if (blockEdits.length === 0) setPreviewContent(content)
@@ -98,14 +123,92 @@ export function MarkdownEditor({
       persistTimerRef.current = setTimeout(() => {
         persistTimerRef.current = null
         onChange(applyBlockEditsToSource(contentRef.current, sessions))
+        undoBatchPendingRef.current = false
       }, 400)
     },
     [onChange],
   )
 
+  const applyDocumentSnapshot = useCallback(
+    (source: string) => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
+      undoBatchPendingRef.current = false
+      setBlockEdits([])
+      blockEditsRef.current = []
+      setFocusBlockId(null)
+      onChange(source)
+      setPreviewContent(source)
+    },
+    [onChange],
+  )
+
+  const activatePreviewBlock = useCallback(
+    (startLine: number, endLine: number, focusAtStart: boolean) => {
+      const base = workingSource()
+      const text = getBlockSourceSlice(base, startLine, endLine)
+      const id = blockEditKey(startLine, endLine)
+      setBlockEdits((prev) => {
+        const exists = prev.find((s) => s.id === id)
+        const next = exists
+          ? prev.map((s) => (s.id === id ? { ...s, text: getBlockSourceSlice(base, s.startLine, s.endLine) } : s))
+          : [...prev, { id, startLine, endLine: endLine, text }]
+        blockEditsRef.current = next
+        return next
+      })
+      setFocusBlockId(id)
+      setFocusBlockAtStart(focusAtStart)
+    },
+    [workingSource],
+  )
+
+  const handleNavigateBlock = useCallback(
+    (sessionId: string, direction: 'prev' | 'next') => {
+      flushPendingPersist()
+      const article = previewArticleRef.current
+      const session = blockEditsRef.current.find((s) => s.id === sessionId)
+      if (!article || !session) return
+      const blocks = listPreviewBlocks(article)
+      const idx = findPreviewBlockIndex(blocks, session.startLine, session.endLine)
+      const nextIdx = direction === 'next' ? idx + 1 : idx - 1
+      if (idx < 0 || nextIdx < 0 || nextIdx >= blocks.length) return
+      const target = blocks[nextIdx]!
+      target.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      activatePreviewBlock(
+        target.startLine,
+        target.endLine,
+        direction === 'next',
+      )
+    },
+    [activatePreviewBlock, flushPendingPersist],
+  )
+
+  const handleBlockUndo = useCallback(() => {
+    flushPendingPersist()
+    if (undoStackRef.current.length < 2) return
+    const current = workingSource()
+    redoStackRef.current.push(current)
+    undoStackRef.current.pop()
+    const prev = undoStackRef.current.at(-1)
+    if (prev == null) return
+    applyDocumentSnapshot(prev)
+  }, [applyDocumentSnapshot, flushPendingPersist, workingSource])
+
+  const handleBlockRedo = useCallback(() => {
+    const next = redoStackRef.current.pop()
+    if (next == null) return
+    pushUndoSnapshot()
+    applyDocumentSnapshot(next)
+  }, [applyDocumentSnapshot, pushUndoSnapshot])
+
   useEffect(() => {
     setBlockEdits([])
     setEditFocus(null)
+    undoStackRef.current = []
+    redoStackRef.current = []
+    undoBatchPendingRef.current = false
   }, [filePath])
 
   useEffect(() => {
@@ -119,19 +222,24 @@ export function MarkdownEditor({
       if (!Number.isFinite(startLine) || startLine < 1) return
       const end = Number.isFinite(endLine) ? endLine : startLine
       const noInline = block.dataset.mdNoInlineEdit === '1'
-      const inlineOk = blockSourceIsInlineEditable(content, startLine, end)
+      const base = workingSource()
+      const inlineOk = blockSourceIsInlineEditable(base, startLine, end)
       setViewHighlightLine(null)
       if (noInline || !inlineOk) {
-        const { start, end: endOff } = sourceOffsetsForLineRange(content, startLine, end)
+        const { start, end: endOff } = sourceOffsetsForLineRange(contentRef.current, startLine, end)
         setBlockEdits([])
         setEditFocus({ start, end: endOff, line: startLine })
         onViewModeChange('edit')
         return
       }
-      const text = getBlockSourceSlice(content, startLine, end)
       const id = blockEditKey(startLine, end)
+      if (blockEditsRef.current.length === 0) {
+        undoStackRef.current = [contentRef.current]
+        redoStackRef.current = []
+      }
       setBlockEdits((prev) => {
         if (prev.some((s) => s.id === id)) return prev
+        const text = getBlockSourceSlice(base, startLine, end)
         const next = [...prev, { id, startLine, endLine: end, text }]
         blockEditsRef.current = next
         setPreviewContent(applyBlockEditsToSource(contentRef.current, next))
@@ -140,21 +248,27 @@ export function MarkdownEditor({
       setFocusBlockId(id)
       setFocusBlockAtStart(false)
     },
-    [content, onViewModeChange],
+    [onViewModeChange, workingSource],
   )
 
   const handleBlockChange = useCallback(
     (id: string, text: string) => {
+      if (!undoBatchPendingRef.current) {
+        pushUndoSnapshot()
+        undoBatchPendingRef.current = true
+      }
       blockEditsRef.current = blockEditsRef.current.map((s) =>
         s.id === id ? { ...s, text } : s,
       )
       scheduleBlockPersist(blockEditsRef.current)
     },
-    [scheduleBlockPersist],
+    [pushUndoSnapshot, scheduleBlockPersist],
   )
 
   const handleBlockSplit = useCallback(
     (id: string, cursor: number) => {
+      pushUndoSnapshot()
+      undoBatchPendingRef.current = false
       setBlockEdits((prev) => {
         const session = prev.find((s) => s.id === id)
         if (!session) return prev
@@ -173,7 +287,7 @@ export function MarkdownEditor({
         return nextSessions
       })
     },
-    [onChange],
+    [onChange, pushUndoSnapshot],
   )
 
   const handleBlockDismiss = useCallback(
@@ -381,8 +495,9 @@ export function MarkdownEditor({
           <p className="mx-auto max-w-3xl shrink-0 border-b border-sky-200/80 bg-sky-50/90 px-4 py-1.5 text-center text-[11px] leading-snug text-sky-950 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100">
             <span className="font-medium">Inline in der Vorschau:</span> Doppelklick auf einen Block —
             direkt dort tippen. <span className="font-medium">Enter</span> = neuer Absatz,{' '}
-            <span className="font-medium">Umschalt+Enter</span> = Zeilenumbruch im Block. Tab{' '}
-            <span className="font-medium">Quelltext</span> = ganze Datei.
+            <span className="font-medium">Umschalt+Enter</span> = Zeilenumbruch.{' '}
+            <span className="font-medium">Pfeiltasten</span> am Blockrand = nächster Block.{' '}
+            <span className="font-medium">Strg/Cmd+Z</span> = Undo.
           </p>
         )}
         {!loading && !error && viewMode === 'view' && (
@@ -417,6 +532,9 @@ export function MarkdownEditor({
                   focusBlockId={focusBlockId}
                   focusBlockAtStart={focusBlockAtStart}
                   onFocusBlockApplied={handleFocusBlockApplied}
+                  onNavigateBlock={handleNavigateBlock}
+                  onBlockUndo={handleBlockUndo}
+                  onBlockRedo={handleBlockRedo}
                 />
               ) : canWrite ? (
                 <p

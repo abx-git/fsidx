@@ -39,6 +39,10 @@ type BlockEditHandlers = {
   focusSessionId: string | null
   focusSessionAtStart: boolean
   onFocusSessionApplied: () => void
+  onNavigatePrev: (sessionId: string) => void
+  onNavigateNext: (sessionId: string) => void
+  onUndo: () => void
+  onRedo: () => void
 }
 
 function inlineFieldForSession(
@@ -58,6 +62,10 @@ function inlineFieldForSession(
       autoFocus={session.id === blockEdit.focusSessionId}
       focusAtStart={blockEdit.focusSessionAtStart && session.id === blockEdit.focusSessionId}
       onAutoFocusApplied={blockEdit.onFocusSessionApplied}
+      onNavigatePrev={() => blockEdit.onNavigatePrev(session.id)}
+      onNavigateNext={() => blockEdit.onNavigateNext(session.id)}
+      onUndo={blockEdit.onUndo}
+      onRedo={blockEdit.onRedo}
     />
   )
 }
@@ -391,6 +399,9 @@ export interface MarkdownContentProps {
   focusBlockId?: string | null
   focusBlockAtStart?: boolean
   onFocusBlockApplied?: () => void
+  onNavigateBlock?: (sessionId: string, direction: 'prev' | 'next') => void
+  onBlockUndo?: () => void
+  onBlockRedo?: () => void
 }
 
 export function MarkdownContent({
@@ -407,6 +418,9 @@ export function MarkdownContent({
   focusBlockId = null,
   focusBlockAtStart = false,
   onFocusBlockApplied,
+  onNavigateBlock,
+  onBlockUndo,
+  onBlockRedo,
 }: MarkdownContentProps) {
   const compact = className?.includes('cm-md-compact') ?? false
   const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
@@ -428,6 +442,10 @@ export function MarkdownContent({
       focusSessionId: focusBlockId,
       focusSessionAtStart: focusBlockAtStart,
       onFocusSessionApplied: onFocusBlockApplied ?? (() => {}),
+      onNavigatePrev: (sessionId) => onNavigateBlock?.(sessionId, 'prev'),
+      onNavigateNext: (sessionId) => onNavigateBlock?.(sessionId, 'next'),
+      onUndo: onBlockUndo ?? (() => {}),
+      onRedo: onBlockRedo ?? (() => {}),
     }
   }, [
     sessionLayoutKey,
@@ -438,6 +456,9 @@ export function MarkdownContent({
     focusBlockId,
     focusBlockAtStart,
     onFocusBlockApplied,
+    onNavigateBlock,
+    onBlockUndo,
+    onBlockRedo,
     blockEdits.length,
   ])
   const components = useMemo(

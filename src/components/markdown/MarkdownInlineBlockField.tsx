@@ -12,6 +12,10 @@ interface MarkdownInlineBlockFieldProps {
   autoFocus?: boolean
   focusAtStart?: boolean
   onAutoFocusApplied?: () => void
+  onNavigatePrev?: () => void
+  onNavigateNext?: () => void
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
 function MarkdownInlineBlockFieldInner({
@@ -26,6 +30,10 @@ function MarkdownInlineBlockFieldInner({
   autoFocus = false,
   focusAtStart = false,
   onAutoFocusApplied,
+  onNavigatePrev,
+  onNavigateNext,
+  onUndo,
+  onRedo,
 }: MarkdownInlineBlockFieldProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [localValue, setLocalValue] = useState(value)
@@ -73,6 +81,49 @@ function MarkdownInlineBlockFieldInner({
         onChange(next)
       }}
       onKeyDown={(e) => {
+        const mod = e.ctrlKey || e.metaKey
+        if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+          if (onUndo) {
+            e.preventDefault()
+            onUndo()
+          }
+          return
+        }
+        if (mod && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+          if (onRedo) {
+            e.preventDefault()
+            onRedo()
+          }
+          return
+        }
+        const pos = ref.current?.selectionStart ?? 0
+        const end = ref.current?.selectionEnd ?? pos
+        const atStart = pos === 0 && end === 0
+        const atEnd = pos === localValue.length && end === localValue.length
+        if (e.key === 'ArrowUp' && atStart) {
+          if (onNavigatePrev) {
+            e.preventDefault()
+            onNavigatePrev()
+          }
+          return
+        }
+        if (e.key === 'ArrowDown' && atEnd) {
+          if (onNavigateNext) {
+            e.preventDefault()
+            onNavigateNext()
+          }
+          return
+        }
+        if (e.key === 'ArrowLeft' && atStart && onNavigatePrev) {
+          e.preventDefault()
+          onNavigatePrev()
+          return
+        }
+        if (e.key === 'ArrowRight' && atEnd && onNavigateNext) {
+          e.preventDefault()
+          onNavigateNext()
+          return
+        }
         if (e.key === 'Escape') {
           e.preventDefault()
           onDismiss()
@@ -109,4 +160,5 @@ export const MarkdownInlineBlockField = memo(
     && prev.focusAtStart === next.focusAtStart
     && prev.variant === next.variant
     && prev.className === next.className,
+  // navigation/undo callbacks intentionally ignored (stable via editor)
 )

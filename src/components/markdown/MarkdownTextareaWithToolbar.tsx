@@ -55,9 +55,17 @@ export function MarkdownTextareaWithToolbar({
   const resize = useCallback(() => {
     const el = ref.current
     if (!el) return
+    const scrollParent = stickyToolbar ? scrollWrapRef.current : null
+    const savedParentScroll = scrollParent?.scrollTop ?? 0
+    const savedTextareaScroll = el.scrollTop
     el.style.height = 'auto'
     el.style.height = `${Math.max(el.scrollHeight, 120)}px`
-  }, [])
+    if (scrollParent) {
+      scrollParent.scrollTop = savedParentScroll
+    } else {
+      el.scrollTop = savedTextareaScroll
+    }
+  }, [stickyToolbar])
 
   useLayoutEffect(() => {
     resize()

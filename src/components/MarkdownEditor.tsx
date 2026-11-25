@@ -106,7 +106,7 @@ export function MarkdownEditor({
       cancelAnimationFrame(id)
       window.clearTimeout(t)
     }
-  }, [viewMode, viewHighlightLine, content])
+  }, [viewMode, viewHighlightLine])
 
   useEffect(() => {
     if (viewMode === 'edit') return

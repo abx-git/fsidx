@@ -21,6 +21,8 @@ export function useMarkdownDocument(
 ) {
   const onPersistedRef = useRef(options?.onPersisted)
   onPersistedRef.current = options?.onPersisted
+  /** Verhindert erneutes Lesen von der Platte bei gleicher Datei (z. B. neues fileSources-Objekt nach Index-Update). */
+  const loadedPathRef = useRef<string | null>(null)
   const [content, setContent] = useState('')
   const [viewMode, setViewMode] = useState<MarkdownViewMode>('view')
   const [loading, setLoading] = useState(false)
@@ -31,6 +33,7 @@ export function useMarkdownDocument(
 
   useEffect(() => {
     if (!path) {
+      loadedPathRef.current = null
       setContent('')
       setError(null)
       setDirty(false)
@@ -41,9 +44,9 @@ export function useMarkdownDocument(
 
     const cached = draftCache.get(path)
     if (cached != null) {
+      loadedPathRef.current = path
       setContent(cached)
       setDirty(true)
-      setViewMode('view')
       setError(null)
       return
     }
@@ -56,10 +59,13 @@ export function useMarkdownDocument(
       return
     }
 
+    if (loadedPathRef.current === path) {
+      return
+    }
+
     let cancelled = false
     setLoading(true)
     setError(null)
-    setViewMode('view')
     setDirty(false)
     setSaveError(null)
 
@@ -73,6 +79,8 @@ export function useMarkdownDocument(
         } else {
           setContent(text)
         }
+        loadedPathRef.current = path
+        setViewMode('view')
       })
       .catch((err) => {
         if (cancelled) return

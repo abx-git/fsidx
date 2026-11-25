@@ -68,15 +68,15 @@ body {
   line-height: 1.65;
 }
 
-/* Schreibmodus: bearbeitbare Blöcke in der Vorschau hervorheben */
-.markdown-preview.md-preview-editable [data-md-source-start]:not([data-md-no-inline-edit]) {
+/* Schreibmodus: Klick in der Vorschau → Quelltext (kein Inline-Bearbeiten) */
+.markdown-preview.md-preview-linked [data-md-source-start]:not([data-md-no-inline-edit]) {
   border-radius: 4px;
   transition:
     background-color 0.12s ease,
     box-shadow 0.12s ease;
 }
 
-.markdown-preview.md-preview-editable [data-md-source-start]:not([data-md-no-inline-edit]):hover {
+.markdown-preview.md-preview-linked [data-md-source-start]:not([data-md-no-inline-edit]):hover {
   background-color: rgb(14 165 233 / 0.07);
   box-shadow: inset 0 0 0 1px rgb(14 165 233 / 0.28);
 }

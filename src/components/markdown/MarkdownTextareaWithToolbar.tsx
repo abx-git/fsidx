@@ -19,6 +19,8 @@ interface MarkdownTextareaWithToolbarProps {
   onEscapeAt?: (caret: number) => void
   scrollToLine?: number | null
   onScrollToLineApplied?: () => void
+  /** Aktuelle Zeile unter dem Cursor (z. B. Vorschau-Markierung in Split-Ansicht). */
+  onLineAtCaret?: (line: number) => void
 }
 
 export function MarkdownTextareaWithToolbar({
@@ -34,6 +36,7 @@ export function MarkdownTextareaWithToolbar({
   onEscapeAt,
   scrollToLine = null,
   onScrollToLineApplied,
+  onLineAtCaret,
 }: MarkdownTextareaWithToolbarProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const scrollWrapRef = useRef<HTMLDivElement>(null)
@@ -105,6 +108,13 @@ export function MarkdownTextareaWithToolbar({
     onChange(result.value)
   }
 
+  const reportCaretLine = useCallback(() => {
+    const el = ref.current
+    if (!el || !onLineAtCaret) return
+    const line = el.value.slice(0, el.selectionStart).split('\n').length
+    onLineAtCaret(line)
+  }, [onLineAtCaret])
+
   const toolbar =
     !disabled ? (
       <MarkdownBlockToolbar
@@ -126,7 +136,11 @@ export function MarkdownTextareaWithToolbar({
       onChange={(e) => {
         onChange(e.target.value)
         resize()
+        reportCaretLine()
       }}
+      onClick={reportCaretLine}
+      onKeyUp={reportCaretLine}
+      onSelect={reportCaretLine}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && onEscapeAt && ref.current) {
           e.preventDefault()

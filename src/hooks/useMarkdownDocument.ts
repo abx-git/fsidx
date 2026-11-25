@@ -6,8 +6,8 @@ import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { useEt2Autosave } from './useEt2Autosave'
 
-/** Gerenderte Vorschau oder Bearbeiten mit Markdown-Toolbar. */
-export type MarkdownViewMode = 'view' | 'edit'
+/** Vorschau, Quelltext oder geteilte Ansicht (VS Code / Obsidian Quellmodus). */
+export type MarkdownViewMode = 'view' | 'edit' | 'split'
 
 const draftCache = new Map<string, string>()
 
@@ -80,7 +80,7 @@ export function useMarkdownDocument(
           setContent(text)
         }
         loadedPathRef.current = path
-        setViewMode('view')
+        setViewMode('split')
       })
       .catch((err) => {
         if (cancelled) return
@@ -148,7 +148,7 @@ export function useMarkdownDocument(
   })
 
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => (m === 'view' ? 'edit' : 'view'))
+    setViewMode((m) => (m === 'view' ? 'split' : m === 'split' ? 'edit' : 'view'))
   }, [])
 
   return {

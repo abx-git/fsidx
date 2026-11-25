@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
-import { lineNumberAtOffset, scrollContainerToSourceLine } from '../lib/markdown-view-click'
+import { ArrowLeft, Columns2, Download, Eye, Loader2, Pencil } from 'lucide-react'
+import {
+  lineNumberAtOffset,
+  scrollContainerToSourceLine,
+  sourceRangeFromPreviewClick,
+} from '../lib/markdown-view-click'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
-import {
-  applyBlockEditsToSource,
-  blockEditKey,
-  blockSourceIsInlineEditable,
-  getBlockSourceSlice,
-  mergeBlocksInSource,
-  sessionsAfterBlockSplit,
-  sourceOffsetsForLineRange,
-  type BlockEditSession,
-} from '../lib/markdown-block-edit'
-import { findPreviewBlockIndex, listPreviewBlocks } from '../lib/markdown-block-nav'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
 
@@ -61,331 +54,36 @@ export function MarkdownEditor({
     null,
   )
   const [viewHighlightLine, setViewHighlightLine] = useState<number | null>(null)
-  const [blockEdits, setBlockEdits] = useState<BlockEditSession[]>([])
-  const [focusBlockId, setFocusBlockId] = useState<string | null>(null)
-  const [focusBlockAtStart, setFocusBlockAtStart] = useState(false)
-  const [focusBlockCaret, setFocusBlockCaret] = useState<number | null>(null)
-  const [previewContent, setPreviewContent] = useState(content)
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const blockEditsRef = useRef(blockEdits)
-  blockEditsRef.current = blockEdits
-  const contentRef = useRef(content)
-  contentRef.current = content
-  const undoStackRef = useRef<string[]>([])
-  const redoStackRef = useRef<string[]>([])
-  const undoBatchPendingRef = useRef(false)
-
-  const workingSource = useCallback(() => {
-    if (blockEditsRef.current.length === 0) return contentRef.current
-    return applyBlockEditsToSource(contentRef.current, blockEditsRef.current)
-  }, [])
-
-  const pushUndoSnapshot = useCallback(() => {
-    const snap = workingSource()
-    if (undoStackRef.current.at(-1) === snap) return
-    undoStackRef.current.push(snap)
-    if (undoStackRef.current.length > 100) undoStackRef.current.shift()
-    redoStackRef.current = []
-  }, [workingSource])
-
-  const flushPendingPersist = useCallback(() => {
-    if (!persistTimerRef.current) return
-    clearTimeout(persistTimerRef.current)
-    persistTimerRef.current = null
-    onChange(applyBlockEditsToSource(contentRef.current, blockEditsRef.current))
-    undoBatchPendingRef.current = false
-  }, [onChange])
 
   useEffect(() => {
-    if (blockEdits.length === 0) setPreviewContent(content)
-  }, [content, blockEdits.length])
+    if (!canWrite && viewMode !== 'view') onViewModeChange('view')
+  }, [canWrite, viewMode, onViewModeChange])
 
   useEffect(() => {
-    return () => {
-      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
-    }
-  }, [])
-
-  const flushBlockEditsToDocument = useCallback(
-    (sessions: readonly BlockEditSession[]) => {
-      if (persistTimerRef.current) {
-        clearTimeout(persistTimerRef.current)
-        persistTimerRef.current = null
-      }
-      const merged = applyBlockEditsToSource(contentRef.current, sessions)
-      onChange(merged)
-      setPreviewContent(merged)
-    },
-    [onChange],
-  )
-
-  const scheduleBlockPersist = useCallback(
-    (sessions: readonly BlockEditSession[]) => {
-      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
-      persistTimerRef.current = setTimeout(() => {
-        persistTimerRef.current = null
-        onChange(applyBlockEditsToSource(contentRef.current, sessions))
-        undoBatchPendingRef.current = false
-      }, 400)
-    },
-    [onChange],
-  )
-
-  const applyDocumentSnapshot = useCallback(
-    (source: string) => {
-      if (persistTimerRef.current) {
-        clearTimeout(persistTimerRef.current)
-        persistTimerRef.current = null
-      }
-      undoBatchPendingRef.current = false
-      setBlockEdits([])
-      blockEditsRef.current = []
-      setFocusBlockId(null)
-      onChange(source)
-      setPreviewContent(source)
-    },
-    [onChange],
-  )
-
-  const activatePreviewBlock = useCallback(
-    (startLine: number, endLine: number, focusAtStart: boolean) => {
-      const base = workingSource()
-      const text = getBlockSourceSlice(base, startLine, endLine)
-      const id = blockEditKey(startLine, endLine)
-      setBlockEdits((prev) => {
-        const exists = prev.find((s) => s.id === id)
-        const next = exists
-          ? prev.map((s) => (s.id === id ? { ...s, text: getBlockSourceSlice(base, s.startLine, s.endLine) } : s))
-          : [...prev, { id, startLine, endLine: endLine, text }]
-        blockEditsRef.current = next
-        return next
-      })
-      setFocusBlockId(id)
-      setFocusBlockAtStart(focusAtStart)
-    },
-    [workingSource],
-  )
-
-  const handleNavigateBlock = useCallback(
-    (sessionId: string, direction: 'prev' | 'next') => {
-      flushPendingPersist()
-      const article = previewArticleRef.current
-      const session = blockEditsRef.current.find((s) => s.id === sessionId)
-      if (!article || !session) return
-      const blocks = listPreviewBlocks(article)
-      const idx = findPreviewBlockIndex(blocks, session.startLine, session.endLine)
-      const nextIdx = direction === 'next' ? idx + 1 : idx - 1
-      if (idx < 0 || nextIdx < 0 || nextIdx >= blocks.length) return
-      const target = blocks[nextIdx]!
-      target.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      activatePreviewBlock(
-        target.startLine,
-        target.endLine,
-        direction === 'next',
-      )
-    },
-    [activatePreviewBlock, flushPendingPersist],
-  )
-
-  const handleBlockUndo = useCallback(() => {
-    flushPendingPersist()
-    if (undoStackRef.current.length < 2) return
-    const current = workingSource()
-    redoStackRef.current.push(current)
-    undoStackRef.current.pop()
-    const prev = undoStackRef.current.at(-1)
-    if (prev == null) return
-    applyDocumentSnapshot(prev)
-  }, [applyDocumentSnapshot, flushPendingPersist, workingSource])
-
-  const handleBlockRedo = useCallback(() => {
-    const next = redoStackRef.current.pop()
-    if (next == null) return
-    pushUndoSnapshot()
-    applyDocumentSnapshot(next)
-  }, [applyDocumentSnapshot, pushUndoSnapshot])
-
-  useEffect(() => {
-    setBlockEdits([])
     setEditFocus(null)
-    undoStackRef.current = []
-    redoStackRef.current = []
-    undoBatchPendingRef.current = false
+    setViewHighlightLine(null)
   }, [filePath])
 
-  useEffect(() => {
-    if (viewMode === 'edit') setBlockEdits([])
-  }, [viewMode])
-
-  const openBlockFromElement = useCallback(
-    (block: HTMLElement) => {
-      const startLine = Number.parseInt(block.dataset.mdSourceStart ?? '', 10)
-      const endLine = Number.parseInt(block.dataset.mdSourceEnd ?? String(startLine), 10)
-      if (!Number.isFinite(startLine) || startLine < 1) return
-      const end = Number.isFinite(endLine) ? endLine : startLine
-      const noInline = block.dataset.mdNoInlineEdit === '1'
-      const base = workingSource()
-      const inlineOk = blockSourceIsInlineEditable(base, startLine, end)
-      setViewHighlightLine(null)
-      if (noInline || !inlineOk) {
-        const { start, end: endOff } = sourceOffsetsForLineRange(contentRef.current, startLine, end)
-        setBlockEdits([])
-        setEditFocus({ start, end: endOff, line: startLine })
-        onViewModeChange('edit')
-        return
-      }
-      const id = blockEditKey(startLine, end)
-      if (blockEditsRef.current.length === 0) {
-        undoStackRef.current = [contentRef.current]
-        redoStackRef.current = []
-      }
-      setBlockEdits((prev) => {
-        if (prev.some((s) => s.id === id)) return prev
-        const text = getBlockSourceSlice(base, startLine, end)
-        const next = [...prev, { id, startLine, endLine: end, text }]
-        blockEditsRef.current = next
-        setPreviewContent(applyBlockEditsToSource(contentRef.current, next))
-        return next
-      })
-      setFocusBlockId(id)
-      setFocusBlockAtStart(false)
-    },
-    [onViewModeChange, workingSource],
-  )
-
-  const handleBlockChange = useCallback(
-    (id: string, text: string) => {
-      if (!undoBatchPendingRef.current) {
-        pushUndoSnapshot()
-        undoBatchPendingRef.current = true
-      }
-      blockEditsRef.current = blockEditsRef.current.map((s) =>
-        s.id === id ? { ...s, text } : s,
-      )
-      scheduleBlockPersist(blockEditsRef.current)
-    },
-    [pushUndoSnapshot, scheduleBlockPersist],
-  )
-
-  const handleBlockSplit = useCallback(
-    (id: string, cursor: number) => {
-      pushUndoSnapshot()
-      undoBatchPendingRef.current = false
-      setBlockEdits((prev) => {
-        const session = prev.find((s) => s.id === id)
-        if (!session) return prev
-        const base = applyBlockEditsToSource(contentRef.current, prev)
-        const { nextSource, sessions: split } = sessionsAfterBlockSplit(base, session, cursor)
-        const nextSessions = [...prev.filter((s) => s.id !== id), ...split]
-        onChange(nextSource)
-        setPreviewContent(nextSource)
-        if (persistTimerRef.current) {
-          clearTimeout(persistTimerRef.current)
-          persistTimerRef.current = null
-        }
-        setFocusBlockId(split[1]?.id ?? split[0]?.id ?? null)
-        setFocusBlockAtStart(Boolean(split[1]))
-        blockEditsRef.current = nextSessions
-        return nextSessions
-      })
-    },
-    [onChange, pushUndoSnapshot],
-  )
-
-  const handleBlockDismiss = useCallback(
-    (id: string) => {
-      setBlockEdits((prev) => {
-        const next = prev.filter((s) => s.id !== id)
-        blockEditsRef.current = next
-        if (next.length === 0) {
-          flushBlockEditsToDocument(prev)
-        } else {
-          scheduleBlockPersist(next)
-          setPreviewContent(applyBlockEditsToSource(contentRef.current, next))
-        }
-        return next
-      })
-      setFocusBlockId((current) => (current === id ? null : current))
-    },
-    [flushBlockEditsToDocument, scheduleBlockPersist],
-  )
-
-  const handleFocusBlockApplied = useCallback(() => {
-    setFocusBlockId(null)
-    setFocusBlockAtStart(false)
-    setFocusBlockCaret(null)
-  }, [])
-
-  const mergeSessionWithNeighbor = useCallback(
-    (sessionId: string, direction: 'prev' | 'next') => {
-      flushPendingPersist()
-      const session = blockEditsRef.current.find((s) => s.id === sessionId)
+  const jumpFromPreview = useCallback(
+    (clientX: number, clientY: number) => {
       const article = previewArticleRef.current
-      if (!session || !article) return
-      const blocks = listPreviewBlocks(article)
-      const idx = findPreviewBlockIndex(blocks, session.startLine, session.endLine)
-      const neighborIdx = direction === 'prev' ? idx - 1 : idx + 1
-      if (idx < 0 || neighborIdx < 0 || neighborIdx >= blocks.length) return
-      const upperBlock = direction === 'prev' ? blocks[neighborIdx]! : blocks[idx]!
-      const lowerBlock = direction === 'prev' ? blocks[idx]! : blocks[neighborIdx]!
-      const base = applyBlockEditsToSource(contentRef.current, blockEditsRef.current)
-      const textForBlock = (start: number, end: number) => {
-        const live = blockEditsRef.current.find((s) => s.startLine === start && s.endLine === end)
-        return live?.text ?? getBlockSourceSlice(base, start, end)
-      }
-      const upperText = textForBlock(upperBlock.startLine, upperBlock.endLine)
-      const lowerText = textForBlock(lowerBlock.startLine, lowerBlock.endLine)
-      pushUndoSnapshot()
-      undoBatchPendingRef.current = false
-      const { nextSource, session: merged, caret } = mergeBlocksInSource(
-        base,
-        upperBlock.startLine,
-        upperBlock.endLine,
-        upperText,
-        lowerBlock.startLine,
-        lowerBlock.endLine,
-        lowerText,
-      )
-      onChange(nextSource)
-      setPreviewContent(nextSource)
-      if (persistTimerRef.current) {
-        clearTimeout(persistTimerRef.current)
-        persistTimerRef.current = null
-      }
-      setBlockEdits([merged])
-      blockEditsRef.current = [merged]
-      setFocusBlockId(merged.id)
-      setFocusBlockAtStart(false)
-      setFocusBlockCaret(caret)
+      if (!article || !canWrite) return
+      const range = sourceRangeFromPreviewClick(content, article, clientX, clientY)
+      setViewHighlightLine(range.line)
+      setEditFocus({ start: range.start, end: range.end, line: range.line })
+      if (viewMode === 'view') onViewModeChange('split')
     },
-    [flushPendingPersist, onChange, pushUndoSnapshot],
+    [canWrite, content, onViewModeChange, viewMode],
   )
 
-  const handleMergeBlockWithPrev = useCallback(
-    (sessionId: string) => mergeSessionWithNeighbor(sessionId, 'prev'),
-    [mergeSessionWithNeighbor],
-  )
-
-  const handleMergeBlockWithNext = useCallback(
-    (sessionId: string) => mergeSessionWithNeighbor(sessionId, 'next'),
-    [mergeSessionWithNeighbor],
-  )
-
-  const handlePreviewDoubleClick = useCallback(
+  const handlePreviewClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
-      if (!canWrite || viewMode !== 'view') return
-      e.preventDefault()
-      const hit = document.elementFromPoint(e.clientX, e.clientY)
-      const block = hit?.closest('[data-md-source-start]') as HTMLElement | null
-      if (block && e.currentTarget.contains(block)) {
-        openBlockFromElement(block)
-        return
-      }
-      if (!content.trim()) {
-        setBlockEdits([{ id: '1:1', startLine: 1, endLine: 1, text: '' }])
-      }
+      if (!canWrite) return
+      const target = e.target as HTMLElement
+      if (target.closest('a, button, input, textarea, [data-md-no-inline-edit]')) return
+      jumpFromPreview(e.clientX, e.clientY)
     },
-    [canWrite, viewMode, content, openBlockFromElement],
+    [canWrite, jumpFromPreview],
   )
 
   const returnToViewAtCaret = useCallback(
@@ -398,8 +96,28 @@ export function MarkdownEditor({
     [content, onViewModeChange],
   )
 
+  const handleEscapeAt = useCallback(
+    (caret: number) => {
+      if (viewMode === 'edit') {
+        returnToViewAtCaret(caret)
+        return
+      }
+      if (viewMode === 'split') {
+        setViewHighlightLine(lineNumberAtOffset(content, caret))
+      }
+    },
+    [content, returnToViewAtCaret, viewMode],
+  )
+
+  const syncHighlightFromCaret = useCallback(
+    (line: number) => {
+      if (viewMode === 'split') setViewHighlightLine(line)
+    },
+    [viewMode],
+  )
+
   useLayoutEffect(() => {
-    if (viewMode !== 'view' || viewHighlightLine == null) return
+    if ((viewMode !== 'view' && viewMode !== 'split') || viewHighlightLine == null) return
     const scrollEl = viewScrollRef.current
     const article = previewArticleRef.current
     if (!scrollEl || !article) return
@@ -417,7 +135,7 @@ export function MarkdownEditor({
       cancelAnimationFrame(id)
       window.clearTimeout(t)
     }
-  }, [viewMode, viewHighlightLine])
+  }, [viewMode, viewHighlightLine, content])
 
   useEffect(() => {
     if (viewMode === 'edit') return
@@ -437,6 +155,47 @@ export function MarkdownEditor({
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  const showSource = canWrite && (viewMode === 'edit' || viewMode === 'split')
+
+  const previewPane = (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        ref={viewScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+        <article
+          ref={previewArticleRef}
+          className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
+            canWrite ? 'md-preview-linked cursor-default' : ''
+          }`}
+          title={canWrite ? 'Klick: gleiche Stelle im Quelltext' : undefined}
+          onClick={handlePreviewClick}
+        >
+          {content.trim() ? (
+            <MarkdownContent
+              content={content}
+              docPath={filePath}
+              fileSources={fileSources}
+              highlightSourceLine={viewHighlightLine}
+            />
+          ) : canWrite ? (
+            <p
+              className={`text-sm text-zinc-400 ${
+                viewHighlightLine === 1 ? 'md-preview-line-focus rounded-sm bg-blue-700/10' : ''
+              }`}
+              data-md-source-start="1"
+              data-md-source-end="1"
+            >
+              Quelltext links beginnen…
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-400">Kein Inhalt.</p>
+          )}
+        </article>
+      </div>
+    </div>
+  )
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
@@ -487,7 +246,6 @@ export function MarkdownEditor({
               aria-selected={viewMode === 'view'}
               onClick={() => {
                 setViewHighlightLine(null)
-                setBlockEdits([])
                 onViewModeChange('view')
               }}
               className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
@@ -500,24 +258,38 @@ export function MarkdownEditor({
               Vorschau
             </button>
             {canWrite && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewMode === 'edit'}
-                onClick={() => {
-                  setBlockEdits([])
-                  onViewModeChange('edit')
-                }}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
-                  viewMode === 'edit'
-                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                    : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-                }`}
-                title="Rohes Markdown der gesamten Datei"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Quelltext
-              </button>
+              <>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'split'}
+                  onClick={() => onViewModeChange('split')}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                    viewMode === 'split'
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                  }`}
+                  title="Quelltext und Vorschau nebeneinander (wie VS Code)"
+                >
+                  <Columns2 className="h-3.5 w-3.5" />
+                  Geteilt
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'edit'}
+                  onClick={() => onViewModeChange('edit')}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
+                    viewMode === 'edit'
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                  }`}
+                  title="Gesamtes Markdown bearbeiten"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Quelltext
+                </button>
+              </>
             )}
           </div>
           <button
@@ -544,78 +316,34 @@ export function MarkdownEditor({
             Markdown wird geladen…
           </p>
         )}
-        {!loading && error && (
-          <p className="mx-4 my-8 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-            {error}
+        {!loading && !error && canWrite && viewMode === 'split' && (
+          <p className="mx-auto max-w-none shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-center text-[11px] leading-snug text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
+            Wie in <span className="font-medium">VS Code / Obsidian (Quellmodus)</span>: links normales
+            Markdown bearbeiten, rechts die Vorschau. Klick in der Vorschau springt zur gleichen Stelle
+            im Quelltext.
           </p>
         )}
-        {!loading && !error && viewMode === 'view' && canWrite && (
-          <p className="mx-auto max-w-3xl shrink-0 border-b border-sky-200/80 bg-sky-50/90 px-4 py-1.5 text-center text-[11px] leading-snug text-sky-950 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100">
-            <span className="font-medium">Inline in der Vorschau:</span> Doppelklick auf einen Block —
-            direkt dort tippen. <span className="font-medium">Enter</span> = neuer Absatz,{' '}
-            <span className="font-medium">Umschalt+Enter</span> = Zeilenumbruch.{' '}
-            <span className="font-medium">Pfeiltasten</span> am Blockrand = nächster Block.{' '}
-            <span className="font-medium">Strg/Cmd+Z</span> = Undo.{' '}
-            <span className="font-medium">Rücktaste</span> am Blockanfang = mit Absatz darüber
-            verbinden.
-          </p>
-        )}
-        {!loading && !error && viewMode === 'view' && (
-          <div
-            ref={viewScrollRef}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-          >
-            <article
-              ref={previewArticleRef}
-              data-md-block-edit={canWrite ? '1' : undefined}
-              className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
-                canWrite ? 'cursor-text md-preview-editable' : ''
-              }`}
-              title={
-                canWrite
-                  ? 'Doppelklick: Text inline; Diagramm/Code-Fence → Tab Bearbeiten'
-                  : undefined
-              }
-              onDoubleClick={handlePreviewDoubleClick}
-            >
-              {content.trim() ? (
-                <MarkdownContent
-                  content={blockEdits.length > 0 ? previewContent : content}
-                  docPath={filePath}
-                  fileSources={fileSources}
-                  highlightSourceLine={viewHighlightLine}
-                  blockEdits={blockEdits}
-                  onBlockChange={handleBlockChange}
-                  onBlockSplit={handleBlockSplit}
-                  onBlockDismiss={handleBlockDismiss}
-                  canWrite={canWrite}
-                  focusBlockId={focusBlockId}
-                  focusBlockAtStart={focusBlockAtStart}
-                  onFocusBlockApplied={handleFocusBlockApplied}
-                  onNavigateBlock={handleNavigateBlock}
-                  onBlockUndo={handleBlockUndo}
-                  onBlockRedo={handleBlockRedo}
-                  focusBlockCaret={focusBlockCaret}
-                  onMergeBlockWithPrev={handleMergeBlockWithPrev}
-                  onMergeBlockWithNext={handleMergeBlockWithNext}
+        {!loading && !error && showSource && viewMode === 'split' && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800 lg:max-w-[50%] lg:border-b-0 lg:border-r">
+              <div className="mx-auto flex min-h-0 w-full max-w-none flex-1 flex-col px-2 py-2 lg:px-3">
+                <MarkdownTextareaWithToolbar
+                  value={content}
+                  onChange={onChange}
+                  disabled={!canWrite}
+                  placeholder="Markdown…"
+                  stickyToolbar
+                  focusRange={editFocus}
+                  onFocusRangeApplied={() => setEditFocus(null)}
+                  onEscapeAt={handleEscapeAt}
+                  onLineAtCaret={syncHighlightFromCaret}
                 />
-              ) : canWrite ? (
-                <p
-                  className={`text-sm text-zinc-400 ${
-                    viewHighlightLine === 1 ? 'md-preview-line-focus rounded-sm bg-blue-700/10' : ''
-                  }`}
-                  data-md-source-start="1"
-                  data-md-source-end="1"
-                >
-                  Doppelklick zum Schreiben…
-                </p>
-              ) : (
-                <p className="text-sm text-zinc-400">Kein Inhalt.</p>
-              )}
-            </article>
+              </div>
+            </div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">{previewPane}</div>
           </div>
         )}
-        {!loading && !error && viewMode === 'edit' && canWrite && (
+        {!loading && !error && showSource && viewMode === 'edit' && (
           <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-3 py-2">
             <MarkdownTextareaWithToolbar
               value={content}
@@ -625,10 +353,11 @@ export function MarkdownEditor({
               stickyToolbar
               focusRange={editFocus}
               onFocusRangeApplied={() => setEditFocus(null)}
-              onEscapeAt={returnToViewAtCaret}
+              onEscapeAt={handleEscapeAt}
             />
           </div>
         )}
+        {!loading && !error && viewMode === 'view' && previewPane}
       </div>
     </section>
   )

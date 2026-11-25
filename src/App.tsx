@@ -26,6 +26,7 @@ import {
 import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
+import { readClipboardAsFile } from './lib/clipboard-paste'
 import { uploadFilesToScope } from './lib/upload-files-scope'
 import { createVaultFolderInScope } from './lib/vault/create-vault-folder'
 import { closeVaultInSession, unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
@@ -1023,6 +1024,39 @@ function App() {
       }
     },
     [fileSources, canWrite, registerSidecarFile, et2Tasks],
+  )
+
+  const handlePasteFromClipboard = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Einfügen: Chrome/Edge mit Schreibzugriff auf den Workspace-Ordner.')
+        return
+      }
+      if (!manifest) return
+      const existingNames = new Set(
+        manifest.entries
+          .filter((e) => e.kind === 'file' && e.parentPath === parentPath)
+          .map((e) => e.name),
+      )
+      try {
+        const file = await readClipboardAsFile(existingNames)
+        if (!file) {
+          window.alert('Zwischenablage: kein Text oder Bild gefunden.')
+          return
+        }
+        const rows = await uploadFilesToScope(fileSources, parentPath, [file])
+        const row = rows[0]
+        if (!row) return
+        const id = registerSidecarFile(row)
+        if (id) {
+          const kind = defaultViewerForFile(row.relativePath, row.name.split('.').pop())
+          openViewer(kind, row.relativePath, row.name, id, row.size)
+        }
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Einfügen aus Zwischenablage fehlgeschlagen')
+      }
+    },
+    [fileSources, canWrite, manifest, registerSidecarFile, openViewer],
   )
 
   const handleNewMarkdown = useCallback(
@@ -2077,6 +2111,11 @@ function App() {
           if (!contextMenu || contextMenu.kind !== 'directory') return
           void handleNewMarkdown(contextMenu.path)
         }}
+        onPasteFromClipboard={
+          contextMenu?.kind === 'directory'
+            ? () => void handlePasteFromClipboard(contextMenu.path)
+            : undefined
+        }
         onAggregateTasks={
           contextMenu?.kind === 'directory'
             ? () => {

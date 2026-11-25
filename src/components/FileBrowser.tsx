@@ -154,6 +154,26 @@ export function FileBrowser({
     [canWrite, inSearch, onUploadFiles, scopeVaultLocked, isExternalFileDrag],
   )
 
+  const onFileListContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (inSearch || scopeVaultLocked) return
+      const target = e.target as HTMLElement
+      if (target.closest('button[type="button"]')) return
+      e.preventDefault()
+      const dirAtScope = entries.find((e) => e.kind === 'directory' && e.path === scopePath)
+      const scopeName = scopePath ? scopePath.split('/').pop() ?? scopePath : rootName
+      onFileContextMenu({
+        id: dirAtScope?.id ?? `scope:${scopePath}`,
+        path: scopePath,
+        name: scopeName,
+        kind: 'directory',
+        x: e.clientX,
+        y: e.clientY,
+      })
+    },
+    [entries, inSearch, onFileContextMenu, rootName, scopePath, scopeVaultLocked],
+  )
+
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
         id: e.id,
@@ -278,6 +298,7 @@ export function FileBrowser({
         onDragLeave={onFileListDragLeave}
         onDragOver={onFileListDragOver}
         onDrop={onFileListDrop}
+        onContextMenu={onFileListContextMenu}
       >
         {fileDropActive && (
           <li className="pointer-events-none sticky top-0 z-10 flex items-center justify-center gap-2 border-b border-emerald-300 bg-emerald-100/95 px-3 py-2 text-xs font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
@@ -333,6 +354,7 @@ export function FileBrowser({
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault()
+                  e.stopPropagation()
                   onFileContextMenu({
                     id: row.id,
                     path: row.path,

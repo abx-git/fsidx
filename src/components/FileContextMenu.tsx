@@ -1,4 +1,5 @@
 import {
+  ClipboardPaste,
   Copy,
   Eye,
   FileJson,
@@ -61,6 +62,7 @@ interface FileContextMenuProps {
   onEt2NewTask?: () => void
   onNewSubfolder?: () => void
   onNewMarkdown?: () => void
+  onPasteFromClipboard?: () => void
   onDelete?: () => void
   onRename?: () => void
   onOpenInScope?: () => void
@@ -80,6 +82,7 @@ export function FileContextMenu({
   onEt2NewTask,
   onNewSubfolder,
   onNewMarkdown,
+  onPasteFromClipboard,
   onDelete,
   onRename,
   onOpenInScope,
@@ -182,6 +185,21 @@ export function FileContextMenu({
           >
             <FileText className="h-4 w-4 shrink-0 text-sky-500" />
             <span>Neue Markdown-Datei</span>
+          </button>
+        )}
+        {onPasteFromClipboard && (
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canWrite}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onPasteFromClipboard()
+              onClose()
+            }}
+          >
+            <ClipboardPaste className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span>Einfügen (Zwischenablage)</span>
           </button>
         )}
         <button

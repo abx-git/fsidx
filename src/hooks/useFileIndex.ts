@@ -24,6 +24,7 @@ import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isEntryInScope } from '../lib/workspace-scope'
 import type { FileIndexManifest, IndexEntry, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
+import { rebuildManifestTreeFromEntries } from '../lib/manifest-sync-tree'
 import { appendFileToManifest, appendRowsToManifest } from '../lib/manifest-append'
 import { removePathFromManifest } from '../lib/manifest-remove'
 import { sidecarPathForFile } from '../lib/sidecar'
@@ -302,7 +303,9 @@ export function useFileIndex() {
             const sources = fileSourcesFromRootHandle(handle, vaultRoots)
             if (!cancelled) {
               lockAllVaults()
-              const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
+              const reconciled = rebuildManifestTreeFromEntries(
+                reconcileLockedVaultsInManifest(session.manifest, vaultRoots),
+              )
               setManifest(reconciled)
               setFileSources(sources)
               setNeedsFolderReconnect(false)
@@ -318,7 +321,9 @@ export function useFileIndex() {
             session.vaultRoots,
             inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
           )
-          const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
+          const reconciled = rebuildManifestTreeFromEntries(
+            reconcileLockedVaultsInManifest(session.manifest, vaultRoots),
+          )
           setManifest(reconciled)
           setFileSources(null)
           setNeedsFolderReconnect(
@@ -421,7 +426,9 @@ export function useFileIndex() {
               walkVaultRoots,
               inferVaultRootsFromMarkerEntries(m.entries.map((e) => e.path)),
             )
-            const reconciled = reconcileLockedVaultsInManifest(m, mergedVaults)
+            const reconciled = rebuildManifestTreeFromEntries(
+              reconcileLockedVaultsInManifest(m, mergedVaults),
+            )
             persistNow(reconciled, 'handles', '', null, mergedVaults)
             return reconciled
           })
@@ -512,7 +519,9 @@ export function useFileIndex() {
             inferVaultRootsFromMarkerEntries(manifest.entries.map((e) => e.path)),
           )
           const sources = fileSourcesFromRootHandle(handle, vaultRoots)
-          const reconciled = reconcileLockedVaultsInManifest(manifest, vaultRoots)
+          const reconciled = rebuildManifestTreeFromEntries(
+            reconcileLockedVaultsInManifest(manifest, vaultRoots),
+          )
           setManifest(reconciled)
           setProgress({ phase: 'ready', scanned: reconciled.entries.length })
           setFileSources(sources)

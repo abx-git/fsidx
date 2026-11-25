@@ -3,7 +3,12 @@ import { isVaultUnlocked } from '../lib/vault/vault-session'
 import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { flattenVisibleTree, isDirectoryVisibleInTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { IndexNode } from '../types'
+import type { IndexEntry, IndexNode } from '../types'
+import {
+  entryToShallowNode,
+  groupEntriesByParent,
+  visibleDirectoryChildEntries,
+} from '../lib/manifest-children'
 import { fsidxFileDragMime, parseFsidxFileDrag } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
 
@@ -32,6 +37,7 @@ function persistExpandedPaths(rootName: string, paths: Set<string>): void {
 
 interface TreeNavProps {
   root: IndexNode
+  entries: IndexEntry[]
   rootName: string
   currentPath: string
   selectedId: string | null
@@ -46,6 +52,7 @@ interface TreeNavProps {
 
 interface TreeNodeProps {
   node: IndexNode
+  entriesByParent: Map<string, IndexEntry[]>
   currentPath: string
   focusedId: string | null
   showEt2DotFiles: boolean
@@ -67,6 +74,7 @@ interface TreeNodeProps {
 
 function TreeNode({
   node,
+  entriesByParent,
   currentPath,
   focusedId,
   showEt2DotFiles,
@@ -110,10 +118,11 @@ function TreeNode({
     et2TaskCountByDir && node.path !== undefined ? (et2TaskCountByDir.get(node.path) ?? 0) : 0
   const open = expandedPaths.has(node.path)
   const isActive = currentPath === node.path
-  const children = node.children ?? []
-  const visibleChildren = children.filter(
-    (child) => child.kind === 'directory' && isDirectoryVisibleInTree(child, showEt2DotFiles),
-  )
+  const visibleChildren = visibleDirectoryChildEntries(
+    entriesByParent,
+    node.path,
+    showEt2DotFiles,
+  ).map(entryToShallowNode)
   const hasChildren = visibleChildren.length > 0
   const isRoot = node.path === ''
   const isVaultDir = vaultRoots.includes(node.path)
@@ -241,6 +250,7 @@ function TreeNode({
           <TreeNode
             key={child.id}
             node={child}
+            entriesByParent={entriesByParent}
             currentPath={currentPath}
             focusedId={focusedId}
             showEt2DotFiles={showEt2DotFiles}
@@ -266,6 +276,7 @@ function TreeNode({
 
 export function TreeNav({
   root,
+  entries,
   rootName,
   currentPath,
   selectedId,
@@ -296,9 +307,11 @@ export function TreeNav({
     [rootName],
   )
 
+  const entriesByParent = useMemo(() => groupEntriesByParent(entries), [entries])
+
   const flatRows = useMemo(
-    () => flattenVisibleTree(root, expandedPaths, showEt2DotFiles),
-    [root, expandedPaths, showEt2DotFiles],
+    () => flattenVisibleTree(root, entries, expandedPaths, showEt2DotFiles),
+    [root, entries, expandedPaths, showEt2DotFiles],
   )
 
   const registerItemRef = useCallback((nodeId: string, el: HTMLElement | null) => {
@@ -416,6 +429,7 @@ export function TreeNav({
       >
         <TreeNode
           node={root}
+          entriesByParent={entriesByParent}
           currentPath={currentPath}
           focusedId={focusedId}
           showEt2DotFiles={showEt2DotFiles}

@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Folder, File, FileJson, LayoutGrid, Link2, ListTodo, Lock, PenLine, Shield, Upload } from 'lucide-react'
 import { isDrawioPath } from '../lib/drawio'
 import { isE2JsonPath } from '../lib/e2/e2-board-paths'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isLinkJsonPath } from '../lib/link/link-paths'
-import type { IndexEntry, IndexNode } from '../types'
+import type { IndexEntry } from '../types'
+import { childEntriesAt, groupEntriesByParent } from '../lib/manifest-children'
 import { formatBytes, formatDate } from '../lib/format'
 import { defaultViewerForFile } from '../lib/file-viewers'
 import type { FileViewerKind } from '../lib/file-viewers'
@@ -21,7 +22,7 @@ import { getVaultOpaqueOnDiskCount, isVaultUnlocked } from '../lib/vault/vault-s
 
 interface FileBrowserProps {
   rootName: string
-  currentNode: IndexNode | null
+  entries: IndexEntry[]
   onNavigate: (path: string) => void
   onSelectEntry: (id: string) => void
   selectedId: string | null
@@ -66,7 +67,7 @@ type Row = {
 
 export function FileBrowser({
   rootName,
-  currentNode,
+  entries,
   onNavigate,
   onSelectEntry,
   selectedId,
@@ -94,6 +95,7 @@ export function FileBrowser({
 }: FileBrowserProps) {
   const [fileDropActive, setFileDropActive] = useState(false)
   const fileDropDepth = useRef(0)
+  const entriesByParent = useMemo(() => groupEntriesByParent(entries), [entries])
   const inSearch = searchQuery.trim().length > 0
   const activeVaultRoot = scopeVaultRoot(scopePath, vaultRoots)
   const workspaceIsVault = vaultRoots.includes('')
@@ -162,7 +164,7 @@ export function FileBrowser({
         lastModified: e.lastModified,
         extension: e.extension,
       }))
-    : (currentNode?.children ?? []).map((child) => ({
+    : childEntriesAt(entriesByParent, scopePath).map((child) => ({
         id: child.id,
         kind: child.kind,
         name: child.name,

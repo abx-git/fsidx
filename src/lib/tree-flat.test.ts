@@ -17,7 +17,12 @@ function dir(path: string, depth: number, children: IndexNode[] = []): IndexNode
 describe('flattenVisibleTree', () => {
   it('listet leere Unterordner im Baum', () => {
     const root = dir('', 0, [dir('leer', 1, []), dir('mit', 1, [dir('mit/sub', 2, [])])])
-    const rows = flattenVisibleTree(root, new Set(['', 'mit']), true)
+    const entries = [
+      { id: 'leer', kind: 'directory' as const, name: 'leer', path: 'leer', parentPath: '', depth: 1, searchText: '' },
+      { id: 'mit', kind: 'directory' as const, name: 'mit', path: 'mit', parentPath: '', depth: 1, searchText: '' },
+      { id: 'sub', kind: 'directory' as const, name: 'sub', path: 'mit/sub', parentPath: 'mit', depth: 2, searchText: '' },
+    ]
+    const rows = flattenVisibleTree(root, entries, new Set(['', 'mit']), true)
     const paths = rows.map((r) => r.path)
     expect(paths).toContain('leer')
     expect(paths).toContain('mit')

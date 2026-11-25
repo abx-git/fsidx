@@ -1705,7 +1705,7 @@ function App() {
   ) : (
     <FileBrowser
       rootName={manifest.rootName}
-      currentNode={currentNode}
+      entries={manifest.entries}
       onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={handleSelectEntry}
       selectedId={selectedId}
@@ -1817,6 +1817,7 @@ function App() {
           <div className="fsidx-pane hidden lg:flex">
             <TreeNav
               root={manifest.tree}
+              entries={manifest.entries}
               rootName={manifest.rootName}
               currentPath={currentPath}
               selectedId={selectedId}

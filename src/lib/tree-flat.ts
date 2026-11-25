@@ -1,4 +1,9 @@
-import type { IndexNode } from '../types'
+import type { IndexEntry, IndexNode } from '../types'
+import {
+  entryToShallowNode,
+  groupEntriesByParent,
+  visibleDirectoryChildEntries,
+} from './manifest-children'
 import { shouldShowDirectoryInTree } from './tree-display-filter'
 
 export interface VisibleTreeRow {
@@ -23,22 +28,20 @@ function parentPathOf(path: string): string {
   return i < 0 ? '' : path.slice(0, i)
 }
 
-function visibleDirectoryChildren(node: IndexNode, showEt2DotFiles: boolean): IndexNode[] {
-  return (node.children ?? []).filter(
-    (child) => child.kind === 'directory' && isDirectoryVisibleInTree(child, showEt2DotFiles),
-  )
-}
-
 /** Sichtbare Ordnerzeilen in Tiefenfirst-Reihenfolge (für Tastatur ↑↓). */
 export function flattenVisibleTree(
   root: IndexNode,
+  entries: IndexEntry[],
   expandedPaths: Set<string>,
   showEt2DotFiles: boolean,
 ): VisibleTreeRow[] {
+  const byParent = groupEntriesByParent(entries)
   const rows: VisibleTreeRow[] = []
 
   function walkDir(node: IndexNode): void {
-    const kids = visibleDirectoryChildren(node, showEt2DotFiles)
+    const kids = visibleDirectoryChildEntries(byParent, node.path, showEt2DotFiles).map(
+      entryToShallowNode,
+    )
     const hasChildren = kids.length > 0
     const isRoot = node.path === ''
     if (!isRoot && !isDirectoryVisibleInTree(node, showEt2DotFiles)) return

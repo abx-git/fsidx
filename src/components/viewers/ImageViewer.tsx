@@ -9,6 +9,7 @@ interface ImageViewerProps {
   error: string | null
   onClose: () => void
   showBackButton?: boolean
+  fillHeight?: boolean
 }
 
 export function ImageViewer({
@@ -19,6 +20,7 @@ export function ImageViewer({
   error,
   onClose,
   showBackButton,
+  fillHeight = false,
 }: ImageViewerProps) {
   const isSvg = fileExtension(filePath) === 'svg'
 
@@ -28,11 +30,16 @@ export function ImageViewer({
       subtitle={filePath}
       onClose={onClose}
       showBackButton={showBackButton}
+      fillHeight={fillHeight}
       loading={loading}
       error={error}
     >
       {objectUrl && (
-        <div className="flex min-h-[50vh] items-center justify-center bg-zinc-100 p-4 dark:bg-zinc-900">
+        <div
+          className={`flex items-center justify-center bg-zinc-100 p-4 dark:bg-zinc-900 ${
+            fillHeight ? 'h-full min-h-0 flex-1' : 'min-h-[50vh]'
+          }`}
+        >
           {isSvg ? (
             <object
               data={objectUrl}

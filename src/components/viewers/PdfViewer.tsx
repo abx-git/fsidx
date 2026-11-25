@@ -8,6 +8,7 @@ interface PdfViewerProps {
   error: string | null
   onClose: () => void
   showBackButton?: boolean
+  fillHeight?: boolean
 }
 
 export function PdfViewer({
@@ -18,6 +19,7 @@ export function PdfViewer({
   error,
   onClose,
   showBackButton,
+  fillHeight = false,
 }: PdfViewerProps) {
   return (
     <ViewerShell
@@ -25,6 +27,7 @@ export function PdfViewer({
       subtitle={filePath}
       onClose={onClose}
       showBackButton={showBackButton}
+      fillHeight={fillHeight}
       loading={loading}
       error={error}
     >
@@ -32,7 +35,9 @@ export function PdfViewer({
         <iframe
           title={fileName}
           src={objectUrl}
-          className="h-[min(80vh,900px)] w-full border-0"
+          className={
+            fillHeight ? 'h-full min-h-0 w-full flex-1 border-0' : 'h-[min(80vh,900px)] w-full border-0'
+          }
         />
       )}
     </ViewerShell>

@@ -16,6 +16,7 @@ interface DiagramViewerProps {
   error: string | null
   onClose: () => void
   showBackButton?: boolean
+  fillHeight?: boolean
   kind?: DiagramViewerKind
 }
 
@@ -43,6 +44,7 @@ export function DiagramViewer({
   error,
   onClose,
   showBackButton,
+  fillHeight = false,
   kind = 'auto',
 }: DiagramViewerProps) {
   const resolved = resolveKind(filePath, text, kind)
@@ -55,20 +57,26 @@ export function DiagramViewer({
       onClose={onClose}
       showBackButton={showBackButton}
       hideHeader={drawioChromeless && !showBackButton}
+      fillHeight={fillHeight || (drawioChromeless && !showBackButton)}
       loading={loading}
       error={error}
     >
       <div
         className={
-          drawioChromeless
-            ? 'flex h-full min-h-[50vh] flex-col'
+          drawioChromeless || fillHeight
+            ? 'flex h-full min-h-0 flex-1 flex-col'
             : 'min-h-[50vh] p-4'
         }
       >
         {resolved === 'plantuml' ? (
           <PlantUmlDiagram source={text} />
         ) : resolved === 'drawio' ? (
-          <DrawioDiagram source={text} chromeless className="min-h-0 flex-1" />
+          <DrawioDiagram
+            source={text}
+            chromeless
+            fillHeight={fillHeight || !showBackButton}
+            className="min-h-0 flex-1"
+          />
         ) : (
           <MermaidDiagram source={text} />
         )}

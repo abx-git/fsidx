@@ -5,9 +5,16 @@ interface DrawioDiagramProps {
   className?: string
   /** Ohne Rahmen; Viewer ohne diagrams.net-Toolbars (immer im Viewer-Modus). */
   chromeless?: boolean
+  /** Seitenleiste / angeheftete Vorschau: iframe füllt die volle Höhe. */
+  fillHeight?: boolean
 }
 
-export function DrawioDiagram({ source, className = '', chromeless = false }: DrawioDiagramProps) {
+export function DrawioDiagram({
+  source,
+  className = '',
+  chromeless = false,
+  fillHeight = false,
+}: DrawioDiagramProps) {
   return (
     <div
       className={`diagram-drawio overflow-hidden ${
@@ -19,7 +26,13 @@ export function DrawioDiagram({ source, className = '', chromeless = false }: Dr
       <DrawioEmbed
         xml={source}
         mode="viewer"
-        className={chromeless ? 'h-full min-h-[50vh]' : 'min-h-[min(70vh,720px)]'}
+        className={
+          chromeless && fillHeight
+            ? 'h-full min-h-0'
+            : chromeless
+              ? 'h-full min-h-[50vh]'
+              : 'min-h-[min(70vh,720px)]'
+        }
       />
     </div>
   )

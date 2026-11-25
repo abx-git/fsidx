@@ -214,7 +214,7 @@ export const E2Embed = forwardRef<E2EmbedHandle, E2EmbedProps>(function E2Embed(
         ref={iframeRef}
         src={buildE2EmbedUrl(canWrite)}
         title="E2 Domänenmodell"
-        className="h-full min-h-[320px] w-full border-0"
+        className="h-full min-h-0 w-full flex-1 border-0"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
         referrerPolicy="no-referrer"
       />

@@ -55,6 +55,7 @@ export function FileViewerRouter({
   variant = 'center',
 }: FileViewerRouterProps) {
   const showBackButton = variant === 'center'
+  const fillHeight = variant === 'sidebar'
   const needsBlob = ['image', 'pdf', 'audio', 'video', 'binary'].includes(target.viewer)
   const blobState = useFileBlob(needsBlob ? target.path : null, fileSources)
   const textState = useFileText(
@@ -88,6 +89,7 @@ export function FileViewerRouter({
         filePath={target.path}
         onClose={onClose}
         showBackButton={showBackButton}
+        fillHeight={fillHeight}
         e2={e2Board}
       />
     )
@@ -106,6 +108,7 @@ export function FileViewerRouter({
         error={markdown.error}
         onClose={onClose}
         showBackButton={showBackButton}
+        fillHeight={fillHeight}
         canWrite={markdown.canWrite}
         saving={markdown.saving}
         saveError={markdown.saveError}
@@ -125,6 +128,7 @@ export function FileViewerRouter({
           error={textState.error}
           onClose={onClose}
           showBackButton={showBackButton}
+          fillHeight={fillHeight}
         />
       )
     case 'image':
@@ -137,6 +141,7 @@ export function FileViewerRouter({
           error={blobState.error}
           onClose={onClose}
           showBackButton={showBackButton}
+          fillHeight={fillHeight}
         />
       )
     case 'pdf':
@@ -149,6 +154,7 @@ export function FileViewerRouter({
           error={blobState.error}
           onClose={onClose}
           showBackButton={showBackButton}
+          fillHeight={fillHeight}
         />
       )
     case 'audio':
@@ -188,6 +194,7 @@ export function FileViewerRouter({
           error={textState.error ?? linkParseError}
           onClose={onClose}
           showBackButton={showBackButton}
+          fillHeight={fillHeight}
         />
       )
     case 'json':

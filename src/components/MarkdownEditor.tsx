@@ -24,6 +24,7 @@ interface MarkdownEditorProps {
   error: string | null
   onClose: () => void
   showBackButton?: boolean
+  fillHeight?: boolean
   canWrite?: boolean
   saving?: boolean
   saveError?: string | null
@@ -41,6 +42,7 @@ export function MarkdownEditor({
   error,
   onClose,
   showBackButton = true,
+  fillHeight = false,
   canWrite = false,
   saving = false,
   saveError,
@@ -126,8 +128,12 @@ export function MarkdownEditor({
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
-      <header className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95">
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+      <header
+        className={`z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-white/95 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95 ${
+          fillHeight ? 'px-2 py-1.5' : 'sticky top-0 px-3 py-2'
+        }`}
+      >
         <div className="flex min-w-0 items-center gap-2">
           {showBackButton && (
             <button

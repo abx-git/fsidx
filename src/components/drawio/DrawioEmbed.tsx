@@ -94,7 +94,7 @@ export function DrawioEmbed({ xml, mode, className = '', onXmlChange, readOnly =
         ref={iframeRef}
         src={drawioUrlForMode(mode)}
         title={mode === 'editor' ? 'draw.io Editor' : 'draw.io Vorschau'}
-        className="h-full min-h-[320px] w-full border-0"
+        className="h-full min-h-0 w-full flex-1 border-0"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
         referrerPolicy="no-referrer"
       />

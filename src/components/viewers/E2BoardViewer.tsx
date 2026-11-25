@@ -18,6 +18,7 @@ interface E2BoardViewerProps {
   filePath: string
   onClose: () => void
   showBackButton?: boolean
+  fillHeight?: boolean
   e2: E2BoardViewerSlice
 }
 
@@ -26,6 +27,7 @@ export function E2BoardViewer({
   filePath,
   onClose,
   showBackButton,
+  fillHeight = false,
   e2,
 }: E2BoardViewerProps) {
   const embedRef = useRef<E2EmbedHandle>(null)
@@ -67,19 +69,26 @@ export function E2BoardViewer({
       subtitle={filePath}
       onClose={onClose}
       showBackButton={showBackButton}
+      fillHeight={fillHeight}
       loading={e2.loading}
       error={e2.error ?? e2.saveError}
       toolbar={toolbar}
     >
       {!e2.loading && !e2.error && (
-        <div className="flex min-h-[min(80vh,900px)] flex-1 flex-col">
+        <div
+          className={
+            fillHeight
+              ? 'flex h-full min-h-0 flex-1 flex-col'
+              : 'flex min-h-[min(80vh,900px)] flex-1 flex-col'
+          }
+        >
           <E2Embed
             ref={embedRef}
             hostFileId={filePath}
             json={e2.json}
             canWrite={e2.canWrite}
             onJsonChange={e2.onJsonChange}
-            className="min-h-[min(80vh,900px)]"
+            className={fillHeight ? 'min-h-0' : 'min-h-[min(80vh,900px)]'}
           />
         </div>
       )}

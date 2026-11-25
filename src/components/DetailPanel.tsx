@@ -122,8 +122,8 @@ export function DetailPanel({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showViewer && (
-        <div className="flex min-h-0 flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800">
-          <div className="min-h-0 flex-1 overflow-hidden">{viewerSlot}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{viewerSlot}</div>
         </div>
       )}
 

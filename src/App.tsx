@@ -27,6 +27,7 @@ import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
 import { readClipboardAsFile } from './lib/clipboard-paste'
+import { rangeSelectIds } from './lib/list-selection'
 import { uploadFilesToScope } from './lib/upload-files-scope'
 import { createVaultFolderInScope } from './lib/vault/create-vault-folder'
 import { closeVaultInSession, unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
@@ -118,6 +119,8 @@ function App() {
   const [newEt2TaskRequest, setNewEt2TaskRequest] = useState<{ dirPath: string } | null>(null)
   const [reparentTaskId, setReparentTaskId] = useState<string | null>(null)
   const [titleFocusTick, setTitleFocusTick] = useState(0)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const selectionAnchorRef = useRef<string | null>(null)
 
   const {
     manifest,
@@ -127,7 +130,7 @@ function App() {
     setCurrentPath,
     currentNode,
     selectedId,
-    setSelectedId,
+    setSelectedId: setSelectedIdRaw,
     selectedNode,
     searchQuery,
     setSearchQuery,
@@ -152,6 +155,24 @@ function App() {
     setFileSources,
     replaceManifest,
   } = useFileIndex()
+
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      setSelectedIdRaw(id)
+      setSelectedIds(id ? new Set([id]) : new Set())
+      if (id) selectionAnchorRef.current = id
+    },
+    [setSelectedIdRaw],
+  )
+
+  const applyListSelection = useCallback(
+    (ids: Set<string>, primary: string) => {
+      setSelectedIds(ids)
+      setSelectedIdRaw(primary)
+      selectionAnchorRef.current = primary
+    },
+    [setSelectedIdRaw],
+  )
 
   const [vaultUnlockTarget, setVaultUnlockTarget] = useState<string | null>(null)
   const [vaultUiTick, setVaultUiTick] = useState(0)
@@ -419,7 +440,26 @@ function App() {
   }, [manifest, inspectNode])
 
   const handleSelectEntry = useCallback(
-    (id: string) => {
+    (id: string, event?: React.MouseEvent, orderedIds?: string[]) => {
+      const toggle = Boolean(event && (event.ctrlKey || event.metaKey))
+      const shift = Boolean(event?.shiftKey)
+      if (toggle && manifest) {
+        setSelectedIds((prev) => {
+          const next = new Set<string>(
+            prev.size > 0 ? [...prev] : selectedId ? [selectedId] : [],
+          )
+          if (next.has(id)) next.delete(id)
+          else next.add(id)
+          setSelectedIdRaw(id)
+          selectionAnchorRef.current = id
+          return next
+        })
+        return
+      }
+      if (shift && selectionAnchorRef.current && orderedIds?.length) {
+        applyListSelection(rangeSelectIds(orderedIds, selectionAnchorRef.current, id), id)
+        return
+      }
       if (!manifest) {
         setSelectedId(id)
         return
@@ -444,7 +484,16 @@ function App() {
       }
       setSelectedId(id)
     },
-    [manifest, searchResults, setSelectedId, setSearchQuery, navigateToPath],
+    [
+      manifest,
+      searchResults,
+      setSelectedId,
+      setSelectedIdRaw,
+      applyListSelection,
+      selectedId,
+      setSearchQuery,
+      navigateToPath,
+    ],
   )
 
   const handleOpenTaskFromAggregate = useCallback(
@@ -1441,7 +1490,16 @@ function App() {
     (from: string, row: RawFileRow, sidecarRow: RawFileRow | null, oldEntryId?: string) => {
       const newId = moveIndexedFile(from, row, sidecarRow)
       if (!newId) throw new Error('Index konnte nicht aktualisiert werden.')
-      if (selectedId === oldEntryId) setSelectedId(newId)
+      if (oldEntryId && selectedIds.has(oldEntryId)) {
+        setSelectedIds((prev) => {
+          if (!oldEntryId || !prev.has(oldEntryId)) return prev
+          const next = new Set(prev)
+          next.delete(oldEntryId)
+          next.add(newId)
+          return next
+        })
+      }
+      if (selectedId === oldEntryId) setSelectedIdRaw(newId)
       if (fileView?.path === from) {
         setFileView((prev) =>
           prev ? { ...prev, path: row.relativePath, name: row.name, id: newId } : prev,
@@ -1467,6 +1525,8 @@ function App() {
     [
       moveIndexedFile,
       selectedId,
+      selectedIds,
+      setSelectedIdRaw,
       fileView?.path,
       metadataTarget,
       selectedTskTaskRef,
@@ -1743,6 +1803,7 @@ function App() {
       onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={handleSelectEntry}
       selectedId={selectedId}
+      selectedIds={selectedIds}
       searchQuery={searchQuery}
       searchTasksOnly={searchTasksOnly}
       searchResults={searchResults}

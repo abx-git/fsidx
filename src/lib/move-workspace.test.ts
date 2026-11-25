@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  expandFsidxFileDrag,
   moveDirectoryValidationError,
   moveFileValidationError,
   normalizeRenameFileNameInput,
@@ -83,5 +84,23 @@ describe('renameFileValidationError', () => {
   it('meldet Namenskollision', () => {
     const paths = new Set(['a/x.tsk.json'])
     expect(renameFileValidationError('a/y.tsk.json', 'x.tsk.json', paths)).toMatch(/bereits/)
+  })
+})
+
+describe('expandFsidxFileDrag', () => {
+  it('expandiert Mehrfach-Payload ohne Duplikate', () => {
+    const json = JSON.stringify({
+      path: 'a/one.md',
+      id: '1',
+      name: 'one.md',
+      kind: 'file',
+      batch: [
+        { path: 'a/two.md', id: '2', name: 'two.md', kind: 'file' },
+        { path: 'a/one.md', id: '1', name: 'one.md', kind: 'file' },
+      ],
+    })
+    const items = expandFsidxFileDrag(json)
+    expect(items).toHaveLength(2)
+    expect(items.map((i) => i.path)).toEqual(['a/one.md', 'a/two.md'])
   })
 })

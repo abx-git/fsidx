@@ -22,6 +22,8 @@ export interface FsidxFileDragPayload {
   id: string
   name: string
   kind?: 'file' | 'directory'
+  /** Weitere markierte Einträge (Mehrfachauswahl in der Dateiliste). */
+  batch?: FsidxFileDragPayload[]
 }
 
 export function fsidxFileDragMime(): string {
@@ -36,6 +38,24 @@ export function parseFsidxFileDrag(data: string): FsidxFileDragPayload | null {
   } catch {
     return null
   }
+}
+
+function normalizeDragPayload(item: FsidxFileDragPayload): FsidxFileDragPayload {
+  return { ...item, kind: item.kind ?? 'file' }
+}
+
+/** Alle Einträge eines Drag-Vorgangs (einzeln oder Mehrfachauswahl). */
+export function expandFsidxFileDrag(data: string): FsidxFileDragPayload[] {
+  const primary = parseFsidxFileDrag(data)
+  if (!primary) return []
+  const rest = primary.batch?.filter((b) => b?.path && b.id && b.name).map(normalizeDragPayload) ?? []
+  const all = [normalizeDragPayload(primary), ...rest.filter((b) => b.path !== primary.path)]
+  const seen = new Set<string>()
+  return all.filter((p) => {
+    if (seen.has(p.path)) return false
+    seen.add(p.path)
+    return true
+  })
 }
 
 export function parentDirOfFile(filePath: string): string {

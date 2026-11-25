@@ -24,8 +24,9 @@ interface FileBrowserProps {
   rootName: string
   entries: IndexEntry[]
   onNavigate: (path: string) => void
-  onSelectEntry: (id: string) => void
+  onSelectEntry: (id: string, event?: React.MouseEvent, orderedIds?: string[]) => void
   selectedId: string | null
+  selectedIds?: ReadonlySet<string>
   searchQuery: string
   searchResults: IndexEntry[]
   searchTasksOnly?: boolean
@@ -71,6 +72,7 @@ export function FileBrowser({
   onNavigate,
   onSelectEntry,
   selectedId,
+  selectedIds,
   searchQuery,
   searchResults,
   searchTasksOnly = false,
@@ -318,7 +320,8 @@ export function FileBrowser({
           </li>
         )}
         {listing.map((row) => {
-          const isSelected = selectedId === row.id
+          const isSelected = selectedIds?.has(row.id) ?? selectedId === row.id
+          const isPrimary = selectedId === row.id
           const meta = row.kind === 'file' && hasSidecar(row.path)
           return (
             <li key={row.id}>
@@ -327,6 +330,19 @@ export function FileBrowser({
                 draggable={canWrite}
                 onDragStart={(e) => {
                   if (!canWrite) return
+                  const dragRows =
+                    selectedIds && selectedIds.has(row.id) && selectedIds.size > 1
+                      ? listing.filter((r) => selectedIds.has(r.id))
+                      : [row]
+                  const batch =
+                    dragRows.length > 1
+                      ? dragRows.map((r) => ({
+                          path: r.path,
+                          id: r.id,
+                          name: r.name,
+                          kind: r.kind,
+                        }))
+                      : undefined
                   e.dataTransfer.setData(
                     fsidxFileDragMime(),
                     JSON.stringify({
@@ -334,13 +350,17 @@ export function FileBrowser({
                       id: row.id,
                       name: row.name,
                       kind: row.kind,
+                      batch,
                     }),
                   )
                   e.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={() => {
-                  onSelectEntry(row.id)
-                  if (row.kind === 'directory' && !inSearch) onNavigate(row.path)
+                onClick={(e) => {
+                  const ordered = listing.map((r) => r.id)
+                  onSelectEntry(row.id, e, ordered)
+                  if (row.kind === 'directory' && !inSearch && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    onNavigate(row.path)
+                  }
                 }}
                 onDoubleClick={() => {
                   if (row.kind === 'directory') {
@@ -369,7 +389,13 @@ export function FileBrowser({
                   row.kind === 'directory' && vaultRoots.includes(row.path)
                     ? 'border-blue-200/80 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/25'
                     : 'border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                } ${isSelected ? 'bg-emerald-50/80 dark:bg-emerald-950/30' : ''}`}
+                } ${
+                  isSelected
+                    ? isPrimary
+                      ? 'bg-emerald-50/80 ring-1 ring-inset ring-emerald-400/60 dark:bg-emerald-950/30 dark:ring-emerald-600/50'
+                      : 'bg-emerald-50/50 dark:bg-emerald-950/20'
+                    : ''
+                }`}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {row.kind === 'directory' && vaultRoots.includes(row.path) ? (

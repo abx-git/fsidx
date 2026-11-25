@@ -9,7 +9,7 @@ import {
   groupEntriesByParent,
   visibleDirectoryChildEntries,
 } from '../lib/manifest-children'
-import { fsidxFileDragMime, parseFsidxFileDrag } from '../lib/move-workspace'
+import { expandFsidxFileDrag, fsidxFileDragMime } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
 
 const TREE_EXPANDED_KEY = 'fsidx.treeExpanded'
@@ -46,7 +46,11 @@ interface TreeNavProps {
   et2TaskCountByDir?: Map<string, number>
   onContextMenu?: (target: ContextMenuTarget) => void
   canWrite?: boolean
-  onDropFileToDir?: (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => void
+  onDropFileToDir?: (
+    sourcePath: string,
+    destDirPath: string,
+    kind: 'file' | 'directory',
+  ) => void | Promise<void>
   vaultRoots?: string[]
 }
 
@@ -68,7 +72,11 @@ interface TreeNodeProps {
   canWrite?: boolean
   dropTargetPath: string | null
   onDropTargetPath: (path: string | null) => void
-  onDropFileToDir?: (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => void
+  onDropFileToDir?: (
+    sourcePath: string,
+    destDirPath: string,
+    kind: 'file' | 'directory',
+  ) => void | Promise<void>
   vaultRoots?: string[]
 }
 
@@ -210,10 +218,31 @@ function TreeNode({
             e.preventDefault()
             e.stopPropagation()
             onDropTargetPath(null)
-            const payload = parseFsidxFileDrag(e.dataTransfer.getData(fsidxFileDragMime()))
-            if (payload) onDropFileToDir?.(payload.path, node.path, payload.kind ?? 'file')
+            const payloads = expandFsidxFileDrag(e.dataTransfer.getData(fsidxFileDragMime()))
+            void (async () => {
+              for (const payload of payloads) {
+                await onDropFileToDir?.(payload.path, node.path, payload.kind ?? 'file')
+              }
+            })()
           }}
-          className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${focusClass}`}
+          draggable={canWrite && !isRoot}
+          onDragStart={(e) => {
+            if (!canWrite || isRoot) return
+            e.stopPropagation()
+            e.dataTransfer.setData(
+              fsidxFileDragMime(),
+              JSON.stringify({
+                path: node.path,
+                id: node.id,
+                name: node.name || node.path.split('/').pop() || 'Ordner',
+                kind: 'directory',
+              }),
+            )
+            e.dataTransfer.effectAllowed = 'move'
+          }}
+          className={`flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left outline-none ${
+            canWrite && !isRoot ? 'cursor-grab active:cursor-grabbing' : ''
+          } ${focusClass}`}
         >
           {isVaultDir || workspaceIsVaultRoot ? (
             <Shield className="h-3.5 w-3.5 shrink-0 text-blue-800 dark:text-blue-300" />
@@ -418,7 +447,9 @@ export function TreeNav({
       <div className="shrink-0 border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Ordnerbaum</p>
         {canWrite && (
-          <p className="px-1 pt-0.5 text-[9px] text-zinc-400">Dateien aus der Liste hierher ziehen</p>
+          <p className="px-1 pt-0.5 text-[9px] text-zinc-400">
+            Dateien/Ordner ziehen · Strg/Cmd oder Umschalt für Mehrfachauswahl in der Liste
+          </p>
         )}
       </div>
       <div

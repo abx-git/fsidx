@@ -19,8 +19,9 @@ Nothing is uploaded; metadata stays in memory unless you export it.
 
 ### Große Ordner
 
-- Beim **ersten Öffnen** wird der Baum in einem Durchlauf gelesen (**ohne** Größe/Zeit pro Datei vorab — die Werte fehlen im Index, bis die Datei geöffnet wird).
-- Die Anzeige zeigt während des Lesens einen **Fortschrittszähler**; der Walk gibt regelmäßig die UI frei.
+- Beim **ersten Öffnen** erscheint die Oberfläche nach der **ersten Verzeichnisebene**; der **vollständige Index für Suche und Baum** läuft **parallel im Hintergrund** (Batch-Updates, Hinweis in der Kopfzeile).
+- Der Hintergrund-Scan liest **ohne** Größe/Zeit pro Datei vorab — Metadaten folgen beim Öffnen einer Datei.
+- Fortschritt und UI-Yields verhindern lange Blockaden.
 - Nach einem Reload wird der gespeicherte Manifest aus dem Browser-Speicher genutzt — **kein erneuter Vollscan**; Datei-Handles werden **bei Bedarf** vom Root-Handle aufgelöst.
 - Aufgaben-Badges im Baum nutzen einen **vorberechneten Index** statt pro Ordner alle Pfade erneut zu scannen.
 

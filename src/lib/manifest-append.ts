@@ -35,6 +35,17 @@ function buildSearchText(parts: {
     .toLowerCase()
 }
 
+export function appendRowsToManifest(
+  manifest: FileIndexManifest,
+  rows: RawFileRow[],
+): FileIndexManifest {
+  let next = manifest
+  for (const row of rows) {
+    next = appendFileToManifest(next, row)
+  }
+  return next
+}
+
 export function appendFileToManifest(
   manifest: FileIndexManifest,
   row: RawFileRow,

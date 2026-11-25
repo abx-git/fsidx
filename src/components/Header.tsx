@@ -9,7 +9,7 @@ import {
   Shield,
 } from 'lucide-react'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
-import type { FileIndexManifest } from '../types'
+import type { FileIndexManifest, IndexingProgress } from '../types'
 import { downloadManifestJson } from '../lib/build-manifest'
 import { CollapsibleSection } from './ui/CollapsibleSection'
 
@@ -25,6 +25,7 @@ interface HeaderProps {
   manifest: FileIndexManifest | null
   supportsFsPicker: boolean
   indexing: boolean
+  indexProgress?: IndexingProgress
   showEt2DotFiles: boolean
   onShowEt2DotFilesChange: (value: boolean) => void
   /** Nur wenn der Workspace alte `.et2/`-Strukturen enthält. */
@@ -45,6 +46,7 @@ export function Header({
   manifest,
   supportsFsPicker,
   indexing,
+  indexProgress,
   showEt2DotFiles,
   onShowEt2DotFilesChange,
   hasLegacyEt2 = false,
@@ -174,13 +176,30 @@ export function Header({
           </CollapsibleSection>
         </div>
       </div>
+      {indexProgress?.phase === 'indexing' && (
+        <p
+          className="rounded-md border border-amber-200/80 bg-amber-50 px-3 py-1.5 text-xs text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
+          role="status"
+        >
+          Hintergrund-Index: {indexProgress.scanned.toLocaleString('de-DE')} Einträge — App nutzbar,
+          Suche und Baum werden fortlaufend ergänzt.
+        </p>
+      )}
       {manifest && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <input
               type="search"
-              placeholder={searchTasksOnly ? 'Aufgaben im Scope suchen…' : 'Suche im aktuellen Scope…'}
+              placeholder={
+                indexProgress?.phase === 'indexing'
+                  ? searchTasksOnly
+                    ? 'Aufgaben (Index läuft noch)…'
+                    : 'Suche (Index läuft noch)…'
+                  : searchTasksOnly
+                    ? 'Aufgaben im Scope suchen…'
+                    : 'Suche im aktuellen Scope…'
+              }
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 bg-zinc-50 py-1.5 pl-10 pr-3 text-sm text-zinc-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"

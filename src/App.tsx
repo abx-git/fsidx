@@ -1464,8 +1464,7 @@ function App() {
     }
   }, [sidecar, manifest, metadataTarget, registerSidecarFile])
 
-  const indexing =
-    progress.phase === 'reading' || progress.phase === 'building'
+  const indexing = progress.phase === 'reading'
 
   const centerPane = !manifest ? null : metadataTarget ? (
     <MetadataEditor
@@ -1557,6 +1556,7 @@ function App() {
         manifest={manifest}
         supportsFsPicker={supportsFsPicker}
         indexing={indexing}
+        indexProgress={progress}
         showEt2DotFiles={showEt2DotFiles}
         onShowEt2DotFilesChange={setShowEt2DotFiles}
         hasLegacyEt2={hasLegacyEt2}

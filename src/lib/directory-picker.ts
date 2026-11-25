@@ -101,6 +101,74 @@ export async function fileSourcesFromDirectoryHandle(
   }
 }
 
+export type DirectoryWalkBatch = (rows: RawFileRow[]) => void
+
+export type DirectoryWalkOptions = {
+  onBatch?: DirectoryWalkBatch
+  batchSize?: number
+  shouldAbort?: () => boolean
+}
+
+const INDEX_BATCH_SIZE = 300
+
+/** Ordnerpicker + nur erste Ebene (schnelles UI), Vollindex danach im Hintergrund. */
+export async function pickDirectoryForProgressiveIndex(): Promise<{
+  rootName: string
+  rootHandle: FileSystemDirectoryHandle
+  shallowRows: RawFileRow[]
+  fileSources: FileSourceStore & { vaultRoots: string[] }
+}> {
+  resetIdCounter()
+  const handle = await window.showDirectoryPicker({
+    mode: 'readwrite',
+    id: DIRECTORY_PICKER_ID,
+  })
+  const shallowRows: RawFileRow[] = []
+  const handles = new Map<string, FileSystemFileHandle>()
+  const vaultRoots: string[] = []
+  await listDirectoryShallow(handle, '', shallowRows, handles, vaultRoots)
+  augmentVaultRootsFromRows(shallowRows, vaultRoots)
+  return {
+    rootName: handle.name,
+    rootHandle: handle,
+    shallowRows,
+    fileSources: {
+      kind: 'handles',
+      rootName: handle.name,
+      root: handle,
+      handles,
+      vaultRoots,
+    },
+  }
+}
+
+export async function walkDirectoryIndexInBackground(
+  handle: FileSystemDirectoryHandle,
+  fileSources: Extract<FileSourceStore, { kind: 'handles' }> & { vaultRoots: string[] },
+  callbacks: {
+    onProgress?: DirectoryWalkProgress
+    onBatch: DirectoryWalkBatch
+    shouldAbort?: () => boolean
+  },
+): Promise<string[]> {
+  const rows: RawFileRow[] = []
+  const vaultRoots = [...(fileSources.vaultRoots ?? [])]
+  await walkDirectoryHandle(
+    handle,
+    '',
+    rows,
+    fileSources.handles,
+    vaultRoots,
+    callbacks.onProgress,
+    {
+      onBatch: callbacks.onBatch,
+      shouldAbort: callbacks.shouldAbort,
+    },
+  )
+  augmentVaultRootsFromRows(rows, vaultRoots)
+  return vaultRoots
+}
+
 export async function pickDirectoryWithFsApi(
   onProgress?: DirectoryWalkProgress,
 ): Promise<{
@@ -135,6 +203,42 @@ export async function pickDirectoryWithFsApi(
 
 const WALK_YIELD_EVERY = 400
 
+async function listDirectoryShallow(
+  dirHandle: FileSystemDirectoryHandle,
+  prefix: string,
+  rows: RawFileRow[],
+  handles: Map<string, FileSystemFileHandle>,
+  vaultRoots: string[],
+): Promise<void> {
+  if (prefix === '' && (await isVaultDirectory(dirHandle))) {
+    await absorbVaultFolder('', dirHandle, rows, handles, vaultRoots)
+    return
+  }
+
+  for await (const [name, child] of dirHandle.entries()) {
+    const relativePath = prefix ? `${prefix}/${name}` : name
+
+    if (child.kind === 'directory') {
+      if (await isVaultDirectory(child)) {
+        await absorbVaultFolder(relativePath, child, rows, handles, vaultRoots)
+        continue
+      }
+      rows.push({
+        relativePath,
+        name,
+        kind: 'directory',
+      })
+    } else {
+      handles.set(relativePath, child)
+      rows.push({
+        relativePath,
+        name,
+        kind: 'file',
+      })
+    }
+  }
+}
+
 async function walkDirectoryHandle(
   dirHandle: FileSystemDirectoryHandle,
   prefix: string,
@@ -142,6 +246,7 @@ async function walkDirectoryHandle(
   handles: Map<string, FileSystemFileHandle>,
   vaultRoots: string[],
   onProgress?: DirectoryWalkProgress,
+  walkOptions?: DirectoryWalkOptions,
 ): Promise<void> {
   if (prefix === '' && (await isVaultDirectory(dirHandle))) {
     await absorbVaultFolder('', dirHandle, rows, handles, vaultRoots)
@@ -149,13 +254,31 @@ async function walkDirectoryHandle(
   }
 
   let sinceYield = 0
+  let batchFrom = rows.length
+  const batchSize = walkOptions?.batchSize ?? INDEX_BATCH_SIZE
+
+  const flushBatch = () => {
+    if (!walkOptions?.onBatch || rows.length <= batchFrom) return
+    walkOptions.onBatch(rows.slice(batchFrom))
+    batchFrom = rows.length
+  }
+
+  const noteRowAdded = () => {
+    if (rows.length - batchFrom >= batchSize) flushBatch()
+  }
+
   const tickProgress = () => {
-    if (!onProgress) return
-    onProgress(rows.length)
+    if (onProgress) onProgress(rows.length)
     sinceYield = 0
+    flushBatch()
+  }
+
+  const abortIfNeeded = () => {
+    if (walkOptions?.shouldAbort?.()) throw new DOMException('Aborted', 'AbortError')
   }
 
   for await (const [name, child] of dirHandle.entries()) {
+    abortIfNeeded()
     const relativePath = prefix ? `${prefix}/${name}` : name
 
     if (child.kind === 'directory') {
@@ -173,12 +296,21 @@ async function walkDirectoryHandle(
         name,
         kind: 'directory',
       })
+      noteRowAdded()
       sinceYield++
       if (sinceYield >= WALK_YIELD_EVERY) {
         tickProgress()
         await new Promise((r) => setTimeout(r, 0))
       }
-      await walkDirectoryHandle(child, relativePath, rows, handles, vaultRoots, onProgress)
+      await walkDirectoryHandle(
+        child,
+        relativePath,
+        rows,
+        handles,
+        vaultRoots,
+        onProgress,
+        walkOptions,
+      )
     } else {
       handles.set(relativePath, child)
       rows.push({
@@ -186,6 +318,7 @@ async function walkDirectoryHandle(
         name,
         kind: 'file',
       })
+      noteRowAdded()
       sinceYield++
       if (sinceYield >= WALK_YIELD_EVERY) {
         tickProgress()
@@ -193,6 +326,7 @@ async function walkDirectoryHandle(
       }
     }
   }
+  flushBatch()
 }
 
 /** Fallback for browsers without File System Access API */

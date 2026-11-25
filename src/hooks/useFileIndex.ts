@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildManifestFromRows } from '../lib/build-manifest'
 import {
   fileSourcesFromRootHandle,
-  pickDirectoryWithFsApi,
+  pickDirectoryForProgressiveIndex,
   requestDirectoryPermission,
   rowsFromFileList,
   supportsDirectoryPicker,
+  walkDirectoryIndexInBackground,
 } from '../lib/directory-picker'
 import type { FileSourceStore } from '../lib/file-sources'
 import { inferVaultRootsFromMarkerEntries, mergeVaultRootLists } from '../lib/vault/vault-paths'
@@ -23,7 +24,7 @@ import { isTskJsonPath } from '../lib/et2/tsk-paths'
 import { isEntryInScope } from '../lib/workspace-scope'
 import type { FileIndexManifest, IndexEntry, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
-import { appendFileToManifest } from '../lib/manifest-append'
+import { appendFileToManifest, appendRowsToManifest } from '../lib/manifest-append'
 import { removePathFromManifest } from '../lib/manifest-remove'
 import { sidecarPathForFile } from '../lib/sidecar'
 import {
@@ -71,6 +72,7 @@ export function useFileIndex() {
   const taskTitlesRef = useRef<Map<string, string>>(new Map())
   const [taskTitleGeneration, setTaskTitleGeneration] = useState(0)
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const backgroundIndexGen = useRef(0)
 
   const currentNode = useMemo(() => {
     if (!manifest) return null
@@ -345,6 +347,7 @@ export function useFileIndex() {
 
   useEffect(() => {
     if (!manifest || !sourceKind) return
+    if (progress.phase === 'indexing') return
     if (persistTimer.current) clearTimeout(persistTimer.current)
     persistTimer.current = setTimeout(() => {
       const vaultRoots =
@@ -354,35 +357,93 @@ export function useFileIndex() {
     return () => {
       if (persistTimer.current) clearTimeout(persistTimer.current)
     }
-  }, [manifest, sourceKind, currentPath, selectedId, fileSources, persistNow])
+  }, [manifest, sourceKind, currentPath, selectedId, fileSources, persistNow, progress.phase])
 
   const indexFromPicker = useCallback(async () => {
-    setProgress({ phase: 'reading', scanned: 0 })
+    backgroundIndexGen.current += 1
+    const runId = backgroundIndexGen.current
+    setProgress({ phase: 'reading', scanned: 0, message: 'Ordner wird gewählt…' })
     setNeedsFolderReconnect(false)
     try {
-      const { rootName, rows, fileSources: sources, rootHandle } = await pickDirectoryWithFsApi(
-        (scanned) => setProgress({ phase: 'reading', scanned, message: 'Ordner wird gelesen…' }),
-      )
-      setProgress({ phase: 'building', scanned: rows.length, message: 'Index wird aufgebaut…' })
+      const { rootName, rootHandle, shallowRows, fileSources: sources } =
+        await pickDirectoryForProgressiveIndex()
+
       lockAllVaults()
-      const vaultRoots = mergeVaultRootLists(
+      let vaultRoots = mergeVaultRootLists(
         sources.vaultRoots,
-        inferVaultRootsFromMarkerEntries(rows.map((r) => r.relativePath)),
+        inferVaultRootsFromMarkerEntries(shallowRows.map((r) => r.relativePath)),
       )
-      const sourcesWithVaults = { ...sources, vaultRoots }
-      const built = reconcileLockedVaultsInManifest(
-        buildManifestFromRows(rootName, rows),
+      const sourcesWithVaults = { ...sources, vaultRoots } as Extract<
+        FileSourceStore,
+        { kind: 'handles' }
+      > & { vaultRoots: string[] }
+      const initial = reconcileLockedVaultsInManifest(
+        buildManifestFromRows(rootName, shallowRows),
         vaultRoots,
       )
-      setManifest(built)
+
+      setManifest(initial)
       setFileSources(sourcesWithVaults)
       setSourceKind('handles')
       setCurrentPath('')
       setSelectedId(null)
       setSearchQuery('')
-      setProgress({ phase: 'ready', scanned: rows.length })
+      setProgress({
+        phase: 'indexing',
+        scanned: shallowRows.length,
+        message: 'Hintergrund-Index für Suche und Baum…',
+      })
       await saveDirectoryHandle(rootHandle)
-      persistNow(built, 'handles', '', null, vaultRoots)
+
+      void walkDirectoryIndexInBackground(rootHandle, sourcesWithVaults, {
+        onProgress: (scanned) => {
+          if (runId !== backgroundIndexGen.current) return
+          setProgress({
+            phase: 'indexing',
+            scanned,
+            message: 'Hintergrund-Index für Suche und Baum…',
+          })
+        },
+        onBatch: (batch) => {
+          if (runId !== backgroundIndexGen.current) return
+          startTransition(() => {
+            setManifest((m) => (m ? appendRowsToManifest(m, batch) : m))
+          })
+        },
+        shouldAbort: () => runId !== backgroundIndexGen.current,
+      })
+        .then((walkVaultRoots) => {
+          if (runId !== backgroundIndexGen.current) return
+          let mergedVaults: string[] = walkVaultRoots
+          setManifest((m) => {
+            if (!m) return m
+            mergedVaults = mergeVaultRootLists(
+              walkVaultRoots,
+              inferVaultRootsFromMarkerEntries(m.entries.map((e) => e.path)),
+            )
+            const reconciled = reconcileLockedVaultsInManifest(m, mergedVaults)
+            persistNow(reconciled, 'handles', '', null, mergedVaults)
+            return reconciled
+          })
+          setFileSources((fs) =>
+            fs?.kind === 'handles' ? { ...fs, vaultRoots: mergedVaults } : fs,
+          )
+          setProgress((p) => ({
+            phase: 'ready',
+            scanned: p.scanned,
+            message: undefined,
+          }))
+        })
+        .catch((err) => {
+          if (runId !== backgroundIndexGen.current) return
+          if (err instanceof DOMException && err.name === 'AbortError') return
+          setProgress({
+            phase: 'error',
+            scanned: 0,
+            message:
+              err instanceof Error ? err.message : 'Hintergrund-Index fehlgeschlagen',
+          })
+        })
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setProgress((p) => (p.phase === 'reading' ? { phase: 'idle', scanned: 0 } : p))
@@ -479,6 +540,7 @@ export function useFileIndex() {
   }, [indexFromPicker, manifest])
 
   const clearIndex = useCallback(() => {
+    backgroundIndexGen.current += 1
     lockAllVaults()
     setManifest(null)
     setFileSources(null)

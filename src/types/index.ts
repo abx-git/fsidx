@@ -46,7 +46,7 @@ export interface IndexEntry {
   searchText: string
 }
 
-export type IndexingPhase = 'idle' | 'reading' | 'building' | 'ready' | 'error'
+export type IndexingPhase = 'idle' | 'reading' | 'building' | 'indexing' | 'ready' | 'error'
 
 export interface IndexingProgress {
   phase: IndexingPhase

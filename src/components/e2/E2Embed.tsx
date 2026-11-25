@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react'
 import {
   EMBED_DOCUMENT_MESSAGE,
   EMBED_LOAD_MESSAGE,
@@ -14,6 +21,10 @@ import { isE2BoardSnapshotText } from '../../lib/e2/e2-board-paths'
 
 const FLUSH_TIMEOUT_MS = 2500
 
+export type E2EmbedHandle = {
+  requestFlush: () => void
+}
+
 interface E2EmbedProps {
   hostFileId: string
   json: string
@@ -22,11 +33,15 @@ interface E2EmbedProps {
   onJsonChange?: (json: string, hostFileId: string, reason: 'autosave' | 'flush') => void
 }
 
-export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChange }: E2EmbedProps) {
+export const E2Embed = forwardRef<E2EmbedHandle, E2EmbedProps>(function E2Embed(
+  { hostFileId, json, canWrite, className = '', onJsonChange },
+  ref,
+) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const jsonRef = useRef(json)
   const hostFileIdRef = useRef(hostFileId)
   const readyRef = useRef(false)
+  const lastSentJsonRef = useRef<string | null>(null)
   const origin = e2EmbedOrigin()
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState<string | null>(null)
@@ -40,21 +55,29 @@ export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChan
     hostFileIdRef.current = hostFileId
   }, [hostFileId])
 
+  const validateJson = useCallback((): string | null => {
+    if (!json.trim()) return 'Leere Board-Datei.'
+    if (!isE2BoardSnapshotText(json)) return 'Kein gültiges E2-Board (`.e2.json` v1/v2).'
+    return null
+  }, [json])
+
+  useEffect(() => {
+    const validation = validateJson()
+    if (validation) {
+      setStatus('error')
+      setError(validation)
+      return
+    }
+    setError(null)
+    if (!readyRef.current) setStatus('loading')
+  }, [json, hostFileId, validateJson])
+
   useEffect(() => {
     readyRef.current = false
-    if (!json.trim()) {
-      setStatus('error')
-      setError('Leere Board-Datei.')
-      return
-    }
-    if (!isE2BoardSnapshotText(json)) {
-      setStatus('error')
-      setError('Kein gültiges E2-Board (`.e2.json` v1/v2).')
-      return
-    }
+    lastSentJsonRef.current = null
     setStatus('loading')
     setError(null)
-  }, [json, hostFileId])
+  }, [hostFileId])
 
   const postToIframe = useCallback(
     (payload: Record<string, unknown>) => {
@@ -64,6 +87,8 @@ export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChan
   )
 
   const sendLoad = useCallback(() => {
+    const validation = validateJson()
+    if (validation) return
     postToIframe({
       type: EMBED_LOAD_MESSAGE,
       json: jsonRef.current,
@@ -71,7 +96,8 @@ export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChan
       editable: canWrite,
       autosave: canWrite,
     })
-  }, [canWrite, postToIframe])
+    lastSentJsonRef.current = jsonRef.current
+  }, [canWrite, postToIframe, validateJson])
 
   const requestFlushThen = useCallback(
     (next: () => void) => {
@@ -93,6 +119,23 @@ export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChan
     },
     [canWrite, postToIframe],
   )
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      requestFlush: () => {
+        requestFlushThen(() => {})
+      },
+    }),
+    [requestFlushThen],
+  )
+
+  useEffect(() => {
+    if (!readyRef.current || status !== 'ready') return
+    if (validateJson()) return
+    if (lastSentJsonRef.current === json) return
+    sendLoad()
+  }, [json, sendLoad, status, validateJson])
 
   useEffect(() => {
     if (status === 'error') return
@@ -177,4 +220,4 @@ export function E2Embed({ hostFileId, json, canWrite, className = '', onJsonChan
       />
     </div>
   )
-}
+})

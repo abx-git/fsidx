@@ -180,11 +180,33 @@ function App() {
       setFileView(null)
       return
     }
+    if (isE2JsonPath(selectedNode.path)) {
+      if (viewerPinned) {
+        setFileView((prev) => {
+          if (
+            prev?.id === selectedNode.id &&
+            prev.path === selectedNode.path &&
+            prev.viewer === 'e2-board'
+          ) {
+            return prev
+          }
+          return {
+            viewer: 'e2-board',
+            path: selectedNode.path,
+            name: selectedNode.name,
+            id: selectedNode.id,
+            size: selectedNode.size,
+          }
+        })
+      } else {
+        setFileView(null)
+      }
+      return
+    }
     if (
       isTskJsonPath(selectedNode.path) ||
       isTaskFilePath(selectedNode.path) ||
-      isDrawioPath(selectedNode.path) ||
-      isE2JsonPath(selectedNode.path)
+      isDrawioPath(selectedNode.path)
     ) {
       setFileView(null)
       return
@@ -782,16 +804,18 @@ function App() {
     [fileSources, canWrite, registerSidecarFile],
   )
 
+  const e2EditingPath = activeE2Path ?? (fileView?.viewer === 'e2-board' ? fileView.path : null)
+
   const handleE2JsonChange = useCallback(
     (json: string, hostFileId: string, reason: 'autosave' | 'flush' = 'autosave') => {
-      if (!activeE2Path || !canWrite || hostFileId !== activeE2Path) return
-      e2File.setJson(json)
+      if (!e2EditingPath || !canWrite || hostFileId !== e2EditingPath) return
+      if (reason === 'flush') e2File.setJson(json)
       setE2SaveError(null)
       const save = () => {
         void (async () => {
           setE2Saving(true)
           try {
-            await persistE2Json(json, activeE2Path)
+            await persistE2Json(json, e2EditingPath)
           } catch (err) {
             setE2SaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
           } finally {
@@ -807,7 +831,34 @@ function App() {
       if (e2SaveTimerRef.current) clearTimeout(e2SaveTimerRef.current)
       e2SaveTimerRef.current = setTimeout(save, 700)
     },
-    [activeE2Path, canWrite, e2File, persistE2Json],
+    [e2EditingPath, canWrite, e2File, persistE2Json],
+  )
+
+  const e2BoardViewerProps = useMemo(
+    () =>
+      fileView?.viewer === 'e2-board' && e2EditingPath === fileView.path
+        ? {
+            json: e2File.json,
+            loading: e2File.loading,
+            error: e2File.error,
+            canWrite,
+            saving: e2Saving,
+            saveError: e2SaveError,
+            onJsonChange: handleE2JsonChange,
+          }
+        : null,
+    [
+      fileView?.viewer,
+      fileView?.path,
+      e2EditingPath,
+      e2File.json,
+      e2File.loading,
+      e2File.error,
+      canWrite,
+      e2Saving,
+      e2SaveError,
+      handleE2JsonChange,
+    ],
   )
 
   const handleNewDrawioFile = useCallback(
@@ -872,7 +923,10 @@ function App() {
           Math.max(sidebarWidthPx, 720, Math.floor(window.innerWidth * 0.55)),
         )
         setSidebarWidthPx(widen, maxWidthForDrawio())
-        if (newId) handleSelectEntry(newId)
+        if (newId) {
+          handleSelectEntry(newId)
+          openViewer('e2-board', row.relativePath, row.name, newId, row.size)
+        }
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'E2-Board konnte nicht angelegt werden')
       }
@@ -887,6 +941,7 @@ function App() {
       maxWidthForDrawio,
       setSidebarWidthPx,
       sidebarWidthPx,
+      openViewer,
     ],
   )
 
@@ -1609,6 +1664,7 @@ function App() {
       onClose={() => setFileView(null)}
       variant="center"
       markdown={markdownEditorProps}
+      e2Board={e2BoardViewerProps}
       size={fileView.size}
     />
   ) : (
@@ -1856,6 +1912,7 @@ function App() {
             }
             drawioFullscreen={drawioDetailFullscreen}
             e2DetailSlot={
+              !viewerPinned &&
               activeE2Path &&
               selectedNode &&
               !activeTskPath &&
@@ -1915,6 +1972,7 @@ function App() {
                   onClose={() => setFileView(null)}
                   variant="sidebar"
                   markdown={markdownEditorProps}
+                  e2Board={e2BoardViewerProps}
                   size={fileView.size}
                 />
               ) : undefined

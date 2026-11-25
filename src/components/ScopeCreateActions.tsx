@@ -75,8 +75,8 @@ export function ScopeCreateActions({
           disabled={!canWrite}
           onClick={onNewE2Board}
           className={iconBtn}
-          title="Neues E2-Board (*.e2.json) — Event Storming / DDD"
-          aria-label="E2-Board"
+          title="Leeres E2-Board (*.e2.json) anlegen — bearbeiten & speichern in der Detailansicht"
+          aria-label="E2-Board anlegen"
         >
           <LayoutGrid className="h-4 w-4" />
         </button>

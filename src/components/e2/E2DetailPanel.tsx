@@ -1,6 +1,7 @@
-import { Maximize2, Minimize2, PenLine, Loader2 } from 'lucide-react'
+import { Maximize2, Minimize2, PenLine, Loader2, Save } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { E2Embed } from './E2Embed'
+import { useRef } from 'react'
+import { E2Embed, type E2EmbedHandle } from './E2Embed'
 
 interface E2DetailPanelProps {
   filePath: string
@@ -31,6 +32,8 @@ export function E2DetailPanel({
   onWidenPanel,
   filePath,
 }: E2DetailPanelProps) {
+  const embedRef = useRef<E2EmbedHandle>(null)
+
   const panel = (
     <div
       className={
@@ -50,6 +53,25 @@ export function E2DetailPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
+          <span
+            className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
+              canWrite
+                ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200'
+                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+            }`}
+          >
+            {canWrite ? 'Bearbeiten' : 'Nur Lesen'}
+          </span>
+          {canWrite && !loading && !loadError && (
+            <button
+              type="button"
+              onClick={() => embedRef.current?.requestFlush()}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium dark:border-zinc-600"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Speichern
+            </button>
+          )}
           {onWidenPanel && !fullscreen && (
             <button
               type="button"
@@ -102,7 +124,13 @@ export function E2DetailPanel({
           )}
         </div>
       ) : (
-        <E2Embed hostFileId={filePath} json={json} canWrite={canWrite} onJsonChange={onJsonChange} />
+        <E2Embed
+          ref={embedRef}
+          hostFileId={filePath}
+          json={json}
+          canWrite={canWrite}
+          onJsonChange={onJsonChange}
+        />
       )}
     </div>
   )

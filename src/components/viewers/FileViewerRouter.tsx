@@ -12,6 +12,7 @@ import { DiagramViewer } from './DiagramViewer'
 import { SpreadsheetViewer } from './SpreadsheetViewer'
 import { OpenDocumentViewer } from './OpenDocumentViewer'
 import { LinkViewer } from './LinkViewer'
+import { E2BoardViewer, type E2BoardViewerSlice } from './E2BoardViewer'
 import { parseLinkFile } from '../../lib/link/link-file'
 import { useMemo } from 'react'
 
@@ -38,6 +39,7 @@ interface FileViewerRouterProps {
   fileSources: FileSourceStore | null
   onClose: () => void
   markdown?: MarkdownSlice | null
+  e2Board?: E2BoardViewerSlice | null
   size?: number
   /** Full center pane vs compact right sidebar (hides Zurück). */
   variant?: 'center' | 'sidebar'
@@ -48,6 +50,7 @@ export function FileViewerRouter({
   fileSources,
   onClose,
   markdown,
+  e2Board,
   size,
   variant = 'center',
 }: FileViewerRouterProps) {
@@ -77,6 +80,18 @@ export function FileViewerRouter({
     target.viewer === 'link' && textState.text && !linkDoc
       ? 'Link-Datei ungültig (fsidx-link-v1).'
       : null
+
+  if (target.viewer === 'e2-board' && e2Board) {
+    return (
+      <E2BoardViewer
+        fileName={target.name}
+        filePath={target.path}
+        onClose={onClose}
+        showBackButton={showBackButton}
+        e2={e2Board}
+      />
+    )
+  }
 
   if (target.viewer === 'markdown' && markdown) {
     return (

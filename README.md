@@ -56,7 +56,7 @@ projekt/phase/
 ### E2 Domänenmodell (`*.e2.json`)
 
 - **[E2](https://github.com/abx-git/E2)** (Event Storming, DDD, BDD, …) — **nicht** dasselbe wie **ET2** (Aufgaben / `*.tsk.json`).
-- Anlegen: **Anlegen → E2-Board**; Bearbeitung in der Seitenleiste über eingebettetes **E2** (`/embed/`) inkl. Autosave in die Ordner-Datei (Netzwerk nötig; Host-Protokoll v1 ab E2 **0.2.3**).
+- Anlegen: **Anlegen → E2-Board** (leeres Board); Bearbeitung in der Seitenleiste oder Vorschau (angeheftet / Hauptbereich) über **E2** (`/embed/`) mit **Autosave** und **Speichern** in die `.e2.json` auf der Platte (Schreibzugriff + Netzwerk; Host-Protokoll v1 ab E2 **0.2.3**).
 - Beliebig viele `.e2.json` pro Ordner; Wechsel zwischen Dateien speichert die vorherige Datei per `postMessage` (analog draw.io).
 - Optional: `VITE_E2_EMBED_ORIGIN` (Default `https://abx-git.github.io/E2`) für eine andere E2-Instanz.
 

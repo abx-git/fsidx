@@ -705,7 +705,7 @@ function App() {
       setVaultUiTick((t) => t + 1)
       if (skippedEntries > 0) {
         window.alert(
-          `${skippedEntries} Eintrag/Einträge konnten nicht entschlüsselt werden (falscher Schlüssel oder keine Vault-Datei).`,
+          `${skippedEntries} verschlüsselte Datei/Ordner auf der Platte konnten mit diesem Schlüssel nicht gelesen werden (Rest des Tresors wurde entsperrt).`,
         )
       }
     },

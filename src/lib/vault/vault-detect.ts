@@ -11,7 +11,7 @@ const VAULT_IGNORABLE_ON_DISK = new Set([
   '.ds_store',
 ])
 
-function isIgnorableVaultDiskName(name: string): boolean {
+export function isIgnorableVaultDiskName(name: string): boolean {
   const lower = name.toLowerCase()
   if (VAULT_IGNORABLE_ON_DISK.has(lower)) return true
   if (name.startsWith('.')) return true

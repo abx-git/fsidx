@@ -7,6 +7,7 @@ import {
   encryptVaultName,
 } from './crypto'
 import { findDecryptedEntryInDir } from './vault-disk-lookup'
+import { isIgnorableVaultDiskName } from './vault-detect'
 
 export interface VaultDiskRef {
   /** Pfad im fsidx-Manifest (Klartext) */
@@ -48,6 +49,7 @@ export async function indexVaultDirectory(
 
   for await (const [encryptedName, child] of dirHandle.entries()) {
     if (encryptedName === VAULT_MARKER_FILENAME) continue
+    if (isIgnorableVaultDiskName(encryptedName)) continue
     const decoded = await decryptEntry(key, encryptedName, child)
     if (!decoded) {
       skippedEntries++

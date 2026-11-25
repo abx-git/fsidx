@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildManifestFromRows } from '../lib/build-manifest'
 import {
-  fileSourcesFromDirectoryHandle,
+  fileSourcesFromRootHandle,
   pickDirectoryWithFsApi,
   requestDirectoryPermission,
   rowsFromFileList,
@@ -293,17 +293,16 @@ export function useFileIndex() {
             handle.name === session.manifest.rootName &&
             (await requestDirectoryPermission(handle))
           ) {
-            const sources = await fileSourcesFromDirectoryHandle(handle)
+            const vaultRoots = mergeVaultRootLists(
+              session.vaultRoots,
+              inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
+            )
+            const sources = fileSourcesFromRootHandle(handle, vaultRoots)
             if (!cancelled) {
               lockAllVaults()
-              const vaultRoots = mergeVaultRootLists(
-                sources.vaultRoots,
-                session.vaultRoots,
-                inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
-              )
               const reconciled = reconcileLockedVaultsInManifest(session.manifest, vaultRoots)
               setManifest(reconciled)
-              setFileSources({ ...sources, vaultRoots })
+              setFileSources(sources)
               setNeedsFolderReconnect(false)
               setProgress({ phase: 'ready', scanned: reconciled.entries.length })
             }
@@ -361,8 +360,10 @@ export function useFileIndex() {
     setProgress({ phase: 'reading', scanned: 0 })
     setNeedsFolderReconnect(false)
     try {
-      const { rootName, rows, fileSources: sources, rootHandle } = await pickDirectoryWithFsApi()
-      setProgress({ phase: 'building', scanned: rows.length })
+      const { rootName, rows, fileSources: sources, rootHandle } = await pickDirectoryWithFsApi(
+        (scanned) => setProgress({ phase: 'reading', scanned, message: 'Ordner wird gelesen…' }),
+      )
+      setProgress({ phase: 'building', scanned: rows.length, message: 'Index wird aufgebaut…' })
       lockAllVaults()
       const vaultRoots = mergeVaultRootLists(
         sources.vaultRoots,
@@ -444,20 +445,19 @@ export function useFileIndex() {
         handle.name === manifest.rootName &&
         (await requestDirectoryPermission(handle))
       ) {
-        const sources = await fileSourcesFromDirectoryHandle(handle)
         lockAllVaults()
         if (manifest) {
           const vaultRoots = mergeVaultRootLists(
-            sources.vaultRoots,
             inferVaultRootsFromMarkerEntries(manifest.entries.map((e) => e.path)),
           )
+          const sources = fileSourcesFromRootHandle(handle, vaultRoots)
           const reconciled = reconcileLockedVaultsInManifest(manifest, vaultRoots)
           setManifest(reconciled)
           setProgress({ phase: 'ready', scanned: reconciled.entries.length })
-          setFileSources({ ...sources, vaultRoots })
+          setFileSources(sources)
         } else {
           setProgress({ phase: 'ready', scanned: 0 })
-          setFileSources(sources)
+          setFileSources(fileSourcesFromRootHandle(handle))
         }
         setSourceKind('handles')
         return

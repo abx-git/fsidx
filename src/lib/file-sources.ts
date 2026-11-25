@@ -34,10 +34,24 @@ export async function readTextFromStore(
     return file.text()
   }
 
-  const handle = store.handles.get(relativePath)
-  if (!handle) throw new Error('Datei nicht im Index gefunden.')
+  const handle = await resolveFileHandle(store, relativePath)
   const file = await handle.getFile()
   return file.text()
+}
+
+async function resolveFileHandle(
+  store: Extract<FileSourceStore, { kind: 'handles' }>,
+  relativePath: string,
+): Promise<FileSystemFileHandle> {
+  const cached = store.handles.get(relativePath)
+  if (cached) return cached
+  const parts = relativePath.split('/').filter(Boolean)
+  const fileName = parts.pop()
+  if (!fileName) throw new Error('Ungültiger Dateipfad')
+  const dir = await resolveDirectory(store.root, parts.join('/'), false)
+  const handle = await dir.getFileHandle(fileName)
+  store.handles.set(relativePath, handle)
+  return handle
 }
 
 async function resolveDirectory(
@@ -135,8 +149,7 @@ export async function readBlobFromStore(
     if (!file) throw new Error('Datei nicht im Ordner-Snapshot gefunden.')
     return file
   }
-  const handle = store.handles.get(relativePath)
-  if (!handle) throw new Error('Datei nicht im Index gefunden.')
+  const handle = await resolveFileHandle(store, relativePath)
   const file = await handle.getFile()
   return file
 }

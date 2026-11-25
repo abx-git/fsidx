@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronRight, CheckSquare, Folder, Lock, Shield } from 'lucide-react'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
-import { countEt2TasksInSubtree } from '../lib/et2/scan-folder-tasks'
 import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { flattenVisibleTree, isDirectoryVisibleInTree } from '../lib/tree-flat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -38,7 +37,7 @@ interface TreeNavProps {
   selectedId: string | null
   showEt2DotFiles: boolean
   onSelectPath: (path: string, nodeId: string) => void
-  indexedFilePaths?: string[]
+  et2TaskCountByDir?: Map<string, number>
   onContextMenu?: (target: ContextMenuTarget) => void
   canWrite?: boolean
   onDropFileToDir?: (sourcePath: string, destDirPath: string, kind: 'file' | 'directory') => void
@@ -54,7 +53,7 @@ interface TreeNodeProps {
   onTreeKeyDown: (e: React.KeyboardEvent, nodeId: string) => void
   onFocusItem: (nodeId: string) => void
   registerItemRef: (nodeId: string, el: HTMLElement | null) => void
-  indexedFilePaths?: string[]
+  et2TaskCountByDir?: Map<string, number>
   expandedPaths: Set<string>
   onToggleExpanded: (path: string) => void
   depthOffset: number
@@ -75,7 +74,7 @@ function TreeNode({
   onTreeKeyDown,
   onFocusItem,
   registerItemRef,
-  indexedFilePaths,
+  et2TaskCountByDir,
   expandedPaths,
   onToggleExpanded,
   depthOffset,
@@ -108,9 +107,7 @@ function TreeNode({
   if (!shouldShowDirectoryInTree(node.path, showEt2DotFiles)) return null
 
   const taskCount =
-    indexedFilePaths && node.path !== undefined
-      ? countEt2TasksInSubtree(indexedFilePaths, node.path)
-      : 0
+    et2TaskCountByDir && node.path !== undefined ? (et2TaskCountByDir.get(node.path) ?? 0) : 0
   const open = expandedPaths.has(node.path)
   const isActive = currentPath === node.path
   const children = node.children ?? []
@@ -251,7 +248,7 @@ function TreeNode({
             onTreeKeyDown={onTreeKeyDown}
             onFocusItem={onFocusItem}
             registerItemRef={registerItemRef}
-            indexedFilePaths={indexedFilePaths}
+            et2TaskCountByDir={et2TaskCountByDir}
             expandedPaths={expandedPaths}
             onToggleExpanded={onToggleExpanded}
             depthOffset={depthOffset}
@@ -274,7 +271,7 @@ export function TreeNav({
   selectedId,
   showEt2DotFiles,
   onSelectPath,
-  indexedFilePaths,
+  et2TaskCountByDir,
   onContextMenu,
   canWrite = false,
   onDropFileToDir,
@@ -426,7 +423,7 @@ export function TreeNav({
           onTreeKeyDown={onTreeKeyDown}
           onFocusItem={setFocusedId}
           registerItemRef={registerItemRef}
-          indexedFilePaths={indexedFilePaths}
+          et2TaskCountByDir={et2TaskCountByDir}
           expandedPaths={expandedPaths}
           onToggleExpanded={onToggleExpanded}
           depthOffset={root.depth}

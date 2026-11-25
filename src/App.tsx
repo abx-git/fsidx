@@ -48,6 +48,7 @@ import {
   taskRefFromPath,
 } from './lib/et2/paths'
 import { workspaceHasLegacyEt2 } from './lib/et2/is-et2-internal'
+import { buildEt2TaskCountIndex } from './lib/et2/scan-folder-tasks'
 import { sanitizeScopePath } from './lib/scope-sanitize'
 import { LegacyTaskNotice } from './components/et2/LegacyTaskNotice'
 import { taskContainerDir } from './lib/workspace-scope'
@@ -236,6 +237,11 @@ function App() {
   const indexedPathList = useMemo(
     () => (manifest ? manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path) : []),
     [manifest],
+  )
+
+  const et2TaskCountByDir = useMemo(
+    () => buildEt2TaskCountIndex(indexedPathList),
+    [indexedPathList],
   )
 
   const hasLegacyEt2 = useMemo(
@@ -1606,7 +1612,7 @@ function App() {
               selectedId={selectedId}
               showEt2DotFiles={showEt2DotFiles}
               onSelectPath={(path, nodeId) => navigateToPath(path, nodeId)}
-              indexedFilePaths={indexedPathList}
+              et2TaskCountByDir={et2TaskCountByDir}
               onContextMenu={setContextMenu}
               canWrite={canWrite}
               onDropFileToDir={(path, dir, kind) => void handleMoveEntryToDirectory(path, dir, kind)}

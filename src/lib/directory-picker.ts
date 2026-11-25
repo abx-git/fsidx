@@ -67,13 +67,30 @@ async function absorbVaultFolder(
   }
 }
 
+/** Nur Root-Handle; Datei-Handles werden bei Bedarf aufgelöst (schnelle Sitzungswiederherstellung). */
+export function fileSourcesFromRootHandle(
+  handle: FileSystemDirectoryHandle,
+  vaultRoots: string[] = [],
+): FileSourceStore & { vaultRoots: string[] } {
+  return {
+    kind: 'handles',
+    rootName: handle.name,
+    root: handle,
+    handles: new Map(),
+    vaultRoots,
+  }
+}
+
+export type DirectoryWalkProgress = (scanned: number) => void
+
 export async function fileSourcesFromDirectoryHandle(
   handle: FileSystemDirectoryHandle,
+  onProgress?: DirectoryWalkProgress,
 ): Promise<FileSourceStore & { vaultRoots: string[] }> {
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
-  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
+  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots, onProgress)
   augmentVaultRootsFromRows(rows, vaultRoots)
   return {
     kind: 'handles',
@@ -84,7 +101,9 @@ export async function fileSourcesFromDirectoryHandle(
   }
 }
 
-export async function pickDirectoryWithFsApi(): Promise<{
+export async function pickDirectoryWithFsApi(
+  onProgress?: DirectoryWalkProgress,
+): Promise<{
   rootName: string
   rows: RawFileRow[]
   fileSources: FileSourceStore
@@ -98,7 +117,7 @@ export async function pickDirectoryWithFsApi(): Promise<{
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
-  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots)
+  await walkDirectoryHandle(handle, '', rows, handles, vaultRoots, onProgress)
   augmentVaultRootsFromRows(rows, vaultRoots)
   return {
     rootName: handle.name,
@@ -114,16 +133,26 @@ export async function pickDirectoryWithFsApi(): Promise<{
   }
 }
 
+const WALK_YIELD_EVERY = 400
+
 async function walkDirectoryHandle(
   dirHandle: FileSystemDirectoryHandle,
   prefix: string,
   rows: RawFileRow[],
   handles: Map<string, FileSystemFileHandle>,
   vaultRoots: string[],
+  onProgress?: DirectoryWalkProgress,
 ): Promise<void> {
   if (prefix === '' && (await isVaultDirectory(dirHandle))) {
     await absorbVaultFolder('', dirHandle, rows, handles, vaultRoots)
     return
+  }
+
+  let sinceYield = 0
+  const tickProgress = () => {
+    if (!onProgress) return
+    onProgress(rows.length)
+    sinceYield = 0
   }
 
   for await (const [name, child] of dirHandle.entries()) {
@@ -132,6 +161,11 @@ async function walkDirectoryHandle(
     if (child.kind === 'directory') {
       if (await isVaultDirectory(child)) {
         await absorbVaultFolder(relativePath, child, rows, handles, vaultRoots)
+        sinceYield++
+        if (sinceYield >= WALK_YIELD_EVERY) {
+          tickProgress()
+          await new Promise((r) => setTimeout(r, 0))
+        }
         continue
       }
       rows.push({
@@ -139,25 +173,24 @@ async function walkDirectoryHandle(
         name,
         kind: 'directory',
       })
-      await walkDirectoryHandle(child, relativePath, rows, handles, vaultRoots)
-    } else {
-      let size: number | undefined
-      let lastModified: number | undefined
-      try {
-        const file = await child.getFile()
-        size = file.size
-        lastModified = file.lastModified
-      } catch {
-        /* permission or transient read failure */
+      sinceYield++
+      if (sinceYield >= WALK_YIELD_EVERY) {
+        tickProgress()
+        await new Promise((r) => setTimeout(r, 0))
       }
+      await walkDirectoryHandle(child, relativePath, rows, handles, vaultRoots, onProgress)
+    } else {
       handles.set(relativePath, child)
       rows.push({
         relativePath,
         name,
         kind: 'file',
-        size,
-        lastModified,
       })
+      sinceYield++
+      if (sinceYield >= WALK_YIELD_EVERY) {
+        tickProgress()
+        await new Promise((r) => setTimeout(r, 0))
+      }
     }
   }
 }

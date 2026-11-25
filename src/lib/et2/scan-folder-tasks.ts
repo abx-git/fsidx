@@ -1,6 +1,7 @@
 import type { Et2TaskSummary } from '../../types/et2-task'
 import { isEntryInScope, relativeFolderWithinScope, normalizeScopePath } from '../workspace-scope'
 import {
+  isLegacyEt2TasksBundlePath,
   isTaskFilePath,
   isTasksBundlePath,
   makeBundledTaskRef,
@@ -164,4 +165,37 @@ export function countEt2TasksInSubtree(indexedRelativePaths: string[], scopePath
     tsk += 1
   }
   return legacy + bundles + tsk
+}
+
+function bumpEt2CountsForDir(counts: Map<string, number>, containerDir: string): void {
+  let dir = containerDir
+  for (;;) {
+    counts.set(dir, (counts.get(dir) ?? 0) + 1)
+    if (!dir) break
+    dir = dir.includes('/') ? dir.replace(/\/[^/]+$/, '') : ''
+  }
+}
+
+/** Einmaliger Index für Aufgaben-Badges im Baum (statt O(Knoten × N) pro Render). */
+export function buildEt2TaskCountIndex(indexedRelativePaths: string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const rel of indexedRelativePaths) {
+    const norm = rel.replace(/\\/g, '/')
+    if (isTaskFilePath(norm)) {
+      bumpEt2CountsForDir(counts, taskContainerDirFromLegacy(norm))
+    }
+    if (isTasksBundlePath(norm)) {
+      if (isLegacyEt2TasksBundlePath(norm)) {
+        bumpEt2CountsForDir(counts, taskContainerDirFromBundle(norm))
+      } else if (isTskJsonPath(norm)) {
+        const parent = norm.includes('/') ? norm.replace(/\/[^/]+$/, '') : ''
+        bumpEt2CountsForDir(counts, parent)
+      }
+    }
+    if (isTskJsonPath(norm)) {
+      const parent = norm.includes('/') ? norm.replace(/\/[^/]+$/, '') : ''
+      bumpEt2CountsForDir(counts, parent)
+    }
+  }
+  return counts
 }

@@ -2,6 +2,7 @@ import {
   readBlobFromVaultStore,
   readTextFromVaultStore,
   vaultIoApplies,
+  writeBlobToVaultStore,
   writeTextToVaultStore,
 } from './vault/vault-io'
 
@@ -92,6 +93,11 @@ export async function writeBlobToStore(
     throw new Error(
       'Verschieben: Ordner erneut mit Chrome/Edge öffnen (Schreibzugriff). Legacy-Picker ist nur lesend.',
     )
+  }
+
+  if (vaultIoApplies(store, relativePath)) {
+    await writeBlobToVaultStore(store, relativePath, data)
+    return
   }
 
   const parts = relativePath.split('/')

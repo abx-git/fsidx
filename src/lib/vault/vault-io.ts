@@ -71,6 +71,38 @@ export async function readBlobFromVaultStore(
   return new Blob([copy])
 }
 
+export async function writeBlobToVaultStore(
+  store: FileSourceStore,
+  relativePath: string,
+  data: Blob,
+): Promise<FileSystemFileHandle> {
+  if (store.kind !== 'handles') throw new Error('Tresor: Schreibzugriff nötig')
+  const vaultRoot = vaultRootForPath(relativePath, new Set(store.vaultRoots ?? []))
+  if (!vaultRoot) throw new Error('Kein Tresor-Pfad')
+  const session = getVaultSession(vaultRoot)
+  if (!session) throw new Error('Tresor gesperrt')
+
+  const parts = relativePath.split('/')
+  const fileName = parts.pop()!
+  const parentLogical = parts.join('/')
+  const parentDir = await resolveVaultDir(store, vaultRoot, parentLogical)
+  const encoded = new Uint8Array(await data.arrayBuffer())
+  const existingHandle = store.handles.get(relativePath)
+  const handle = await writeEncryptedVaultFile(
+    session.key,
+    parentDir,
+    fileName,
+    encoded,
+    existingHandle,
+  )
+  store.handles.set(relativePath, handle)
+  upsertVaultDiskRef(vaultRoot, {
+    logicalPath: relativePath,
+    encryptedName: handle.name,
+  })
+  return handle
+}
+
 export async function writeTextToVaultStore(
   store: FileSourceStore,
   relativePath: string,
@@ -126,6 +158,59 @@ export async function ensureVaultDirectoryOnDisk(
   let built = vaultRoot
   for (const plain of segments) {
     dir = await createEncryptedVaultDirectory(session.key, dir, plain)
-    built = `${built}/${plain}`
+    built = built ? `${built}/${plain}` : plain
+  }
+}
+
+export async function deleteVaultPathFromStore(
+  store: FileSourceStore,
+  relativePath: string,
+  kind: 'file' | 'directory',
+): Promise<void> {
+  if (store.kind !== 'handles') throw new Error('Tresor: Schreibzugriff nötig')
+  const norm = relativePath.replace(/\\/g, '/')
+  const vaultRoot = vaultRootForPath(norm, new Set(store.vaultRoots ?? []))
+  if (!vaultRoot) throw new Error('Kein Tresor-Pfad')
+  const session = getVaultSession(vaultRoot)
+  if (!session) throw new Error('Tresor gesperrt')
+
+  if (kind === 'file') {
+    const handle = store.handles.get(norm)
+    if (!handle) throw new Error('Tresor-Datei nicht im Index')
+    const parts = norm.split('/')
+    parts.pop()
+    const parentLogical = parts.join('/')
+    const parentDir = await resolveVaultDir(store, vaultRoot, parentLogical)
+    await parentDir.removeEntry(handle.name)
+    store.handles.delete(norm)
+    return
+  }
+
+  const segments = norm.split('/').filter(Boolean)
+  const dirName = segments.pop()
+  if (!dirName) throw new Error('Ungültiger Tresor-Ordner')
+  const parentLogical = segments.join('/')
+  const parentDir = await resolveVaultDir(store, vaultRoot, parentLogical)
+  const found = await findDecryptedEntryInDir(session.key, parentDir, dirName)
+  if (!found || found.handle.kind !== 'directory') {
+    throw new Error('Tresor-Ordner nicht gefunden')
+  }
+  await parentDir.removeEntry(found.encryptedName, { recursive: true })
+  const prefix = `${norm}/`
+  for (const key of [...store.handles.keys()]) {
+    if (key === norm || key.startsWith(prefix)) store.handles.delete(key)
+  }
+}
+
+export function assertVaultUnlockedForWrite(
+  store: FileSourceStore,
+  logicalPath: string,
+): void {
+  const norm = logicalPath.replace(/\\/g, '/')
+  const vaultRoot = vaultRootForPath(norm, new Set(store.vaultRoots ?? []))
+  if (!vaultRoot) return
+  if (norm === vaultRoot || norm.endsWith(`/${VAULT_MARKER_FILENAME}`)) return
+  if (!getVaultSession(vaultRoot)) {
+    throw new Error('Tresor ist gesperrt — zuerst entsperren, dann Dateien hineinlegen.')
   }
 }

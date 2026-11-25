@@ -1,5 +1,6 @@
 import type { FileSourceStore } from './file-sources'
 import { ensureWritePermission } from './file-sources'
+import { deleteVaultPathFromStore, vaultIoApplies } from './vault/vault-io'
 
 async function parentDirAndName(relativePath: string, root: FileSystemDirectoryHandle) {
   const parts = relativePath.split('/').filter(Boolean)
@@ -26,6 +27,11 @@ export async function deletePathFromStore(
   if (!relativePath) throw new Error('Der Workspace-Root kann nicht gelöscht werden.')
 
   const norm = relativePath.replace(/\\/g, '/')
+  if (vaultIoApplies(store, norm)) {
+    await deleteVaultPathFromStore(store, norm, kind)
+    return
+  }
+
   const { dir, name } = await parentDirAndName(norm, store.root)
   await dir.removeEntry(name, { recursive: kind === 'directory' })
 

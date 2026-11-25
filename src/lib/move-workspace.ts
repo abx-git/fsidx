@@ -11,6 +11,9 @@ import {
   type FileSourceStore,
 } from './file-sources'
 import { parseFileMetadata, serializeFileMetadata, sidecarPathForFile } from './sidecar'
+import { assertVaultUnlockedForWrite, ensureVaultDirectoryOnDisk } from './vault/vault-io'
+import { isPathUnderVaultRoot, vaultRootForPath } from './vault/vault-paths'
+import { isVaultUnlocked } from './vault/vault-session'
 
 const FSIDX_FILE_DRAG = 'application/x-fsidx-file'
 
@@ -149,6 +152,23 @@ export function moveFileValidationError(
   return null
 }
 
+async function ensureDirectoryForLogicalPath(
+  store: FileSourceStore,
+  relativeDir: string,
+): Promise<void> {
+  if (!relativeDir) return
+  const vaultRoot = vaultRootForPath(relativeDir, new Set(store.vaultRoots ?? []))
+  if (
+    vaultRoot !== null &&
+    isVaultUnlocked(vaultRoot) &&
+    isPathUnderVaultRoot(relativeDir, vaultRoot)
+  ) {
+    await ensureVaultDirectoryOnDisk(store, vaultRoot, relativeDir)
+    return
+  }
+  await ensureDirectoryOnDisk(store, relativeDir)
+}
+
 async function sidecarExists(store: FileSourceStore, sidecarPath: string): Promise<boolean> {
   try {
     await readTextFromStore(store, sidecarPath)
@@ -260,6 +280,7 @@ export async function moveFileInStore(
     throw new Error('Die Datei liegt bereits in diesem Ordner.')
   }
 
+  assertVaultUnlockedForWrite(store, newPath)
   return relocateFileInStore(store, from, newPath)
 }
 
@@ -306,12 +327,19 @@ export async function moveDirectoryInStore(
     throw new Error('Der Ordner liegt bereits in diesem Ziel.')
   }
 
+  assertVaultUnlockedForWrite(store, newPath)
+  const subtree = subtreePaths(manifest, from)
+  for (const p of subtree) {
+    const target = remapSubtreePath(from, newPath, p)
+    assertVaultUnlockedForWrite(store, target)
+  }
+
   const paths = subtreePaths(manifest, from)
   for (const p of paths) {
     const entry = manifest.entries.find((e) => e.path.replace(/\\/g, '/') === p)
     const target = remapSubtreePath(from, newPath, p)
     if (entry?.kind === 'directory') {
-      await ensureDirectoryOnDisk(store, target)
+      await ensureDirectoryForLogicalPath(store, target)
     } else if (entry?.kind === 'file') {
       await copyFileWithSidecarInStore(store, p, target)
     }

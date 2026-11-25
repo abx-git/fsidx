@@ -4,6 +4,7 @@ import {
   blockSourceIsInlineEditable,
   getBlockSourceSlice,
   isDiagramFenceBlockText,
+  mergeBlocksInSource,
   replaceLineRange,
   sessionsAfterBlockSplit,
   splitBlockTextAtCursor,
@@ -32,6 +33,22 @@ describe('markdown-block-edit', () => {
     const src = `Vor\n${mermaid}\nNach`
     expect(blockSourceIsInlineEditable(src, 2, 5)).toBe(false)
     expect(blockSourceIsInlineEditable(`Vor\n\`\`\`ts\nx()\n\`\`\`\nNach`, 2, 4)).toBe(true)
+  })
+
+  it('führt zwei Blöcke zusammen', () => {
+    const src = '## T\n\nHallo\n\nWelt\n\nEnde'
+    const { nextSource, session, caret } = mergeBlocksInSource(
+      src,
+      3,
+      3,
+      'Hallo',
+      5,
+      5,
+      'Welt',
+    )
+    expect(nextSource).toBe('## T\n\nHallo Welt\n\nEnde')
+    expect(session.text).toBe('Hallo Welt')
+    expect(caret).toBe(6)
   })
 
   it('erzeugt zwei Sessions nach Split', () => {

@@ -11,9 +11,12 @@ interface MarkdownInlineBlockFieldProps {
   variant?: 'prose' | 'code'
   autoFocus?: boolean
   focusAtStart?: boolean
+  focusCaret?: number | null
   onAutoFocusApplied?: () => void
   onNavigatePrev?: () => void
   onNavigateNext?: () => void
+  onMergeWithPrev?: () => void
+  onMergeWithNext?: () => void
   onUndo?: () => void
   onRedo?: () => void
 }
@@ -29,9 +32,12 @@ function MarkdownInlineBlockFieldInner({
   variant = 'prose',
   autoFocus = false,
   focusAtStart = false,
+  focusCaret = null,
   onAutoFocusApplied,
   onNavigatePrev,
   onNavigateNext,
+  onMergeWithPrev,
+  onMergeWithNext,
   onUndo,
   onRedo,
 }: MarkdownInlineBlockFieldProps) {
@@ -56,10 +62,15 @@ function MarkdownInlineBlockFieldInner({
   useLayoutEffect(() => {
     if (!autoFocus || !ref.current) return
     ref.current.focus()
-    const pos = focusAtStart ? 0 : ref.current.value.length
+    const pos =
+      focusCaret != null
+        ? Math.min(Math.max(0, focusCaret), ref.current.value.length)
+        : focusAtStart
+          ? 0
+          : ref.current.value.length
     ref.current.setSelectionRange(pos, pos)
     onAutoFocusApplied?.()
-  }, [autoFocus, focusAtStart, onAutoFocusApplied])
+  }, [autoFocus, focusAtStart, focusCaret, onAutoFocusApplied])
 
   useEffect(() => {
     if (!autoFocus) return
@@ -122,6 +133,16 @@ function MarkdownInlineBlockFieldInner({
         if (e.key === 'ArrowRight' && atEnd && onNavigateNext) {
           e.preventDefault()
           onNavigateNext()
+          return
+        }
+        if (e.key === 'Backspace' && atStart && onMergeWithPrev) {
+          e.preventDefault()
+          onMergeWithPrev()
+          return
+        }
+        if (e.key === 'Delete' && atEnd && onMergeWithNext) {
+          e.preventDefault()
+          onMergeWithNext()
           return
         }
         if (e.key === 'Escape') {

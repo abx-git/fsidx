@@ -9,6 +9,7 @@ import {
   blockEditKey,
   blockSourceIsInlineEditable,
   getBlockSourceSlice,
+  mergeBlocksInSource,
   sessionsAfterBlockSplit,
   sourceOffsetsForLineRange,
   type BlockEditSession,
@@ -63,6 +64,7 @@ export function MarkdownEditor({
   const [blockEdits, setBlockEdits] = useState<BlockEditSession[]>([])
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null)
   const [focusBlockAtStart, setFocusBlockAtStart] = useState(false)
+  const [focusBlockCaret, setFocusBlockCaret] = useState<number | null>(null)
   const [previewContent, setPreviewContent] = useState(content)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const blockEditsRef = useRef(blockEdits)
@@ -311,7 +313,63 @@ export function MarkdownEditor({
   const handleFocusBlockApplied = useCallback(() => {
     setFocusBlockId(null)
     setFocusBlockAtStart(false)
+    setFocusBlockCaret(null)
   }, [])
+
+  const mergeSessionWithNeighbor = useCallback(
+    (sessionId: string, direction: 'prev' | 'next') => {
+      flushPendingPersist()
+      const session = blockEditsRef.current.find((s) => s.id === sessionId)
+      const article = previewArticleRef.current
+      if (!session || !article) return
+      const blocks = listPreviewBlocks(article)
+      const idx = findPreviewBlockIndex(blocks, session.startLine, session.endLine)
+      const neighborIdx = direction === 'prev' ? idx - 1 : idx + 1
+      if (idx < 0 || neighborIdx < 0 || neighborIdx >= blocks.length) return
+      const upperBlock = direction === 'prev' ? blocks[neighborIdx]! : blocks[idx]!
+      const lowerBlock = direction === 'prev' ? blocks[idx]! : blocks[neighborIdx]!
+      const base = applyBlockEditsToSource(contentRef.current, blockEditsRef.current)
+      const textForBlock = (start: number, end: number) => {
+        const live = blockEditsRef.current.find((s) => s.startLine === start && s.endLine === end)
+        return live?.text ?? getBlockSourceSlice(base, start, end)
+      }
+      const upperText = textForBlock(upperBlock.startLine, upperBlock.endLine)
+      const lowerText = textForBlock(lowerBlock.startLine, lowerBlock.endLine)
+      pushUndoSnapshot()
+      undoBatchPendingRef.current = false
+      const { nextSource, session: merged, caret } = mergeBlocksInSource(
+        base,
+        upperBlock.startLine,
+        upperBlock.endLine,
+        upperText,
+        lowerBlock.startLine,
+        lowerBlock.endLine,
+        lowerText,
+      )
+      onChange(nextSource)
+      setPreviewContent(nextSource)
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
+      setBlockEdits([merged])
+      blockEditsRef.current = [merged]
+      setFocusBlockId(merged.id)
+      setFocusBlockAtStart(false)
+      setFocusBlockCaret(caret)
+    },
+    [flushPendingPersist, onChange, pushUndoSnapshot],
+  )
+
+  const handleMergeBlockWithPrev = useCallback(
+    (sessionId: string) => mergeSessionWithNeighbor(sessionId, 'prev'),
+    [mergeSessionWithNeighbor],
+  )
+
+  const handleMergeBlockWithNext = useCallback(
+    (sessionId: string) => mergeSessionWithNeighbor(sessionId, 'next'),
+    [mergeSessionWithNeighbor],
+  )
 
   const handlePreviewDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -497,7 +555,9 @@ export function MarkdownEditor({
             direkt dort tippen. <span className="font-medium">Enter</span> = neuer Absatz,{' '}
             <span className="font-medium">Umschalt+Enter</span> = Zeilenumbruch.{' '}
             <span className="font-medium">Pfeiltasten</span> am Blockrand = nächster Block.{' '}
-            <span className="font-medium">Strg/Cmd+Z</span> = Undo.
+            <span className="font-medium">Strg/Cmd+Z</span> = Undo.{' '}
+            <span className="font-medium">Rücktaste</span> am Blockanfang = mit Absatz darüber
+            verbinden.
           </p>
         )}
         {!loading && !error && viewMode === 'view' && (
@@ -535,6 +595,9 @@ export function MarkdownEditor({
                   onNavigateBlock={handleNavigateBlock}
                   onBlockUndo={handleBlockUndo}
                   onBlockRedo={handleBlockRedo}
+                  focusBlockCaret={focusBlockCaret}
+                  onMergeBlockWithPrev={handleMergeBlockWithPrev}
+                  onMergeBlockWithNext={handleMergeBlockWithNext}
                 />
               ) : canWrite ? (
                 <p

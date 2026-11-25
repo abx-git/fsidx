@@ -43,6 +43,9 @@ type BlockEditHandlers = {
   onNavigateNext: (sessionId: string) => void
   onUndo: () => void
   onRedo: () => void
+  focusSessionCaret: number | null
+  onMergeWithPrev: (sessionId: string) => void
+  onMergeWithNext: (sessionId: string) => void
 }
 
 function inlineFieldForSession(
@@ -61,11 +64,16 @@ function inlineFieldForSession(
       onDismiss={() => blockEdit.onBlockDismiss(session.id)}
       autoFocus={session.id === blockEdit.focusSessionId}
       focusAtStart={blockEdit.focusSessionAtStart && session.id === blockEdit.focusSessionId}
+      focusCaret={
+        session.id === blockEdit.focusSessionId ? blockEdit.focusSessionCaret : null
+      }
       onAutoFocusApplied={blockEdit.onFocusSessionApplied}
       onNavigatePrev={() => blockEdit.onNavigatePrev(session.id)}
       onNavigateNext={() => blockEdit.onNavigateNext(session.id)}
       onUndo={blockEdit.onUndo}
       onRedo={blockEdit.onRedo}
+      onMergeWithPrev={() => blockEdit.onMergeWithPrev(session.id)}
+      onMergeWithNext={() => blockEdit.onMergeWithNext(session.id)}
     />
   )
 }
@@ -402,6 +410,9 @@ export interface MarkdownContentProps {
   onNavigateBlock?: (sessionId: string, direction: 'prev' | 'next') => void
   onBlockUndo?: () => void
   onBlockRedo?: () => void
+  focusBlockCaret?: number | null
+  onMergeBlockWithPrev?: (sessionId: string) => void
+  onMergeBlockWithNext?: (sessionId: string) => void
 }
 
 export function MarkdownContent({
@@ -421,6 +432,9 @@ export function MarkdownContent({
   onNavigateBlock,
   onBlockUndo,
   onBlockRedo,
+  focusBlockCaret = null,
+  onMergeBlockWithPrev,
+  onMergeBlockWithNext,
 }: MarkdownContentProps) {
   const compact = className?.includes('cm-md-compact') ?? false
   const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
@@ -446,6 +460,9 @@ export function MarkdownContent({
       onNavigateNext: (sessionId) => onNavigateBlock?.(sessionId, 'next'),
       onUndo: onBlockUndo ?? (() => {}),
       onRedo: onBlockRedo ?? (() => {}),
+      focusSessionCaret: focusBlockCaret,
+      onMergeWithPrev: (sessionId) => onMergeBlockWithPrev?.(sessionId),
+      onMergeWithNext: (sessionId) => onMergeBlockWithNext?.(sessionId),
     }
   }, [
     sessionLayoutKey,
@@ -459,6 +476,9 @@ export function MarkdownContent({
     onNavigateBlock,
     onBlockUndo,
     onBlockRedo,
+    focusBlockCaret,
+    onMergeBlockWithPrev,
+    onMergeBlockWithNext,
     blockEdits.length,
   ])
   const components = useMemo(

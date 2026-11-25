@@ -127,3 +127,33 @@ export function sessionsAfterBlockSplit(
   }
   return { nextSource, sessions: [sessionA, sessionB] }
 }
+
+/** Zwei aufeinanderfolgende Vorschau-Blöcke zu einem Absatz zusammenführen. */
+export function mergeBlocksInSource(
+  source: string,
+  upperStart: number,
+  _upperEnd: number,
+  upperText: string,
+  _lowerStart: number,
+  lowerEnd: number,
+  lowerText: string,
+): { nextSource: string; session: BlockEditSession; caret: number } {
+  const left = upperText.replace(/\s+$/u, '')
+  const right = lowerText.replace(/^\s+/u, '')
+  let combined: string
+  if (!left) combined = right
+  else if (!right) combined = left
+  else if (/\s$/u.test(left) || /^\s/u.test(right)) combined = `${left}${right}`
+  else combined = `${left} ${right}`
+  const nextSource = replaceLineRange(source, upperStart, lowerEnd, combined)
+  const lines = lineCountForText(combined)
+  const gap = combined.length - left.length - right.length
+  const caret = left.length + gap
+  const session: BlockEditSession = {
+    id: blockEditKey(upperStart, upperStart + lines - 1),
+    startLine: upperStart,
+    endLine: upperStart + lines - 1,
+    text: combined,
+  }
+  return { nextSource, session, caret: Math.min(caret, combined.length) }
+}

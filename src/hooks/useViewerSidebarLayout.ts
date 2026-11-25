@@ -21,16 +21,20 @@ function readWidth(): number {
 export function useViewerSidebarLayout() {
   const [widthPx, setWidthPxState] = useState(readWidth)
 
-  const setWidthPx = useCallback((value: number, maxCap = MAX_WIDTH) => {
-    const effectiveMax = Math.min(maxCap, MAX_WIDTH_DRAWIO)
-    const clamped = Math.min(effectiveMax, Math.max(MIN_WIDTH, value))
-    setWidthPxState(clamped)
-    try {
-      localStorage.setItem(KEY_WIDTH, String(clamped))
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  const setWidthPx = useCallback(
+    (value: number, maxCap = MAX_WIDTH, options?: { persist?: boolean }) => {
+      const effectiveMax = Math.min(maxCap, MAX_WIDTH_DRAWIO)
+      const clamped = Math.min(effectiveMax, Math.max(MIN_WIDTH, Math.round(value)))
+      setWidthPxState(clamped)
+      if (options?.persist === false) return
+      try {
+        localStorage.setItem(KEY_WIDTH, String(clamped))
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  )
 
   const maxWidthForDrawio = useCallback(() => {
     if (typeof window === 'undefined') return MAX_WIDTH_DRAWIO

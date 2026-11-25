@@ -20,6 +20,7 @@ interface DetailPanelProps {
   onDirectoryReadme?: (dirPath: string, dirId: string) => void
   hasDirectoryReadme?: boolean
   onSidebarWidthChange?: (widthPx: number) => void
+  onSidebarWidthCommit?: (widthPx: number) => void
   sidebarWidthPx?: number
   sidebarMinWidth?: number
   sidebarMaxWidth?: number
@@ -45,6 +46,7 @@ export function DetailPanel({
   onDirectoryReadme,
   hasDirectoryReadme,
   onSidebarWidthChange,
+  onSidebarWidthCommit,
   sidebarWidthPx = 380,
   sidebarMinWidth = 280,
   sidebarMaxWidth = 960,
@@ -87,6 +89,7 @@ export function DetailPanel({
           maxWidth={sidebarMaxWidth}
           getCurrentWidth={() => sidebarWidthPx}
           onResize={onSidebarWidthChange}
+          onResizeCommit={onSidebarWidthCommit ?? onSidebarWidthChange}
         />
       )}
 

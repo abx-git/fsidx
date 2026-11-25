@@ -163,6 +163,7 @@ function App() {
     setWidthPx: setSidebarWidthPx,
     minWidth: sidebarMinWidth,
     maxWidth: sidebarMaxWidth,
+    maxWidthDrawio,
     maxWidthForDrawio,
   } = useViewerSidebarLayout()
   const [drawioDetailFullscreen, setDrawioDetailFullscreen] = useState(false)
@@ -701,9 +702,25 @@ function App() {
     fileView?.path,
   ])
 
-  const sidebarMaxWidthEffective = useMemo(
-    () => (activeDrawioPath || activeE2Path ? maxWidthForDrawio() : sidebarMaxWidth),
-    [activeDrawioPath, activeE2Path, maxWidthForDrawio, sidebarMaxWidth],
+  const sidebarMaxWidthEffective = useMemo(() => {
+    if (typeof window === 'undefined') return sidebarMaxWidth
+    const vwCap = Math.floor(window.innerWidth * 0.92)
+    const hiCap = activeDrawioPath || activeE2Path ? maxWidthForDrawio() : vwCap
+    return Math.min(maxWidthDrawio, Math.max(sidebarMinWidth, hiCap))
+  }, [activeDrawioPath, activeE2Path, maxWidthDrawio, maxWidthForDrawio, sidebarMaxWidth, sidebarMinWidth])
+
+  const handleSidebarResizeLive = useCallback(
+    (width: number) => {
+      setSidebarWidthPx(width, sidebarMaxWidthEffective, { persist: false })
+    },
+    [setSidebarWidthPx, sidebarMaxWidthEffective],
+  )
+
+  const handleSidebarResizeCommit = useCallback(
+    (width: number) => {
+      setSidebarWidthPx(width, sidebarMaxWidthEffective)
+    },
+    [setSidebarWidthPx, sidebarMaxWidthEffective],
   )
 
   const handleWidenDrawioPanel = useCallback(() => {
@@ -1983,7 +2000,8 @@ function App() {
                 ? indexedFilePaths.has(directoryReadmePath(inspectNode.path))
                 : false
             }
-            onSidebarWidthChange={setSidebarWidthPx}
+            onSidebarWidthChange={handleSidebarResizeLive}
+            onSidebarWidthCommit={handleSidebarResizeCommit}
             sidebarWidthPx={sidebarWidthPx}
             sidebarMinWidth={sidebarMinWidth}
             sidebarMaxWidth={sidebarMaxWidthEffective}

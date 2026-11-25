@@ -48,6 +48,8 @@ function inlineFieldForSession(
 ) {
   return (
     <MarkdownInlineBlockField
+      key={session.id}
+      sessionId={session.id}
       variant={variant}
       value={session.text}
       onChange={(text) => blockEdit.onBlockChange(session.id, text)}

@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 interface MarkdownInlineBlockFieldProps {
+  sessionId: string
   value: string
   onChange: (value: string) => void
   onEnterSplit: (cursor: number) => void
@@ -13,7 +14,8 @@ interface MarkdownInlineBlockFieldProps {
   onAutoFocusApplied?: () => void
 }
 
-export function MarkdownInlineBlockField({
+function MarkdownInlineBlockFieldInner({
+  sessionId,
   value,
   onChange,
   onEnterSplit,
@@ -26,23 +28,11 @@ export function MarkdownInlineBlockField({
   onAutoFocusApplied,
 }: MarkdownInlineBlockFieldProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
-  const pendingSelection = useRef<{ start: number; end: number } | null>(null)
-
-  useLayoutEffect(() => {
-    if (!autoFocus || !ref.current) return
-    ref.current.focus()
-    const pos = focusAtStart ? 0 : ref.current.value.length
-    ref.current.setSelectionRange(pos, pos)
-    onAutoFocusApplied?.()
-  }, [autoFocus, focusAtStart, onAutoFocusApplied])
+  const [localValue, setLocalValue] = useState(value)
 
   useEffect(() => {
-    if (!pendingSelection.current || !ref.current) return
-    const { start, end } = pendingSelection.current
-    pendingSelection.current = null
-    ref.current.focus()
-    ref.current.setSelectionRange(start, end)
-  }, [value])
+    setLocalValue(value)
+  }, [sessionId])
 
   const syncHeight = () => {
     const el = ref.current
@@ -53,19 +43,34 @@ export function MarkdownInlineBlockField({
 
   useLayoutEffect(() => {
     syncHeight()
-  }, [value])
+  }, [localValue])
+
+  useLayoutEffect(() => {
+    if (!autoFocus || !ref.current) return
+    ref.current.focus()
+    const pos = focusAtStart ? 0 : ref.current.value.length
+    ref.current.setSelectionRange(pos, pos)
+    onAutoFocusApplied?.()
+  }, [autoFocus, focusAtStart, onAutoFocusApplied])
+
+  useEffect(() => {
+    if (!autoFocus) return
+    syncHeight()
+  }, [autoFocus])
 
   const ghost = variant === 'prose'
 
   return (
     <textarea
       ref={ref}
-      value={value}
+      value={localValue}
       disabled={disabled}
       rows={1}
       onChange={(e) => {
-        onChange(e.target.value)
+        const next = e.target.value
+        setLocalValue(next)
         syncHeight()
+        onChange(next)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -78,8 +83,7 @@ export function MarkdownInlineBlockField({
         }
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
-          const cursor = ref.current?.selectionStart ?? value.length
-          pendingSelection.current = null
+          const cursor = ref.current?.selectionStart ?? localValue.length
           onEnterSplit(cursor)
           return
         }
@@ -95,3 +99,14 @@ export function MarkdownInlineBlockField({
     />
   )
 }
+
+export const MarkdownInlineBlockField = memo(
+  MarkdownInlineBlockFieldInner,
+  (prev, next) =>
+    prev.sessionId === next.sessionId
+    && prev.disabled === next.disabled
+    && prev.autoFocus === next.autoFocus
+    && prev.focusAtStart === next.focusAtStart
+    && prev.variant === next.variant
+    && prev.className === next.className,
+)

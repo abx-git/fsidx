@@ -64,7 +64,10 @@ export function MarkdownEditor({
   const [focusBlockAtStart, setFocusBlockAtStart] = useState(false)
   const [previewContent, setPreviewContent] = useState(content)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const blockEditsRef = useRef(blockEdits)
+  blockEditsRef.current = blockEdits
+  const contentRef = useRef(content)
+  contentRef.current = content
 
   useEffect(() => {
     if (blockEdits.length === 0) setPreviewContent(content)
@@ -73,7 +76,6 @@ export function MarkdownEditor({
   useEffect(() => {
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
     }
   }, [])
 
@@ -83,11 +85,11 @@ export function MarkdownEditor({
         clearTimeout(persistTimerRef.current)
         persistTimerRef.current = null
       }
-      const merged = applyBlockEditsToSource(content, sessions)
+      const merged = applyBlockEditsToSource(contentRef.current, sessions)
       onChange(merged)
       setPreviewContent(merged)
     },
-    [content, onChange],
+    [onChange],
   )
 
   const scheduleBlockPersist = useCallback(
@@ -95,21 +97,10 @@ export function MarkdownEditor({
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
       persistTimerRef.current = setTimeout(() => {
         persistTimerRef.current = null
-        onChange(applyBlockEditsToSource(content, sessions))
+        onChange(applyBlockEditsToSource(contentRef.current, sessions))
       }, 400)
     },
-    [content, onChange],
-  )
-
-  const schedulePreviewRefresh = useCallback(
-    (sessions: readonly BlockEditSession[]) => {
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
-      previewTimerRef.current = setTimeout(() => {
-        previewTimerRef.current = null
-        setPreviewContent(applyBlockEditsToSource(content, sessions))
-      }, 80)
-    },
-    [content],
+    [onChange],
   )
 
   useEffect(() => {
@@ -142,7 +133,8 @@ export function MarkdownEditor({
       setBlockEdits((prev) => {
         if (prev.some((s) => s.id === id)) return prev
         const next = [...prev, { id, startLine, endLine: end, text }]
-        setPreviewContent(applyBlockEditsToSource(content, next))
+        blockEditsRef.current = next
+        setPreviewContent(applyBlockEditsToSource(contentRef.current, next))
         return next
       })
       setFocusBlockId(id)
@@ -153,14 +145,12 @@ export function MarkdownEditor({
 
   const handleBlockChange = useCallback(
     (id: string, text: string) => {
-      setBlockEdits((prev) => {
-        const next = prev.map((s) => (s.id === id ? { ...s, text } : s))
-        scheduleBlockPersist(next)
-        schedulePreviewRefresh(next)
-        return next
-      })
+      blockEditsRef.current = blockEditsRef.current.map((s) =>
+        s.id === id ? { ...s, text } : s,
+      )
+      scheduleBlockPersist(blockEditsRef.current)
     },
-    [scheduleBlockPersist, schedulePreviewRefresh],
+    [scheduleBlockPersist],
   )
 
   const handleBlockSplit = useCallback(
@@ -168,7 +158,7 @@ export function MarkdownEditor({
       setBlockEdits((prev) => {
         const session = prev.find((s) => s.id === id)
         if (!session) return prev
-        const base = applyBlockEditsToSource(content, prev)
+        const base = applyBlockEditsToSource(contentRef.current, prev)
         const { nextSource, sessions: split } = sessionsAfterBlockSplit(base, session, cursor)
         const nextSessions = [...prev.filter((s) => s.id !== id), ...split]
         onChange(nextSource)
@@ -179,27 +169,29 @@ export function MarkdownEditor({
         }
         setFocusBlockId(split[1]?.id ?? split[0]?.id ?? null)
         setFocusBlockAtStart(Boolean(split[1]))
+        blockEditsRef.current = nextSessions
         return nextSessions
       })
     },
-    [content, onChange],
+    [onChange],
   )
 
   const handleBlockDismiss = useCallback(
     (id: string) => {
       setBlockEdits((prev) => {
         const next = prev.filter((s) => s.id !== id)
+        blockEditsRef.current = next
         if (next.length === 0) {
           flushBlockEditsToDocument(prev)
         } else {
           scheduleBlockPersist(next)
-          setPreviewContent(applyBlockEditsToSource(content, next))
+          setPreviewContent(applyBlockEditsToSource(contentRef.current, next))
         }
         return next
       })
       setFocusBlockId((current) => (current === id ? null : current))
     },
-    [content, flushBlockEditsToDocument, scheduleBlockPersist],
+    [flushBlockEditsToDocument, scheduleBlockPersist],
   )
 
   const handleFocusBlockApplied = useCallback(() => {

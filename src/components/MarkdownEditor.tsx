@@ -60,6 +60,57 @@ export function MarkdownEditor({
   )
   const [viewHighlightLine, setViewHighlightLine] = useState<number | null>(null)
   const [blockEdits, setBlockEdits] = useState<BlockEditSession[]>([])
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null)
+  const [focusBlockAtStart, setFocusBlockAtStart] = useState(false)
+  const [previewContent, setPreviewContent] = useState(content)
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (blockEdits.length === 0) setPreviewContent(content)
+  }, [content, blockEdits.length])
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
+    }
+  }, [])
+
+  const flushBlockEditsToDocument = useCallback(
+    (sessions: readonly BlockEditSession[]) => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
+      const merged = applyBlockEditsToSource(content, sessions)
+      onChange(merged)
+      setPreviewContent(merged)
+    },
+    [content, onChange],
+  )
+
+  const scheduleBlockPersist = useCallback(
+    (sessions: readonly BlockEditSession[]) => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+      persistTimerRef.current = setTimeout(() => {
+        persistTimerRef.current = null
+        onChange(applyBlockEditsToSource(content, sessions))
+      }, 400)
+    },
+    [content, onChange],
+  )
+
+  const schedulePreviewRefresh = useCallback(
+    (sessions: readonly BlockEditSession[]) => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current)
+      previewTimerRef.current = setTimeout(() => {
+        previewTimerRef.current = null
+        setPreviewContent(applyBlockEditsToSource(content, sessions))
+      }, 80)
+    },
+    [content],
+  )
 
   useEffect(() => {
     setBlockEdits([])
@@ -88,9 +139,14 @@ export function MarkdownEditor({
       }
       const text = getBlockSourceSlice(content, startLine, end)
       const id = blockEditKey(startLine, end)
-      setBlockEdits((prev) =>
-        prev.some((s) => s.id === id) ? prev : [...prev, { id, startLine, endLine: end, text }],
-      )
+      setBlockEdits((prev) => {
+        if (prev.some((s) => s.id === id)) return prev
+        const next = [...prev, { id, startLine, endLine: end, text }]
+        setPreviewContent(applyBlockEditsToSource(content, next))
+        return next
+      })
+      setFocusBlockId(id)
+      setFocusBlockAtStart(false)
     },
     [content, onViewModeChange],
   )
@@ -99,11 +155,12 @@ export function MarkdownEditor({
     (id: string, text: string) => {
       setBlockEdits((prev) => {
         const next = prev.map((s) => (s.id === id ? { ...s, text } : s))
-        onChange(applyBlockEditsToSource(content, next))
+        scheduleBlockPersist(next)
+        schedulePreviewRefresh(next)
         return next
       })
     },
-    [content, onChange],
+    [scheduleBlockPersist, schedulePreviewRefresh],
   )
 
   const handleBlockSplit = useCallback(
@@ -111,16 +168,43 @@ export function MarkdownEditor({
       setBlockEdits((prev) => {
         const session = prev.find((s) => s.id === id)
         if (!session) return prev
-        const { nextSource, sessions: split } = sessionsAfterBlockSplit(content, session, cursor)
+        const base = applyBlockEditsToSource(content, prev)
+        const { nextSource, sessions: split } = sessionsAfterBlockSplit(base, session, cursor)
+        const nextSessions = [...prev.filter((s) => s.id !== id), ...split]
         onChange(nextSource)
-        return [...prev.filter((s) => s.id !== id), ...split]
+        setPreviewContent(nextSource)
+        if (persistTimerRef.current) {
+          clearTimeout(persistTimerRef.current)
+          persistTimerRef.current = null
+        }
+        setFocusBlockId(split[1]?.id ?? split[0]?.id ?? null)
+        setFocusBlockAtStart(Boolean(split[1]))
+        return nextSessions
       })
     },
     [content, onChange],
   )
 
-  const handleBlockDismiss = useCallback((id: string) => {
-    setBlockEdits((prev) => prev.filter((s) => s.id !== id))
+  const handleBlockDismiss = useCallback(
+    (id: string) => {
+      setBlockEdits((prev) => {
+        const next = prev.filter((s) => s.id !== id)
+        if (next.length === 0) {
+          flushBlockEditsToDocument(prev)
+        } else {
+          scheduleBlockPersist(next)
+          setPreviewContent(applyBlockEditsToSource(content, next))
+        }
+        return next
+      })
+      setFocusBlockId((current) => (current === id ? null : current))
+    },
+    [content, flushBlockEditsToDocument, scheduleBlockPersist],
+  )
+
+  const handleFocusBlockApplied = useCallback(() => {
+    setFocusBlockId(null)
+    setFocusBlockAtStart(false)
   }, [])
 
   const handlePreviewDoubleClick = useCallback(
@@ -303,9 +387,10 @@ export function MarkdownEditor({
         )}
         {!loading && !error && viewMode === 'view' && canWrite && (
           <p className="mx-auto max-w-3xl shrink-0 border-b border-sky-200/80 bg-sky-50/90 px-4 py-1.5 text-center text-[11px] leading-snug text-sky-950 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100">
-            <span className="font-medium">Blockweise bearbeiten:</span> In der Vorschau doppelklicken
-            (Absatz, Überschrift, Listenpunkt …) — blaues Feld erscheint inline. Tab{' '}
-            <span className="font-medium">Quelltext</span> nur für die ganze Datei als Roh-Markdown.
+            <span className="font-medium">Inline in der Vorschau:</span> Doppelklick auf einen Block —
+            direkt dort tippen. <span className="font-medium">Enter</span> = neuer Absatz,{' '}
+            <span className="font-medium">Umschalt+Enter</span> = Zeilenumbruch im Block. Tab{' '}
+            <span className="font-medium">Quelltext</span> = ganze Datei.
           </p>
         )}
         {!loading && !error && viewMode === 'view' && (
@@ -328,7 +413,7 @@ export function MarkdownEditor({
             >
               {content.trim() ? (
                 <MarkdownContent
-                  content={content}
+                  content={blockEdits.length > 0 ? previewContent : content}
                   docPath={filePath}
                   fileSources={fileSources}
                   highlightSourceLine={viewHighlightLine}
@@ -337,6 +422,9 @@ export function MarkdownEditor({
                   onBlockSplit={handleBlockSplit}
                   onBlockDismiss={handleBlockDismiss}
                   canWrite={canWrite}
+                  focusBlockId={focusBlockId}
+                  focusBlockAtStart={focusBlockAtStart}
+                  onFocusBlockApplied={handleFocusBlockApplied}
                 />
               ) : canWrite ? (
                 <p

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useRef, type ReactNode } from 'react'
 import type { Element as HastElement } from 'hast'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
@@ -36,6 +36,28 @@ type BlockEditHandlers = {
   onBlockSplit: (id: string, cursor: number) => void
   onBlockDismiss: (id: string) => void
   canWrite: boolean
+  focusSessionId: string | null
+  focusSessionAtStart: boolean
+  onFocusSessionApplied: () => void
+}
+
+function inlineFieldForSession(
+  session: BlockEditSession,
+  blockEdit: BlockEditHandlers,
+  variant: 'prose' | 'code' = 'prose',
+) {
+  return (
+    <MarkdownInlineBlockField
+      variant={variant}
+      value={session.text}
+      onChange={(text) => blockEdit.onBlockChange(session.id, text)}
+      onEnterSplit={(cursor) => blockEdit.onBlockSplit(session.id, cursor)}
+      onDismiss={() => blockEdit.onBlockDismiss(session.id)}
+      autoFocus={session.id === blockEdit.focusSessionId}
+      focusAtStart={blockEdit.focusSessionAtStart && session.id === blockEdit.focusSessionId}
+      onAutoFocusApplied={blockEdit.onFocusSessionApplied}
+    />
+  )
 }
 
 function sessionForNode(
@@ -53,27 +75,22 @@ function inlineBlockWrap(
   blockEdit: BlockEditHandlers | undefined,
   className: string | undefined,
   defaultChild: ReactNode,
-  tagClass?: string,
   variant: 'prose' | 'code' = 'prose',
 ) {
   const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
   const attrs = blockAttrs(node)
   if (session && blockEdit?.canWrite) {
     return (
-      <div className={className} {...attrs}>
-        <MarkdownInlineBlockField
-          className="md-inline-block-field"
-          variant={variant}
-          value={session.text}
-          onChange={(text) => blockEdit.onBlockChange(session.id, text)}
-          onEnterSplit={(cursor) => blockEdit.onBlockSplit(session.id, cursor)}
-          onDismiss={() => blockEdit.onBlockDismiss(session.id)}
-        />
+      <div
+        className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'}
+        {...attrs}
+      >
+        {inlineFieldForSession(session, blockEdit, variant)}
       </div>
     )
   }
   return (
-    <div className={[className, tagClass].filter(Boolean).join(' ') || undefined} {...attrs}>
+    <div className={className || undefined} {...attrs}>
       {defaultChild}
     </div>
   )
@@ -92,25 +109,121 @@ function buildMdComponents(
 
   return {
   p({ node, children, ...props }) {
-    return inlineBlockWrap(
-      node,
-      blockEdit,
-      [pClass, focus(node)].filter(Boolean).join(' ') || undefined,
-      <p className={pClass} {...props}>{children}</p>,
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = [pClass, focus(node)].filter(Boolean).join(' ') || undefined
+    if (session && blockEdit?.canWrite) {
+      return (
+        <p
+          className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'}
+          {...props}
+          {...blockAttrs(node)}
+        >
+          {inlineFieldForSession(session, blockEdit)}
+        </p>
+      )
+    }
+    return (
+      <p className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </p>
     )
   },
-  h1: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h1 {...props}>{children}</h1>),
-  h2: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h2 {...props}>{children}</h2>),
-  h3: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h3 {...props}>{children}</h3>),
-  h4: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h4 {...props}>{children}</h4>),
-  h5: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h5 {...props}>{children}</h5>),
-  h6: ({ node, children, ...props }) =>
-    inlineBlockWrap(node, blockEdit, focus(node), <h6 {...props}>{children}</h6>),
+  h1: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h1 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h1>
+      )
+    }
+    return (
+      <h1 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h1>
+    )
+  },
+  h2: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h2 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h2>
+      )
+    }
+    return (
+      <h2 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h2>
+    )
+  },
+  h3: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h3 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h3>
+      )
+    }
+    return (
+      <h3 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h3>
+    )
+  },
+  h4: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h4 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h4>
+      )
+    }
+    return (
+      <h4 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h4>
+    )
+  },
+  h5: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h5 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h5>
+      )
+    }
+    return (
+      <h5 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h5>
+    )
+  },
+  h6: ({ node, children, ...props }) => {
+    const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
+    const className = focus(node)
+    if (session && blockEdit?.canWrite) {
+      return (
+        <h6 className={[className, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'} {...props} {...blockAttrs(node)}>
+          {inlineFieldForSession(session, blockEdit)}
+        </h6>
+      )
+    }
+    return (
+      <h6 className={className} {...props} {...blockAttrs(node)}>
+        {children}
+      </h6>
+    )
+  },
   ul({ node, children, className, ...props }) {
     const taskList = className?.includes('contains-task-list')
     const listClass = taskList ? 'list-none pl-1' : 'list-disc pl-6'
@@ -145,15 +258,12 @@ function buildMdComponents(
         .join(' ') || undefined
     if (session && blockEdit?.canWrite) {
       return (
-        <li className={liClass} {...props} {...blockAttrs(node)}>
-          <MarkdownInlineBlockField
-            className="md-inline-block-field"
-            variant="prose"
-            value={session.text}
-            onChange={(text) => blockEdit.onBlockChange(session.id, text)}
-            onEnterSplit={(cursor) => blockEdit.onBlockSplit(session.id, cursor)}
-            onDismiss={() => blockEdit.onBlockDismiss(session.id)}
-          />
+        <li
+          className={[liClass, 'md-block-editing'].filter(Boolean).join(' ') || 'md-block-editing'}
+          {...props}
+          {...blockAttrs(node)}
+        >
+          {inlineFieldForSession(session, blockEdit)}
         </li>
       )
     }
@@ -186,7 +296,6 @@ function buildMdComponents(
       blockEdit,
       wrapClass,
       <pre className="markdown-pre" {...props}>{children}</pre>,
-      undefined,
       'code',
     )
   },
@@ -277,6 +386,9 @@ export interface MarkdownContentProps {
   onBlockSplit?: (id: string, cursor: number) => void
   onBlockDismiss?: (id: string) => void
   canWrite?: boolean
+  focusBlockId?: string | null
+  focusBlockAtStart?: boolean
+  onFocusBlockApplied?: () => void
 }
 
 export function MarkdownContent({
@@ -290,21 +402,42 @@ export function MarkdownContent({
   onBlockSplit,
   onBlockDismiss,
   canWrite = false,
+  focusBlockId = null,
+  focusBlockAtStart = false,
+  onFocusBlockApplied,
 }: MarkdownContentProps) {
   const compact = className?.includes('cm-md-compact') ?? false
   const display = useMemo(() => preprocessObsidianEmbeds(content), [content])
+  const blockEditsRef = useRef(blockEdits)
+  blockEditsRef.current = blockEdits
+  const sessionLayoutKey = blockEdits.map((s) => `${s.id}@${s.startLine}:${s.endLine}`).join('|')
   const blockEditHandlers = useMemo((): BlockEditHandlers | undefined => {
     if (!canWrite || !onBlockChange || !onBlockSplit || !onBlockDismiss || blockEdits.length === 0) {
       return undefined
     }
     return {
-      sessions: blockEdits,
+      get sessions() {
+        return blockEditsRef.current
+      },
       onBlockChange,
       onBlockSplit,
       onBlockDismiss,
       canWrite,
+      focusSessionId: focusBlockId,
+      focusSessionAtStart: focusBlockAtStart,
+      onFocusSessionApplied: onFocusBlockApplied ?? (() => {}),
     }
-  }, [blockEdits, canWrite, onBlockChange, onBlockDismiss, onBlockSplit])
+  }, [
+    sessionLayoutKey,
+    canWrite,
+    onBlockChange,
+    onBlockDismiss,
+    onBlockSplit,
+    focusBlockId,
+    focusBlockAtStart,
+    onFocusBlockApplied,
+    blockEdits.length,
+  ])
   const components = useMemo(
     () =>
       buildMdComponents(

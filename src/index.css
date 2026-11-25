@@ -123,18 +123,51 @@ body {
   list-style: none;
 }
 
-.markdown-preview li > .md-inline-block-field {
-  margin: 0.2em 0 0.4em;
+.markdown-preview .md-block-editing {
   max-width: 100%;
 }
 
-.markdown-preview li:has(> .md-inline-block-field) {
-  list-style-position: outside;
+.markdown-preview .md-inline-ghost-field {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  box-shadow: inset 0 -1px 0 rgb(14 165 233 / 0.45);
 }
 
-.markdown-preview ul.contains-task-list li:has(> .md-inline-block-field),
-.markdown-preview ol.contains-task-list li:has(> .md-inline-block-field) {
-  padding-left: 0;
+.markdown-preview .md-inline-ghost-field:focus {
+  box-shadow: inset 0 -2px 0 rgb(14 165 233 / 0.75);
+}
+
+.markdown-preview .md-inline-code-field {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.25rem 0;
+  border: none;
+  background: transparent;
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+  line-height: inherit;
+  color: inherit;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgb(139 92 246 / 0.35);
+  border-radius: 4px;
+}
+
+.markdown-preview .md-inline-code-field:focus {
+  box-shadow: inset 0 0 0 2px rgb(139 92 246 / 0.55);
 }
 
 .markdown-preview blockquote {

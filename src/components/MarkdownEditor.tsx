@@ -7,8 +7,10 @@ import { isTaskFilePath } from '../lib/et2/paths'
 import {
   applyBlockEditsToSource,
   blockEditKey,
+  blockSourceIsInlineEditable,
   getBlockSourceSlice,
   sessionsAfterBlockSplit,
+  sourceOffsetsForLineRange,
   type BlockEditSession,
 } from '../lib/markdown-block-edit'
 import { MarkdownContent } from './markdown/MarkdownContent'
@@ -74,14 +76,23 @@ export function MarkdownEditor({
       const endLine = Number.parseInt(block.dataset.mdSourceEnd ?? String(startLine), 10)
       if (!Number.isFinite(startLine) || startLine < 1) return
       const end = Number.isFinite(endLine) ? endLine : startLine
+      const noInline = block.dataset.mdNoInlineEdit === '1'
+      const inlineOk = blockSourceIsInlineEditable(content, startLine, end)
+      setViewHighlightLine(null)
+      if (noInline || !inlineOk) {
+        const { start, end: endOff } = sourceOffsetsForLineRange(content, startLine, end)
+        setBlockEdits([])
+        setEditFocus({ start, end: endOff, line: startLine })
+        onViewModeChange('edit')
+        return
+      }
       const text = getBlockSourceSlice(content, startLine, end)
       const id = blockEditKey(startLine, end)
-      setViewHighlightLine(null)
       setBlockEdits((prev) =>
         prev.some((s) => s.id === id) ? prev : [...prev, { id, startLine, endLine: end, text }],
       )
     },
-    [content],
+    [content, onViewModeChange],
   )
 
   const handleBlockChange = useCallback(
@@ -301,7 +312,7 @@ export function MarkdownEditor({
               }`}
               title={
                 canWrite
-                  ? 'Doppelklick auf einen Block — inline bearbeiten (Tab Bearbeiten = ganze Datei)'
+                  ? 'Doppelklick: Text inline; Diagramm/Code-Fence → Tab Bearbeiten'
                   : undefined
               }
               onDoubleClick={handlePreviewDoubleClick}

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyBlockEditsToSource,
+  blockSourceIsInlineEditable,
   getBlockSourceSlice,
+  isDiagramFenceBlockText,
   replaceLineRange,
   sessionsAfterBlockSplit,
   splitBlockTextAtCursor,
@@ -22,6 +24,14 @@ describe('markdown-block-edit', () => {
 
   it('teilt einzeiligen Block an Cursor', () => {
     expect(splitBlockTextAtCursor('Hallo Welt', 6)).toEqual(['Hallo', 'Welt'])
+  })
+
+  it('erkennt Diagramm-Fences', () => {
+    const mermaid = '```mermaid\nflowchart LR\n  A --> B\n```'
+    expect(isDiagramFenceBlockText(mermaid)).toBe(true)
+    const src = `Vor\n${mermaid}\nNach`
+    expect(blockSourceIsInlineEditable(src, 2, 5)).toBe(false)
+    expect(blockSourceIsInlineEditable(`Vor\n\`\`\`ts\nx()\n\`\`\`\nNach`, 2, 4)).toBe(true)
   })
 
   it('erzeugt zwei Sessions nach Split', () => {

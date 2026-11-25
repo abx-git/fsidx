@@ -14,13 +14,20 @@ import { PlantUmlDiagram } from './diagrams/PlantUmlDiagram'
 import { hljsCodeClass, highlightMarkdownCode } from '../../lib/markdown-highlight'
 import { reactNodeToPlainText } from '../../lib/markdown-react-children'
 import { MarkdownAssetImage } from './MarkdownAssetImage'
-import type { BlockEditSession } from '../../lib/markdown-block-edit'
+import {
+  getBlockSourceSlice,
+  isDiagramFenceBlockText,
+  type BlockEditSession,
+} from '../../lib/markdown-block-edit'
 import { MarkdownInlineBlockField } from './MarkdownInlineBlockField'
 
-function blockAttrs(node: HastElement | undefined): Record<string, string> | undefined {
+function blockAttrs(
+  node: HastElement | undefined,
+  extras?: { noInlineEdit?: boolean },
+): Record<string, string> | undefined {
   const start = node?.position?.start?.line
   const end = node?.position?.end?.line ?? start
-  return mdBlockDataAttrs({ startLine: start, endLine: end })
+  return mdBlockDataAttrs({ startLine: start, endLine: end, ...extras })
 }
 
 type BlockEditHandlers = {
@@ -47,6 +54,7 @@ function inlineBlockWrap(
   className: string | undefined,
   defaultChild: ReactNode,
   tagClass?: string,
+  variant: 'prose' | 'code' = 'prose',
 ) {
   const session = blockEdit ? sessionForNode(node, blockEdit.sessions) : undefined
   const attrs = blockAttrs(node)
@@ -54,6 +62,8 @@ function inlineBlockWrap(
     return (
       <div className={className} {...attrs}>
         <MarkdownInlineBlockField
+          className="md-inline-block-field"
+          variant={variant}
           value={session.text}
           onChange={(text) => blockEdit.onBlockChange(session.id, text)}
           onEnterSplit={(cursor) => blockEdit.onBlockSplit(session.id, cursor)}
@@ -74,6 +84,7 @@ function buildMdComponents(
   fileSources: FileSourceStore | null,
   compact: boolean,
   highlightSourceLine: number | null | undefined,
+  source: string,
   blockEdit?: BlockEditHandlers,
 ): Components {
   const pClass = compact ? 'cm-md-flow my-0' : undefined
@@ -103,21 +114,27 @@ function buildMdComponents(
   ul({ node, children, className, ...props }) {
     const taskList = className?.includes('contains-task-list')
     const listClass = taskList ? 'list-none pl-1' : 'list-disc pl-6'
-    return inlineBlockWrap(
-      node,
-      blockEdit,
-      [listClass, focus(node), className].filter(Boolean).join(' '),
-      <ul className={listClass} {...props}>{children}</ul>,
+    return (
+      <ul
+        className={[listClass, focus(node), className].filter(Boolean).join(' ')}
+        {...props}
+        {...blockAttrs(node)}
+      >
+        {children}
+      </ul>
     )
   },
   ol({ node, children, className, ...props }) {
     const taskList = className?.includes('contains-task-list')
     const listClass = taskList ? 'list-none pl-1' : 'list-decimal pl-6'
-    return inlineBlockWrap(
-      node,
-      blockEdit,
-      [listClass, focus(node), className].filter(Boolean).join(' '),
-      <ol className={listClass} {...props}>{children}</ol>,
+    return (
+      <ol
+        className={[listClass, focus(node), className].filter(Boolean).join(' ')}
+        {...props}
+        {...blockAttrs(node)}
+      >
+        {children}
+      </ol>
     )
   },
   li: ({ node, children, className, ...props }) => {
@@ -130,6 +147,8 @@ function buildMdComponents(
       return (
         <li className={liClass} {...props} {...blockAttrs(node)}>
           <MarkdownInlineBlockField
+            className="md-inline-block-field"
+            variant="prose"
             value={session.text}
             onChange={(text) => blockEdit.onBlockChange(session.id, text)}
             onEnterSplit={(cursor) => blockEdit.onBlockSplit(session.id, cursor)}
@@ -146,13 +165,31 @@ function buildMdComponents(
   },
   blockquote: ({ node, children, ...props }) =>
     inlineBlockWrap(node, blockEdit, focus(node), <blockquote {...props}>{children}</blockquote>),
-  pre: ({ node, children, ...props }) =>
-    inlineBlockWrap(
+  pre: ({ node, children, ...props }) => {
+    const start = node?.position?.start?.line
+    const end = node?.position?.end?.line ?? start
+    const slice =
+      start && end ? getBlockSourceSlice(source, start, end) : ''
+    const diagram = slice ? isDiagramFenceBlockText(slice) : false
+    const wrapClass = ['markdown-pre-host', focus(node)].filter(Boolean).join(' ')
+    if (diagram) {
+      return (
+        <div className={wrapClass} {...blockAttrs(node, { noInlineEdit: true })}>
+          <pre className="markdown-pre" {...props}>
+            {children}
+          </pre>
+        </div>
+      )
+    }
+    return inlineBlockWrap(
       node,
       blockEdit,
-      ['markdown-pre', focus(node)].filter(Boolean).join(' '),
+      wrapClass,
       <pre className="markdown-pre" {...props}>{children}</pre>,
-    ),
+      undefined,
+      'code',
+    )
+  },
   code({ className, children, ...props }) {
     const match = /language-([\w-]+)/.exec(className ?? '')
     const lang = match?.[1]?.toLowerCase()
@@ -275,9 +312,10 @@ export function MarkdownContent({
         fileSources ?? null,
         compact,
         highlightSourceLine,
+        content,
         blockEditHandlers,
       ),
-    [docPath, fileSources, compact, highlightSourceLine, blockEditHandlers],
+    [docPath, fileSources, compact, highlightSourceLine, content, blockEditHandlers],
   )
 
   return (

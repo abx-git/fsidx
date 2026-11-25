@@ -1,3 +1,6 @@
+import { isDrawioSource } from './drawio'
+import { isMermaidSource, isPlantUmlSource } from './plantuml'
+
 /** Zeilen 1-basiert, inkl. start und end. */
 export function getBlockSourceSlice(source: string, startLine1: number, endLine1: number): string {
   const lines = source.split('\n')
@@ -22,6 +25,45 @@ export function replaceLineRange(
 
 export function blockEditKey(startLine: number, endLine: number): string {
   return `${startLine}:${endLine}`
+}
+
+/** Diagramm-/Drawio-Fences: in der Vorschau rendern, nicht als Inline-Block bearbeiten. */
+export function isDiagramFenceBlockText(blockText: string): boolean {
+  const trimmed = blockText.trim()
+  const fence = /^```([\w-]*)\r?\n([\s\S]*?)```\s*$/m.exec(trimmed)
+  if (fence) {
+    const lang = (fence[1] ?? '').toLowerCase()
+    const body = fence[2] ?? ''
+    if (lang === 'mermaid' || (!lang && isMermaidSource(body))) return true
+    if (lang === 'plantuml' || lang === 'puml' || (!lang && isPlantUmlSource(body))) return true
+    if (lang === 'drawio' || (!lang && isDrawioSource(body))) return true
+    return false
+  }
+  return (
+    isMermaidSource(trimmed) || isPlantUmlSource(trimmed) || isDrawioSource(trimmed)
+  )
+}
+
+export function blockSourceIsInlineEditable(
+  source: string,
+  startLine1: number,
+  endLine1: number,
+): boolean {
+  return !isDiagramFenceBlockText(getBlockSourceSlice(source, startLine1, endLine1))
+}
+
+export function sourceOffsetsForLineRange(
+  source: string,
+  startLine1: number,
+  endLine1: number,
+): { start: number; end: number } {
+  const lines = source.split('\n')
+  let start = 0
+  for (let i = 0; i < startLine1 - 1 && i < lines.length; i++) {
+    start += lines[i]!.length + 1
+  }
+  const slice = getBlockSourceSlice(source, startLine1, endLine1)
+  return { start, end: start + slice.length }
 }
 
 export type BlockEditSession = {

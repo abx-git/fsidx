@@ -87,15 +87,18 @@ export function mapPlainPrefixToSourceOffset(blockSource: string, plainPrefix: s
 export interface MdBlockPosition {
   startLine?: number
   endLine?: number
+  noInlineEdit?: boolean
 }
 
 export function mdBlockDataAttrs(pos: MdBlockPosition): Record<string, string> | undefined {
   if (!pos.startLine) return undefined
   const end = pos.endLine ?? pos.startLine
-  return {
+  const attrs: Record<string, string> = {
     'data-md-source-start': String(pos.startLine),
     'data-md-source-end': String(end),
   }
+  if (pos.noInlineEdit) attrs['data-md-no-inline-edit'] = '1'
+  return attrs
 }
 
 export function lineNumberAtOffset(source: string, offset: number): number {

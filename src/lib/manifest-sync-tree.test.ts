@@ -2,12 +2,20 @@ import { describe, expect, it } from 'vitest'
 import type { FileIndexManifest, IndexEntry } from '../types'
 import { findNodeByPath } from './build-manifest'
 import { rebuildManifestTreeFromEntries } from './manifest-sync-tree'
-import { childEntriesAt, groupEntriesByParent } from './manifest-children'
+import { childEntriesAt, groupEntriesByParent, pathDepth } from './manifest-children'
 
 function dir(id: string, path: string, parentPath: string, depth: number): IndexEntry {
   const name = path.split('/').pop() ?? 'root'
   return { id, kind: 'directory', name, path, parentPath, depth, searchText: name }
 }
+
+describe('pathDepth', () => {
+  it('zählt Pfadsegmente für Baumeinrückung', () => {
+    expect(pathDepth('')).toBe(0)
+    expect(pathDepth('Themen')).toBe(1)
+    expect(pathDepth('Themen/Fliegen/HAC')).toBe(3)
+  })
+})
 
 describe('rebuildManifestTreeFromEntries', () => {
   it('hält tree.children mit entries unter demselben Elternpfad synchron', () => {

@@ -35,13 +35,19 @@ export function visibleDirectoryChildEntries(
   )
 }
 
+/** Tiefe aus Pfadsegmenten (unabhängig von gespeicherter entry.depth). */
+export function pathDepth(path: string): number {
+  if (!path) return 0
+  return path.split('/').filter(Boolean).length
+}
+
 export function entryToShallowNode(entry: IndexEntry): IndexNode {
   return {
     id: entry.id,
     kind: entry.kind,
     name: entry.name,
     path: entry.path,
-    depth: entry.depth,
+    depth: pathDepth(entry.path),
     extension: entry.extension,
     size: entry.size,
     lastModified: entry.lastModified,

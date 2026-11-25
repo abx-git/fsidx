@@ -63,7 +63,7 @@ interface TreeNodeProps {
   et2TaskCountByDir?: Map<string, number>
   expandedPaths: Set<string>
   onToggleExpanded: (path: string) => void
-  depthOffset: number
+  treeLevel: number
   onContextMenu?: (target: ContextMenuTarget) => void
   canWrite?: boolean
   dropTargetPath: string | null
@@ -85,7 +85,7 @@ function TreeNode({
   et2TaskCountByDir,
   expandedPaths,
   onToggleExpanded,
-  depthOffset,
+  treeLevel,
   onContextMenu,
   canWrite = false,
   dropTargetPath,
@@ -107,7 +107,8 @@ function TreeNode({
       y: e.clientY,
     })
   }
-  const indent = Math.max(0, node.depth - depthOffset) * 12 + 4
+  const TREE_INDENT_PX = 16
+  const indent = treeLevel * TREE_INDENT_PX + 4
   const isFocused = focusedId === node.id
   const focusClass = isFocused ? 'ring-2 ring-emerald-500/50 ring-inset' : ''
 
@@ -261,7 +262,7 @@ function TreeNode({
             et2TaskCountByDir={et2TaskCountByDir}
             expandedPaths={expandedPaths}
             onToggleExpanded={onToggleExpanded}
-            depthOffset={depthOffset}
+            treeLevel={treeLevel + 1}
             onContextMenu={onContextMenu}
             canWrite={canWrite}
             dropTargetPath={dropTargetPath}
@@ -440,7 +441,7 @@ export function TreeNav({
           et2TaskCountByDir={et2TaskCountByDir}
           expandedPaths={expandedPaths}
           onToggleExpanded={onToggleExpanded}
-          depthOffset={root.depth}
+          treeLevel={0}
           onContextMenu={onContextMenu}
           canWrite={canWrite}
           dropTargetPath={dropTargetPath}

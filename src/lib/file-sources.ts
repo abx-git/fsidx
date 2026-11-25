@@ -1,4 +1,6 @@
 import {
+  assertVaultReadableForPath,
+  isVaultEncryptedPath,
   readBlobFromVaultStore,
   readTextFromVaultStore,
   vaultIoApplies,
@@ -26,6 +28,7 @@ export async function readTextFromStore(
   store: FileSourceStore,
   relativePath: string,
 ): Promise<string> {
+  assertVaultReadableForPath(store, relativePath)
   if (vaultIoApplies(store, relativePath)) {
     return readTextFromVaultStore(store, relativePath)
   }
@@ -44,6 +47,9 @@ async function resolveFileHandle(
   store: Extract<FileSourceStore, { kind: 'handles' }>,
   relativePath: string,
 ): Promise<FileSystemFileHandle> {
+  if (isVaultEncryptedPath(store, relativePath)) {
+    throw new Error('Tresor-Dateien müssen entschlüsselt gelesen werden — Tresor entsperren.')
+  }
   const cached = store.handles.get(relativePath)
   if (cached) return cached
   const parts = relativePath.split('/').filter(Boolean)
@@ -147,6 +153,7 @@ export async function readBlobFromStore(
   store: FileSourceStore,
   relativePath: string,
 ): Promise<Blob> {
+  assertVaultReadableForPath(store, relativePath)
   if (vaultIoApplies(store, relativePath)) {
     return readBlobFromVaultStore(store, relativePath)
   }

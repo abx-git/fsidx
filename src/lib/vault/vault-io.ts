@@ -1,9 +1,12 @@
 import type { FileSourceStore } from '../file-sources'
+import { extensionFromName, mimeHintForExtension } from '../mime-hint'
 import { findDecryptedEntryInDir } from './vault-disk-lookup'
 import { vaultRootForPath } from './vault-paths'
 import { getVaultSession, upsertVaultDiskRef } from './vault-session'
 import { readDecryptedVaultFile, writeEncryptedVaultFile, createEncryptedVaultDirectory } from './vault-index'
 import { VAULT_MARKER_FILENAME } from './marker'
+
+type HandlesStore = Extract<FileSourceStore, { kind: 'handles' }>
 
 async function resolveVaultDir(
   store: FileSourceStore,
@@ -34,12 +37,56 @@ async function resolveVaultDir(
   return dir
 }
 
-export function vaultIoApplies(store: FileSourceStore | null, relativePath: string): boolean {
+export function isVaultEncryptedPath(store: FileSourceStore | null, relativePath: string): boolean {
   if (!store?.vaultRoots?.length) return false
   const root = vaultRootForPath(relativePath, new Set(store.vaultRoots))
-  if (!root) return false
-  if (!getVaultSession(root)) return false
-  return relativePath !== root && !relativePath.endsWith(`/${VAULT_MARKER_FILENAME}`)
+  if (root === null) return false
+  if (relativePath === root) return false
+  if (relativePath.endsWith(`/${VAULT_MARKER_FILENAME}`)) return false
+  return true
+}
+
+export function vaultIoApplies(store: FileSourceStore | null, relativePath: string): boolean {
+  if (!isVaultEncryptedPath(store, relativePath)) return false
+  const root = vaultRootForPath(relativePath, new Set(store!.vaultRoots!))!
+  return getVaultSession(root) !== null
+}
+
+const VAULT_LOCKED_READ_MSG = 'Tresor ist gesperrt — zum Anzeigen entsperren.'
+
+export function assertVaultReadableForPath(store: FileSourceStore, relativePath: string): void {
+  if (!isVaultEncryptedPath(store, relativePath)) return
+  if (!vaultIoApplies(store, relativePath)) {
+    throw new Error(VAULT_LOCKED_READ_MSG)
+  }
+}
+
+async function resolveVaultFileHandle(
+  store: HandlesStore,
+  vaultRoot: string,
+  relativePath: string,
+): Promise<FileSystemFileHandle> {
+  const cached = store.handles.get(relativePath)
+  if (cached) return cached
+
+  const session = getVaultSession(vaultRoot)
+  if (!session) throw new Error(VAULT_LOCKED_READ_MSG)
+
+  const fileName = relativePath.split('/').pop()
+  if (!fileName) throw new Error('Ungültiger Tresor-Pfad')
+
+  const slash = relativePath.lastIndexOf('/')
+  const parentLogical = slash >= 0 ? relativePath.slice(0, slash) : vaultRoot
+  const parentDir = await resolveVaultDir(store, vaultRoot, parentLogical)
+  const found = await findDecryptedEntryInDir(session.key, parentDir, fileName)
+  if (!found || found.handle.kind !== 'file') {
+    throw new Error('Datei nicht im Tresor gefunden')
+  }
+
+  const handle = found.handle as FileSystemFileHandle
+  store.handles.set(relativePath, handle)
+  upsertVaultDiskRef(vaultRoot, { logicalPath: relativePath, encryptedName: found.encryptedName })
+  return handle
 }
 
 export async function readTextFromVaultStore(
@@ -48,10 +95,10 @@ export async function readTextFromVaultStore(
 ): Promise<string> {
   const vaultRoot = vaultRootForPath(relativePath, new Set(store.vaultRoots ?? []))
   if (!vaultRoot) throw new Error('Kein Tresor-Pfad')
+  if (store.kind !== 'handles') throw new Error('Tresor: handles nötig')
   const session = getVaultSession(vaultRoot)
-  if (!session) throw new Error('Tresor gesperrt')
-  const handle = store.kind === 'handles' ? store.handles.get(relativePath) : null
-  if (!handle) throw new Error('Datei nicht im Tresor-Index')
+  if (!session) throw new Error(VAULT_LOCKED_READ_MSG)
+  const handle = await resolveVaultFileHandle(store, vaultRoot, relativePath)
   const bytes = await readDecryptedVaultFile(session.key, handle)
   return new TextDecoder().decode(bytes)
 }
@@ -62,13 +109,14 @@ export async function readBlobFromVaultStore(
 ): Promise<Blob> {
   const vaultRoot = vaultRootForPath(relativePath, new Set(store.vaultRoots ?? []))
   if (!vaultRoot) throw new Error('Kein Tresor-Pfad')
+  if (store.kind !== 'handles') throw new Error('Tresor: handles nötig')
   const session = getVaultSession(vaultRoot)
-  if (!session) throw new Error('Tresor gesperrt')
-  const handle = store.kind === 'handles' ? store.handles.get(relativePath) : null
-  if (!handle) throw new Error('Datei nicht im Tresor-Index')
+  if (!session) throw new Error(VAULT_LOCKED_READ_MSG)
+  const handle = await resolveVaultFileHandle(store, vaultRoot, relativePath)
   const bytes = await readDecryptedVaultFile(session.key, handle)
   const copy = new Uint8Array(bytes)
-  return new Blob([copy])
+  const mime = mimeHintForExtension(extensionFromName(relativePath))
+  return new Blob([copy], { type: mime })
 }
 
 export async function writeBlobToVaultStore(

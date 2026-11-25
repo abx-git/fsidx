@@ -249,7 +249,7 @@ export function MarkdownEditor({
               }`}
             >
               <Eye className="h-3.5 w-3.5" />
-              Ansicht
+              Vorschau
             </button>
             {canWrite && (
               <button
@@ -265,9 +265,10 @@ export function MarkdownEditor({
                     ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
                     : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                 }`}
+                title="Rohes Markdown der gesamten Datei"
               >
                 <Pencil className="h-3.5 w-3.5" />
-                Bearbeiten
+                Quelltext
               </button>
             )}
           </div>
@@ -300,6 +301,13 @@ export function MarkdownEditor({
             {error}
           </p>
         )}
+        {!loading && !error && viewMode === 'view' && canWrite && (
+          <p className="mx-auto max-w-3xl shrink-0 border-b border-sky-200/80 bg-sky-50/90 px-4 py-1.5 text-center text-[11px] leading-snug text-sky-950 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100">
+            <span className="font-medium">Blockweise bearbeiten:</span> In der Vorschau doppelklicken
+            (Absatz, Überschrift, Listenpunkt …) — blaues Feld erscheint inline. Tab{' '}
+            <span className="font-medium">Quelltext</span> nur für die ganze Datei als Roh-Markdown.
+          </p>
+        )}
         {!loading && !error && viewMode === 'view' && (
           <div
             ref={viewScrollRef}
@@ -307,8 +315,9 @@ export function MarkdownEditor({
           >
             <article
               ref={previewArticleRef}
+              data-md-block-edit={canWrite ? '1' : undefined}
               className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
-                canWrite ? 'cursor-text' : ''
+                canWrite ? 'cursor-text md-preview-editable' : ''
               }`}
               title={
                 canWrite

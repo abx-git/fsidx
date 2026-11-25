@@ -37,11 +37,15 @@ export function e2EmbedOrigin(): string {
   }
 }
 
+/** Bump when fsidx needs a newer E2 /embed UI (iframe cache bust). */
+const E2_EMBED_UI_REV = '3'
+
 export function buildE2EmbedUrl(canWrite: boolean): string {
   const params = new URLSearchParams({
     embed: '1',
     boardAutoLoad: '0',
     editable: canWrite ? '1' : '0',
+    hostUi: E2_EMBED_UI_REV,
   })
   if (typeof window !== 'undefined') {
     params.set('parentOrigin', window.location.origin)

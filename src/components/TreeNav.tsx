@@ -108,6 +108,7 @@ function TreeNode({
     })
   }
   const TREE_INDENT_PX = 16
+  const TREE_TOGGLE_PX = 28
   const indent = treeLevel * TREE_INDENT_PX + 4
   const isFocused = focusedId === node.id
   const focusClass = isFocused ? 'ring-2 ring-emerald-500/50 ring-inset' : ''
@@ -140,46 +141,49 @@ function TreeNode({
 
   return (
     <div className="select-none" role="group">
-      <div
-        className={`flex w-full items-center gap-0.5 rounded-md text-sm ${
-          isVaultDir || workspaceIsVaultRoot
-            ? vaultLocked
-              ? 'border border-blue-200/90 bg-blue-50/70 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/35'
-              : 'border border-blue-100 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/30 dark:bg-blue-950/25'
-            : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-        } ${
-          isDropTarget
-            ? 'bg-sky-100 ring-2 ring-inset ring-sky-400 dark:bg-sky-950/40 dark:ring-sky-500'
-            : isActive
-              ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
-              : !isVaultDir && !workspaceIsVaultRoot
-                ? 'text-zinc-700 dark:text-zinc-300'
-                : 'text-blue-950 dark:text-blue-100'
-        }`}
-        style={{ paddingLeft: `${indent}px` }}
-      >
-        {hasChildren ? (
-          <button
-            type="button"
-            aria-label={open ? 'Einklappen' : 'Aufklappen'}
-            aria-hidden
-            tabIndex={-1}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpanded(node.path)
-            }}
-            className="rounded p-1 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
-          >
-            {open ? (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
-            )}
-          </button>
-        ) : (
-          <span className="inline-block w-7" />
-        )}
+      <div className="flex w-full items-stretch">
+        <span className="shrink-0" style={{ width: indent }} aria-hidden />
         <div
+          className={`flex min-w-0 flex-1 items-center gap-0.5 rounded-md text-sm ${
+            isVaultDir || workspaceIsVaultRoot
+              ? vaultLocked
+                ? 'border border-blue-200/90 bg-blue-50/70 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/35'
+                : 'border border-blue-100 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/30 dark:bg-blue-950/25'
+              : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          } ${
+            isDropTarget
+              ? 'bg-sky-100 ring-2 ring-inset ring-sky-400 dark:bg-sky-950/40 dark:ring-sky-500'
+              : isActive
+                ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
+                : !isVaultDir && !workspaceIsVaultRoot
+                  ? 'text-zinc-700 dark:text-zinc-300'
+                  : 'text-blue-950 dark:text-blue-100'
+          }`}
+        >
+          <span
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{ width: TREE_TOGGLE_PX, height: TREE_TOGGLE_PX }}
+          >
+            {hasChildren ? (
+              <button
+                type="button"
+                aria-label={open ? 'Einklappen' : 'Aufklappen'}
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleExpanded(node.path)
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+              >
+                {open ? (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                )}
+              </button>
+            ) : null}
+          </span>
+          <div
           role="treeitem"
           tabIndex={isFocused ? 0 : -1}
           ref={(el) => registerItemRef(node.id, el)}
@@ -244,6 +248,7 @@ function TreeNode({
               {taskCount}
             </span>
           )}
+        </div>
         </div>
       </div>
       {open &&

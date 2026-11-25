@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowLeft, Download, Eye, Loader2, Pencil } from 'lucide-react'
-import {
-  lineNumberAtOffset,
-  scrollContainerToSourceLine,
-  sourceRangeFromPreviewClick,
-} from '../lib/markdown-view-click'
+import { lineNumberAtOffset, scrollContainerToSourceLine } from '../lib/markdown-view-click'
 import type { FileSourceStore } from '../lib/file-sources'
 import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
+import {
+  applyBlockEditsToSource,
+  blockEditKey,
+  getBlockSourceSlice,
+  sessionsAfterBlockSplit,
+  type BlockEditSession,
+} from '../lib/markdown-block-edit'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
 
@@ -54,27 +57,76 @@ export function MarkdownEditor({
     null,
   )
   const [viewHighlightLine, setViewHighlightLine] = useState<number | null>(null)
+  const [blockEdits, setBlockEdits] = useState<BlockEditSession[]>([])
+
+  useEffect(() => {
+    setBlockEdits([])
+    setEditFocus(null)
+  }, [filePath])
+
+  useEffect(() => {
+    if (viewMode === 'edit') setBlockEdits([])
+  }, [viewMode])
+
+  const openBlockFromElement = useCallback(
+    (block: HTMLElement) => {
+      const startLine = Number.parseInt(block.dataset.mdSourceStart ?? '', 10)
+      const endLine = Number.parseInt(block.dataset.mdSourceEnd ?? String(startLine), 10)
+      if (!Number.isFinite(startLine) || startLine < 1) return
+      const end = Number.isFinite(endLine) ? endLine : startLine
+      const text = getBlockSourceSlice(content, startLine, end)
+      const id = blockEditKey(startLine, end)
+      setViewHighlightLine(null)
+      setBlockEdits((prev) =>
+        prev.some((s) => s.id === id) ? prev : [...prev, { id, startLine, endLine: end, text }],
+      )
+    },
+    [content],
+  )
+
+  const handleBlockChange = useCallback(
+    (id: string, text: string) => {
+      setBlockEdits((prev) => {
+        const next = prev.map((s) => (s.id === id ? { ...s, text } : s))
+        onChange(applyBlockEditsToSource(content, next))
+        return next
+      })
+    },
+    [content, onChange],
+  )
+
+  const handleBlockSplit = useCallback(
+    (id: string, cursor: number) => {
+      setBlockEdits((prev) => {
+        const session = prev.find((s) => s.id === id)
+        if (!session) return prev
+        const { nextSource, sessions: split } = sessionsAfterBlockSplit(content, session, cursor)
+        onChange(nextSource)
+        return [...prev.filter((s) => s.id !== id), ...split]
+      })
+    },
+    [content, onChange],
+  )
+
+  const handleBlockDismiss = useCallback((id: string) => {
+    setBlockEdits((prev) => prev.filter((s) => s.id !== id))
+  }, [])
 
   const handlePreviewDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       if (!canWrite || viewMode !== 'view') return
       e.preventDefault()
-      const range = sourceRangeFromPreviewClick(
-        content,
-        e.currentTarget,
-        e.clientX,
-        e.clientY,
-      )
-      const end = range.end > range.start ? range.end : range.start
-      setViewHighlightLine(null)
-      setEditFocus({
-        start: range.start,
-        end,
-        line: range.line,
-      })
-      onViewModeChange('edit')
+      const hit = document.elementFromPoint(e.clientX, e.clientY)
+      const block = hit?.closest('[data-md-source-start]') as HTMLElement | null
+      if (block && e.currentTarget.contains(block)) {
+        openBlockFromElement(block)
+        return
+      }
+      if (!content.trim()) {
+        setBlockEdits([{ id: '1:1', startLine: 1, endLine: 1, text: '' }])
+      }
     },
-    [canWrite, viewMode, content, onViewModeChange],
+    [canWrite, viewMode, content, openBlockFromElement],
   )
 
   const returnToViewAtCaret = useCallback(
@@ -176,6 +228,7 @@ export function MarkdownEditor({
               aria-selected={viewMode === 'view'}
               onClick={() => {
                 setViewHighlightLine(null)
+                setBlockEdits([])
                 onViewModeChange('view')
               }}
               className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
@@ -192,7 +245,10 @@ export function MarkdownEditor({
                 type="button"
                 role="tab"
                 aria-selected={viewMode === 'edit'}
-                onClick={() => onViewModeChange('edit')}
+                onClick={() => {
+                  setBlockEdits([])
+                  onViewModeChange('edit')
+                }}
                 className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium ${
                   viewMode === 'edit'
                     ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
@@ -243,7 +299,11 @@ export function MarkdownEditor({
               className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
                 canWrite ? 'cursor-text' : ''
               }`}
-              title={canWrite ? 'Doppelklick zum Bearbeiten (Esc zurück)' : undefined}
+              title={
+                canWrite
+                  ? 'Doppelklick auf einen Block — inline bearbeiten (Tab Bearbeiten = ganze Datei)'
+                  : undefined
+              }
               onDoubleClick={handlePreviewDoubleClick}
             >
               {content.trim() ? (
@@ -252,6 +312,11 @@ export function MarkdownEditor({
                   docPath={filePath}
                   fileSources={fileSources}
                   highlightSourceLine={viewHighlightLine}
+                  blockEdits={blockEdits}
+                  onBlockChange={handleBlockChange}
+                  onBlockSplit={handleBlockSplit}
+                  onBlockDismiss={handleBlockDismiss}
+                  canWrite={canWrite}
                 />
               ) : canWrite ? (
                 <p

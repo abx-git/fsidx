@@ -10,6 +10,7 @@ import { defaultViewerForFile } from '../lib/file-viewers'
 import type { FileViewerKind } from '../lib/file-viewers'
 import { isSidecarForIndexedFile } from '../lib/sidecar'
 import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
+import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { isHiddenEt2Scope } from '../lib/scope-sanitize'
 import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
@@ -171,7 +172,9 @@ export function FileBrowser({
         extension: child.extension,
       }))
   ).filter((row) => {
-    if (row.kind === 'directory') return true
+    if (row.kind === 'directory') {
+      return shouldShowDirectoryInTree(row.path, showEt2DotFiles)
+    }
     if (isSidecarForIndexedFile(row.path, indexedFilePaths)) return false
     if (isEt2InternalPath(row.path, showEt2DotFiles)) return false
     if (shouldHideFromFileList(row.path)) return false

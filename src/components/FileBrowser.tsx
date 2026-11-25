@@ -1,4 +1,5 @@
-import { Folder, File, FileJson, LayoutGrid, Link2, ListTodo, Lock, PenLine, Shield } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { Folder, File, FileJson, LayoutGrid, Link2, ListTodo, Lock, PenLine, Shield, Upload } from 'lucide-react'
 import { isDrawioPath } from '../lib/drawio'
 import { isE2JsonPath } from '../lib/e2/e2-board-paths'
 import { isTskJsonPath } from '../lib/et2/tsk-paths'
@@ -49,6 +50,7 @@ interface FileBrowserProps {
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
   onLockVault?: (vaultRoot: string) => void
+  onUploadFiles?: (files: File[]) => void
 }
 
 type Row = {
@@ -87,7 +89,10 @@ export function FileBrowser({
   vaultRoots = [],
   onUnlockVault,
   onLockVault,
+  onUploadFiles,
 }: FileBrowserProps) {
+  const [fileDropActive, setFileDropActive] = useState(false)
+  const fileDropDepth = useRef(0)
   const inSearch = searchQuery.trim().length > 0
   const activeVaultRoot = scopeVaultRoot(scopePath, vaultRoots)
   const workspaceIsVault = vaultRoots.includes('')
@@ -95,6 +100,56 @@ export function FileBrowser({
   const inVaultScope = workspaceIsVault || activeVaultRoot !== null
   const scopeVaultLocked = inVaultScope && !isVaultUnlocked(vaultRootKey)
   const scopeVaultOpen = inVaultScope && isVaultUnlocked(vaultRootKey)
+
+  const isExternalFileDrag = useCallback((dt: DataTransfer) => {
+    if (!dt.types.includes('Files')) return false
+    return !dt.types.includes(fsidxFileDragMime())
+  }, [])
+
+  const onFileListDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      if (!canWrite || !onUploadFiles || inSearch) return
+      if (scopeVaultLocked) return
+      if (!isExternalFileDrag(e.dataTransfer)) return
+      e.preventDefault()
+      fileDropDepth.current += 1
+      setFileDropActive(true)
+    },
+    [canWrite, inSearch, isExternalFileDrag, onUploadFiles, scopeVaultLocked],
+  )
+
+  const onFileListDragLeave = useCallback((e: React.DragEvent) => {
+    if (!fileDropActive) return
+    e.preventDefault()
+    fileDropDepth.current -= 1
+    if (fileDropDepth.current <= 0) {
+      fileDropDepth.current = 0
+      setFileDropActive(false)
+    }
+  }, [fileDropActive])
+
+  const onFileListDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!canWrite || !onUploadFiles || inSearch || scopeVaultLocked) return
+      if (!isExternalFileDrag(e.dataTransfer)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    [canWrite, inSearch, isExternalFileDrag, onUploadFiles, scopeVaultLocked],
+  )
+
+  const onFileListDrop = useCallback(
+    (e: React.DragEvent) => {
+      fileDropDepth.current = 0
+      setFileDropActive(false)
+      if (!canWrite || !onUploadFiles || inSearch || scopeVaultLocked) return
+      if (!isExternalFileDrag(e.dataTransfer)) return
+      e.preventDefault()
+      const files = Array.from(e.dataTransfer.files)
+      if (files.length > 0) onUploadFiles(files)
+    },
+    [canWrite, inSearch, onUploadFiles, scopeVaultLocked, isExternalFileDrag],
+  )
 
   const listing: Row[] = (inSearch
     ? searchResults.map((e) => ({
@@ -208,14 +263,32 @@ export function FileBrowser({
           </>
         )}
       </div>
-      <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <ul
+        className={`relative min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+          fileDropActive
+            ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
+            : ''
+        }`}
+        onDragEnter={onFileListDragEnter}
+        onDragLeave={onFileListDragLeave}
+        onDragOver={onFileListDragOver}
+        onDrop={onFileListDrop}
+      >
+        {fileDropActive && (
+          <li className="pointer-events-none sticky top-0 z-10 flex items-center justify-center gap-2 border-b border-emerald-300 bg-emerald-100/95 px-3 py-2 text-xs font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
+            <Upload className="h-4 w-4 shrink-0" />
+            Dateien hier ablegen — werden in diesen Ordner kopiert
+          </li>
+        )}
         {listing.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-zinc-500">
             {inSearch
               ? 'Keine Treffer.'
               : isHiddenEt2Scope(scopePath, showEt2DotFiles)
                 ? 'Legacy-Systemordner (.et2) — in der Scope-Leiste einen Ordner darüber wählen oder *.tsk.json anlegen.'
-                : 'Keine Einträge. Oben „Aufgaben-Datei“ oder Ordner anlegen.'}
+                : canWrite && onUploadFiles && !scopeVaultLocked
+                  ? 'Keine Einträge. Dateien hierher ziehen oder oben anlegen.'
+                  : 'Keine Einträge. Oben „Aufgaben-Datei“ oder Ordner anlegen.'}
           </li>
         )}
         {listing.map((row) => {

@@ -26,6 +26,7 @@ import {
 import { DEFAULT_NEW_TASK_TITLE } from './lib/et2/constants'
 import { Et2ReparentDialog } from './components/et2/Et2ReparentDialog'
 import { createDirectoryInScope, createMarkdownInScope } from './lib/create-workspace'
+import { uploadFilesToScope } from './lib/upload-files-scope'
 import { createVaultFolderInScope } from './lib/vault/create-vault-folder'
 import { closeVaultInSession, unlockVaultAndMergeIndex } from './lib/vault/vault-refresh'
 import { lockAllVaults } from './lib/vault/vault-session'
@@ -1007,6 +1008,23 @@ function App() {
     ],
   )
 
+  const handleUploadFilesToScope = useCallback(
+    async (scopePath: string, files: File[]) => {
+      if (!fileSources || !canWrite) {
+        window.alert('Dateien ablegen: Chrome/Edge mit Schreibzugriff auf den Workspace-Ordner.')
+        return
+      }
+      try {
+        const rows = await uploadFilesToScope(fileSources, scopePath, files)
+        for (const row of rows) registerSidecarFile(row)
+        if (rows.some((r) => isTskJsonPath(r.relativePath))) et2Tasks.reload()
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Dateien konnten nicht abgelegt werden')
+      }
+    },
+    [fileSources, canWrite, registerSidecarFile, et2Tasks],
+  )
+
   const handleNewMarkdown = useCallback(
     async (parentPath: string) => {
       if (!fileSources || !canWrite) {
@@ -1708,6 +1726,7 @@ function App() {
       onNewLinkFile={() => void handleNewLinkFile(currentPath)}
       onNewDrawioFile={() => void handleNewDrawioFile(currentPath)}
       onNewE2Board={() => void handleNewE2Board(currentPath)}
+      onUploadFiles={(files) => void handleUploadFilesToScope(currentPath, files)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
       onLockVault={handleVaultLock}

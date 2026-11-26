@@ -14,6 +14,7 @@ import { parseFileMetadata, serializeFileMetadata, sidecarPathForFile } from './
 import { assertVaultUnlockedForWrite, ensureVaultDirectoryOnDisk } from './vault/vault-io'
 import { isPathUnderVaultRoot, vaultRootForPath } from './vault/vault-paths'
 import { isVaultUnlocked } from './vault/vault-session'
+import { assertFsidxWritableOutsideRBase } from './r-base/rbase-move-guard'
 
 const FSIDX_FILE_DRAG = 'application/x-fsidx-file'
 
@@ -300,6 +301,7 @@ export async function moveFileInStore(
     throw new Error('Die Datei liegt bereits in diesem Ordner.')
   }
 
+  assertFsidxWritableOutsideRBase(store, from, destDir, newPath)
   assertVaultUnlockedForWrite(store, newPath)
   return relocateFileInStore(store, from, newPath)
 }
@@ -321,6 +323,7 @@ export async function renameFileInStore(
   const err = renameFileValidationError(from, newFileName, occupiedPaths)
   if (err) throw new Error(err)
   const newPath = resolveRenameFilePath(from, newFileName)
+  assertFsidxWritableOutsideRBase(store, from, newPath)
   return relocateFileInStore(store, from, newPath)
 }
 
@@ -347,10 +350,12 @@ export async function moveDirectoryInStore(
     throw new Error('Der Ordner liegt bereits in diesem Ziel.')
   }
 
+  assertFsidxWritableOutsideRBase(store, from, destDir, newPath)
   assertVaultUnlockedForWrite(store, newPath)
   const subtree = subtreePaths(manifest, from)
   for (const p of subtree) {
     const target = remapSubtreePath(from, newPath, p)
+    assertFsidxWritableOutsideRBase(store, p, target)
     assertVaultUnlockedForWrite(store, target)
   }
 

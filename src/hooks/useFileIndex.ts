@@ -9,6 +9,10 @@ import {
   walkDirectoryIndexInBackground,
 } from '../lib/directory-picker'
 import type { FileSourceStore } from '../lib/file-sources'
+import {
+  inferRBaseRootsFromMarkerEntries,
+  mergeRBaseRootLists,
+} from '../lib/r-base/rbase-roots'
 import { inferVaultRootsFromMarkerEntries, mergeVaultRootLists } from '../lib/vault/vault-paths'
 import { reconcileLockedVaultsInManifest } from '../lib/vault/vault-refresh'
 import { lockAllVaults } from '../lib/vault/vault-session'
@@ -280,6 +284,7 @@ export function useFileIndex() {
       path: string,
       sel: string | null,
       vaultRoots?: string[],
+      rbaseRoots?: string[],
     ) => {
       if (!kind) return
       void saveWorkspaceSession({
@@ -289,6 +294,7 @@ export function useFileIndex() {
         selectedId: sel,
         savedAt: new Date().toISOString(),
         vaultRoots,
+        rbaseRoots,
       })
     },
     [],
@@ -321,7 +327,11 @@ export function useFileIndex() {
               session.vaultRoots,
               inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
             )
-            const sources = fileSourcesFromRootHandle(handle, vaultRoots)
+            const rbaseRoots = mergeRBaseRootLists(
+              session.rbaseRoots,
+              inferRBaseRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
+            )
+            const sources = fileSourcesFromRootHandle(handle, vaultRoots, rbaseRoots)
             if (!cancelled) {
               lockAllVaults()
               const reconciled = rebuildManifestTreeFromEntries(
@@ -341,6 +351,10 @@ export function useFileIndex() {
           const vaultRoots = mergeVaultRootLists(
             session.vaultRoots,
             inferVaultRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
+          )
+          mergeRBaseRootLists(
+            session.rbaseRoots,
+            inferRBaseRootsFromMarkerEntries(session.manifest.entries.map((e) => e.path)),
           )
           const reconciled = rebuildManifestTreeFromEntries(
             reconcileLockedVaultsInManifest(session.manifest, vaultRoots),
@@ -378,7 +392,9 @@ export function useFileIndex() {
     persistTimer.current = setTimeout(() => {
       const vaultRoots =
         fileSources?.kind === 'handles' ? fileSources.vaultRoots : undefined
-      persistNow(manifest, sourceKind, currentPath, selectedId, vaultRoots)
+      const rbaseRoots =
+        fileSources?.kind === 'handles' ? fileSources.rbaseRoots : undefined
+      persistNow(manifest, sourceKind, currentPath, selectedId, vaultRoots, rbaseRoots)
     }, 400)
     return () => {
       if (persistTimer.current) clearTimeout(persistTimer.current)
@@ -399,10 +415,14 @@ export function useFileIndex() {
         sources.vaultRoots,
         inferVaultRootsFromMarkerEntries(shallowRows.map((r) => r.relativePath)),
       )
-      const sourcesWithVaults = { ...sources, vaultRoots } as Extract<
+      let rbaseRoots = mergeRBaseRootLists(
+        sources.rbaseRoots,
+        inferRBaseRootsFromMarkerEntries(shallowRows.map((r) => r.relativePath)),
+      )
+      const sourcesWithVaults = { ...sources, vaultRoots, rbaseRoots } as Extract<
         FileSourceStore,
         { kind: 'handles' }
-      > & { vaultRoots: string[] }
+      > & { vaultRoots: string[]; rbaseRoots: string[] }
       const initial = reconcileLockedVaultsInManifest(
         buildManifestFromRows(rootName, shallowRows),
         vaultRoots,
@@ -448,7 +468,7 @@ export function useFileIndex() {
         },
         shouldAbort: () => runId !== backgroundIndexGen.current,
       })
-        .then((walkVaultRoots) => {
+        .then((walkRoots) => {
           if (runId !== backgroundIndexGen.current) return
           if (indexFlushTimer.current) {
             clearTimeout(indexFlushTimer.current)
@@ -456,22 +476,29 @@ export function useFileIndex() {
           }
           const tail = pendingIndexRows.current
           pendingIndexRows.current = []
-          let mergedVaults: string[] = walkVaultRoots
+          let mergedVaults: string[] = walkRoots.vaultRoots
+          let mergedRbase: string[] = walkRoots.rbaseRoots
           setManifest((m) => {
             if (!m) return m
             let base = tail.length > 0 ? appendRowsToManifestEntriesOnly(m, tail) : m
             mergedVaults = mergeVaultRootLists(
-              walkVaultRoots,
+              walkRoots.vaultRoots,
               inferVaultRootsFromMarkerEntries(base.entries.map((e) => e.path)),
+            )
+            mergedRbase = mergeRBaseRootLists(
+              walkRoots.rbaseRoots,
+              inferRBaseRootsFromMarkerEntries(base.entries.map((e) => e.path)),
             )
             const reconciled = rebuildManifestTreeFromEntries(
               reconcileLockedVaultsInManifest(base, mergedVaults),
             )
-            persistNow(reconciled, 'handles', '', null, mergedVaults)
+            persistNow(reconciled, 'handles', '', null, mergedVaults, mergedRbase)
             return reconciled
           })
           setFileSources((fs) =>
-            fs?.kind === 'handles' ? { ...fs, vaultRoots: mergedVaults } : fs,
+            fs?.kind === 'handles'
+              ? { ...fs, vaultRoots: mergedVaults, rbaseRoots: mergedRbase }
+              : fs,
           )
           setProgress((p) => ({
             phase: 'ready',
@@ -556,7 +583,11 @@ export function useFileIndex() {
           const vaultRoots = mergeVaultRootLists(
             inferVaultRootsFromMarkerEntries(manifest.entries.map((e) => e.path)),
           )
-          const sources = fileSourcesFromRootHandle(handle, vaultRoots)
+          const rbaseRoots = mergeRBaseRootLists(
+            undefined,
+            inferRBaseRootsFromMarkerEntries(manifest.entries.map((e) => e.path)),
+          )
+          const sources = fileSourcesFromRootHandle(handle, vaultRoots, rbaseRoots)
           const reconciled = rebuildManifestTreeFromEntries(
             reconcileLockedVaultsInManifest(manifest, vaultRoots),
           )
@@ -565,7 +596,7 @@ export function useFileIndex() {
           setFileSources(sources)
         } else {
           setProgress({ phase: 'ready', scanned: 0 })
-          setFileSources(fileSourcesFromRootHandle(handle))
+          setFileSources(fileSourcesFromRootHandle(handle, [], []))
         }
         setSourceKind('handles')
         return

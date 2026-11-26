@@ -16,12 +16,15 @@ export type FileSourceStore =
       handles: Map<string, FileSystemFileHandle>
       /** Pfade zu Ordnern mit `.fsidx-vault.json` */
       vaultRoots?: string[]
+      /** Pfade zu R-Base-Workspace-Stämmen (`r-base.project.json`). */
+      rbaseRoots?: string[]
     }
   | {
       kind: 'files'
       rootName: string
       files: Map<string, File>
       vaultRoots?: string[]
+      rbaseRoots?: string[]
     }
 
 export async function readTextFromStore(

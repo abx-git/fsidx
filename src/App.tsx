@@ -65,6 +65,8 @@ import { LinkDetailPanel } from './components/link/LinkDetailPanel'
 import { DrawioDetailPanel } from './components/drawio/DrawioDetailPanel'
 import { E2DetailPanel } from './components/e2/E2DetailPanel'
 import { RBaseDetailPanel } from './components/r-base/RBaseDetailPanel'
+import { RBaseEmbed } from './components/r-base/RBaseEmbed'
+import { isRBaseTechnicalEntryPath, scopeRBaseRoot } from './lib/r-base/rbase-roots'
 import { isLinkJsonPath } from './lib/link/link-paths'
 import { isDrawioPath } from './lib/drawio'
 import { createDrawioInScope } from './lib/drawio/create-drawio'
@@ -169,6 +171,31 @@ function App() {
     setScopeRefreshing(true)
     void refreshCurrentScope().finally(() => setScopeRefreshing(false))
   }, [fileSources, refreshCurrentScope])
+
+  const rbaseMutateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleRBaseHostMutated = useCallback(() => {
+    if (rbaseMutateDebounceRef.current) clearTimeout(rbaseMutateDebounceRef.current)
+    rbaseMutateDebounceRef.current = setTimeout(() => {
+      rbaseMutateDebounceRef.current = null
+      handleRefreshScope()
+    }, 600)
+  }, [handleRefreshScope])
+
+  const embeddedRBaseRoot = useMemo(() => {
+    const roots = fileSources?.rbaseRoots ?? []
+    if (!roots.length) return null
+    const norm = currentPath.replace(/\\/g, '/')
+    const scoped = scopeRBaseRoot(norm, roots)
+    if (scoped === null) return null
+    return norm === scoped ? scoped : null
+  }, [currentPath, fileSources?.rbaseRoots])
+
+  const browserEntries = useMemo(() => {
+    if (!manifest) return []
+    const roots = new Set(fileSources?.rbaseRoots ?? [])
+    if (!roots.size) return manifest.entries
+    return manifest.entries.filter((e) => !isRBaseTechnicalEntryPath(e.path, roots))
+  }, [manifest, fileSources?.rbaseRoots])
 
   const setSelectedId = useCallback(
     (id: string | null) => {
@@ -1824,6 +1851,16 @@ function App() {
       onClose={() => setMetadataTarget(null)}
       saveError={saveError}
     />
+  ) : embeddedRBaseRoot &&
+    fileSources?.kind === 'handles' &&
+    !metadataTarget &&
+    (!fileView || viewerPinned) ? (
+    <RBaseEmbed
+      workspaceRoot={embeddedRBaseRoot}
+      fileSources={fileSources}
+      onHostMutated={handleRBaseHostMutated}
+      className="h-full min-h-[60vh]"
+    />
   ) : fileView && !viewerPinned ? (
     <FileViewerRouter
       target={fileViewTarget ?? fileView}
@@ -1839,7 +1876,7 @@ function App() {
   ) : (
     <FileBrowser
       rootName={manifest.rootName}
-      entries={manifest.entries}
+      entries={browserEntries}
       entriesByParent={manifestIndexes?.byParent}
       onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={handleSelectEntry}

@@ -3,6 +3,7 @@ import type { FileSourceStore } from './file-sources'
 import { resetIdCounter } from './id'
 import { isVaultDirectory } from './vault/vault-detect'
 import { VAULT_MARKER_FILENAME } from './vault/marker'
+import { inferRBaseRootsFromMarkerEntries } from './r-base/rbase-roots'
 import { inferVaultRootsFromMarkerEntries } from './vault/vault-paths'
 import { setVaultOpaqueOnDiskCount } from './vault/vault-session'
 
@@ -24,6 +25,12 @@ export async function requestDirectoryPermission(
 function augmentVaultRootsFromRows(rows: RawFileRow[], vaultRoots: string[]): void {
   for (const root of inferVaultRootsFromMarkerEntries(rows.map((r) => r.relativePath))) {
     if (!vaultRoots.includes(root)) vaultRoots.push(root)
+  }
+}
+
+function augmentRBaseRootsFromRows(rows: RawFileRow[], rbaseRoots: string[]): void {
+  for (const root of inferRBaseRootsFromMarkerEntries(rows.map((r) => r.relativePath))) {
+    if (!rbaseRoots.includes(root)) rbaseRoots.push(root)
   }
 }
 
@@ -71,13 +78,15 @@ async function absorbVaultFolder(
 export function fileSourcesFromRootHandle(
   handle: FileSystemDirectoryHandle,
   vaultRoots: string[] = [],
-): FileSourceStore & { vaultRoots: string[] } {
+  rbaseRoots: string[] = [],
+): FileSourceStore & { vaultRoots: string[]; rbaseRoots: string[] } {
   return {
     kind: 'handles',
     rootName: handle.name,
     root: handle,
     handles: new Map(),
     vaultRoots,
+    rbaseRoots,
   }
 }
 
@@ -86,18 +95,21 @@ export type DirectoryWalkProgress = (scanned: number) => void
 export async function fileSourcesFromDirectoryHandle(
   handle: FileSystemDirectoryHandle,
   onProgress?: DirectoryWalkProgress,
-): Promise<FileSourceStore & { vaultRoots: string[] }> {
+): Promise<FileSourceStore & { vaultRoots: string[]; rbaseRoots: string[] }> {
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
+  const rbaseRoots: string[] = []
   await walkDirectoryHandle(handle, '', rows, handles, vaultRoots, onProgress)
   augmentVaultRootsFromRows(rows, vaultRoots)
+  augmentRBaseRootsFromRows(rows, rbaseRoots)
   return {
     kind: 'handles',
     rootName: handle.name,
     root: handle,
     handles,
     vaultRoots,
+    rbaseRoots,
   }
 }
 
@@ -141,7 +153,7 @@ export async function pickDirectoryForProgressiveIndex(): Promise<{
   rootName: string
   rootHandle: FileSystemDirectoryHandle
   shallowRows: RawFileRow[]
-  fileSources: FileSourceStore & { vaultRoots: string[] }
+  fileSources: FileSourceStore & { vaultRoots: string[]; rbaseRoots: string[] }
 }> {
   resetIdCounter()
   const handle = await window.showDirectoryPicker({
@@ -151,8 +163,10 @@ export async function pickDirectoryForProgressiveIndex(): Promise<{
   const shallowRows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
+  const rbaseRoots: string[] = []
   await listDirectoryShallow(handle, '', shallowRows, handles, vaultRoots)
   augmentVaultRootsFromRows(shallowRows, vaultRoots)
+  augmentRBaseRootsFromRows(shallowRows, rbaseRoots)
   return {
     rootName: handle.name,
     rootHandle: handle,
@@ -163,21 +177,26 @@ export async function pickDirectoryForProgressiveIndex(): Promise<{
       root: handle,
       handles,
       vaultRoots,
+      rbaseRoots,
     },
   }
 }
 
 export async function walkDirectoryIndexInBackground(
   handle: FileSystemDirectoryHandle,
-  fileSources: Extract<FileSourceStore, { kind: 'handles' }> & { vaultRoots: string[] },
+  fileSources: Extract<FileSourceStore, { kind: 'handles' }> & {
+    vaultRoots: string[]
+    rbaseRoots: string[]
+  },
   callbacks: {
     onProgress?: DirectoryWalkProgress
     onBatch: DirectoryWalkBatch
     shouldAbort?: () => boolean
   },
-): Promise<string[]> {
+): Promise<{ vaultRoots: string[]; rbaseRoots: string[] }> {
   const rows: RawFileRow[] = []
   const vaultRoots = [...(fileSources.vaultRoots ?? [])]
+  const rbaseRoots = [...(fileSources.rbaseRoots ?? [])]
   await walkDirectoryHandle(
     handle,
     '',
@@ -191,7 +210,8 @@ export async function walkDirectoryIndexInBackground(
     },
   )
   augmentVaultRootsFromRows(rows, vaultRoots)
-  return vaultRoots
+  augmentRBaseRootsFromRows(rows, rbaseRoots)
+  return { vaultRoots, rbaseRoots }
 }
 
 export async function pickDirectoryWithFsApi(
@@ -210,8 +230,10 @@ export async function pickDirectoryWithFsApi(
   const rows: RawFileRow[] = []
   const handles = new Map<string, FileSystemFileHandle>()
   const vaultRoots: string[] = []
+  const rbaseRoots: string[] = []
   await walkDirectoryHandle(handle, '', rows, handles, vaultRoots, onProgress)
   augmentVaultRootsFromRows(rows, vaultRoots)
+  augmentRBaseRootsFromRows(rows, rbaseRoots)
   return {
     rootName: handle.name,
     rows,
@@ -221,6 +243,7 @@ export async function pickDirectoryWithFsApi(
       root: handle,
       handles,
       vaultRoots,
+      rbaseRoots,
     },
     rootHandle: handle,
   }

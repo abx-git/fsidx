@@ -38,6 +38,8 @@ function persistExpandedPaths(rootName: string, paths: Set<string>): void {
 interface TreeNavProps {
   root: IndexNode
   entries: IndexEntry[]
+  /** Voraggregiert — vermeidet O(n) pro Render bei großen Workspaces. */
+  entriesByParent?: Map<string, IndexEntry[]>
   rootName: string
   currentPath: string
   selectedId: string | null
@@ -312,6 +314,7 @@ function TreeNode({
 export function TreeNav({
   root,
   entries,
+  entriesByParent: entriesByParentProp,
   rootName,
   currentPath,
   selectedId,
@@ -342,7 +345,8 @@ export function TreeNav({
     [rootName],
   )
 
-  const entriesByParent = useMemo(() => groupEntriesByParent(entries), [entries])
+  const entriesByParentFallback = useMemo(() => groupEntriesByParent(entries), [entries])
+  const entriesByParent = entriesByParentProp ?? entriesByParentFallback
 
   const flatRows = useMemo(
     () => flattenVisibleTree(root, entries, expandedPaths, showEt2DotFiles),

@@ -24,6 +24,8 @@ Nothing is uploaded; metadata stays in memory unless you export it.
 - Fortschritt und UI-Yields verhindern lange Blockaden.
 - Nach einem Reload wird der gespeicherte Manifest aus dem Browser-Speicher genutzt — **kein erneuter Vollscan**; Datei-Handles werden **bei Bedarf** vom Root-Handle aufgelöst.
 - Aufgaben-Badges im Baum nutzen einen **vorberechneten Index** statt pro Ordner alle Pfade erneut zu scannen.
+- **Anzeige = Index:** Baum und Dateiliste kommen aus dem Manifest (`entries`), nicht aus Live-Verzeichnislisten bei jedem Render. Inhalt einer Datei wird beim Öffnen vom Datenträger gelesen. Abweichungen (extern angelegte/gelöschte Dateien) gleicht **Scope → Aktualisieren** mit der Platte ab.
+- Sehr lange Dateilisten nutzen **Virtualisierung**; der Hintergrund-Indexer schreibt in größeren Batches mit gedrosselten UI-Updates.
 
 Echtes Lazy Loading nur beim Expandieren einzelner Unterbäume (Phase B) ist noch nicht umgesetzt — bei sehr tiefen Strukturen dominiert weiterhin der erste Voll-Durchlauf.
 

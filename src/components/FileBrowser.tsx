@@ -15,6 +15,7 @@ import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { isHiddenEt2Scope } from '../lib/scope-sanitize'
 import { ScopeBar } from './ScopeBar'
 import { ScopeCreateActions } from './ScopeCreateActions'
+import { VirtualList } from './ui/VirtualList'
 import { fsidxFileDragMime } from '../lib/move-workspace'
 import type { ContextMenuTarget } from './FileContextMenu'
 import { scopeVaultRoot, shouldHideFromFileList } from '../lib/vault/vault-paths'
@@ -23,6 +24,7 @@ import { getVaultOpaqueOnDiskCount, isVaultUnlocked } from '../lib/vault/vault-s
 interface FileBrowserProps {
   rootName: string
   entries: IndexEntry[]
+  entriesByParent?: Map<string, IndexEntry[]>
   onNavigate: (path: string) => void
   onSelectEntry: (id: string, event?: React.MouseEvent, orderedIds?: string[]) => void
   selectedId: string | null
@@ -54,7 +56,11 @@ interface FileBrowserProps {
   onUnlockVault?: (vaultRoot: string) => void
   onLockVault?: (vaultRoot: string) => void
   onUploadFiles?: (files: File[]) => void
+  onRefreshScope?: () => void
+  refreshingScope?: boolean
 }
+
+const VIRTUAL_LIST_MIN = 80
 
 type Row = {
   id: string
@@ -69,6 +75,7 @@ type Row = {
 export function FileBrowser({
   rootName,
   entries,
+  entriesByParent: entriesByParentProp,
   onNavigate,
   onSelectEntry,
   selectedId,
@@ -94,10 +101,13 @@ export function FileBrowser({
   onUnlockVault,
   onLockVault,
   onUploadFiles,
+  onRefreshScope,
+  refreshingScope = false,
 }: FileBrowserProps) {
   const [fileDropActive, setFileDropActive] = useState(false)
   const fileDropDepth = useRef(0)
-  const entriesByParent = useMemo(() => groupEntriesByParent(entries), [entries])
+  const entriesByParentFallback = useMemo(() => groupEntriesByParent(entries), [entries])
+  const entriesByParent = entriesByParentProp ?? entriesByParentFallback
   const inSearch = searchQuery.trim().length > 0
   const activeVaultRoot = scopeVaultRoot(scopePath, vaultRoots)
   const workspaceIsVault = vaultRoots.includes('')
@@ -208,6 +218,160 @@ export function FileBrowser({
     return true
   })
 
+  const useVirtualList = !inSearch && listing.length >= VIRTUAL_LIST_MIN
+  const listSurfaceClass = `relative min-h-0 flex-1 overflow-hidden flex flex-col ${
+    fileDropActive
+      ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
+      : ''
+  }`
+
+  const emptyListing = (
+    <div className="px-4 py-8 text-center text-sm text-zinc-500">
+      {inSearch
+        ? 'Keine Treffer.'
+        : isHiddenEt2Scope(scopePath, showEt2DotFiles)
+          ? 'Legacy-Systemordner (.et2) — in der Scope-Leiste einen Ordner darüber wählen oder *.tsk.json anlegen.'
+          : canWrite && onUploadFiles && !scopeVaultLocked
+            ? 'Keine Einträge. Dateien hierher ziehen oder oben anlegen.'
+            : 'Keine Einträge. Oben „Aufgaben-Datei“ oder Ordner anlegen.'}
+    </div>
+  )
+
+  const renderListingRow = useCallback(
+    (row: Row) => {
+      const isSelected = selectedIds?.has(row.id) ?? selectedId === row.id
+      const isPrimary = selectedId === row.id
+      const meta = row.kind === 'file' && hasSidecar(row.path)
+      return (
+        <button
+          type="button"
+          draggable={canWrite}
+          onDragStart={(e) => {
+            if (!canWrite) return
+            const dragRows =
+              selectedIds && selectedIds.has(row.id) && selectedIds.size > 1
+                ? listing.filter((r) => selectedIds.has(r.id))
+                : [row]
+            const batch =
+              dragRows.length > 1
+                ? dragRows.map((r) => ({
+                    path: r.path,
+                    id: r.id,
+                    name: r.name,
+                    kind: r.kind,
+                  }))
+                : undefined
+            e.dataTransfer.setData(
+              fsidxFileDragMime(),
+              JSON.stringify({
+                path: row.path,
+                id: row.id,
+                name: row.name,
+                kind: row.kind,
+                batch,
+              }),
+            )
+            e.dataTransfer.effectAllowed = 'move'
+          }}
+          onClick={(e) => {
+            const ordered = listing.map((r) => r.id)
+            onSelectEntry(row.id, e, ordered)
+            if (row.kind === 'directory' && !inSearch && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+              onNavigate(row.path)
+            }
+          }}
+          onDoubleClick={() => {
+            if (row.kind === 'directory') {
+              onNavigate(row.path)
+              return
+            }
+            onSelectEntry(row.id)
+            if (isTskJsonPath(row.path)) return
+            const kind = defaultViewerForFile(row.path, row.extension)
+            onOpenViewer(kind, row.path, row.name, row.id, row.size)
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onFileContextMenu({
+              id: row.id,
+              path: row.path,
+              name: row.name,
+              kind: row.kind,
+              extension: row.extension,
+              x: e.clientX,
+              y: e.clientY,
+            })
+          }}
+          className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b px-3 py-2 text-left text-sm dark:border-zinc-800/80 ${
+            row.kind === 'directory' && vaultRoots.includes(row.path)
+              ? 'border-blue-200/80 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/25'
+              : 'border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+          } ${
+            isSelected
+              ? isPrimary
+                ? 'bg-emerald-50/80 ring-1 ring-inset ring-emerald-400/60 dark:bg-emerald-950/30 dark:ring-emerald-600/50'
+                : 'bg-emerald-50/50 dark:bg-emerald-950/20'
+              : ''
+          }`}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            {row.kind === 'directory' && vaultRoots.includes(row.path) ? (
+              <Shield className="h-4 w-4 shrink-0 text-blue-800" />
+            ) : row.kind === 'directory' ? (
+              <Folder className="h-4 w-4 shrink-0 text-amber-500" />
+            ) : isTskJsonPath(row.path) ? (
+              <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
+            ) : isLinkJsonPath(row.path) ? (
+              <Link2 className="h-4 w-4 shrink-0 text-violet-700" />
+            ) : isDrawioPath(row.path) ? (
+              <PenLine className="h-4 w-4 shrink-0 text-orange-700" />
+            ) : isE2JsonPath(row.path) ? (
+              <LayoutGrid className="h-4 w-4 shrink-0 text-violet-700" />
+            ) : (
+              <File className="h-4 w-4 shrink-0 text-sky-500" />
+            )}
+            <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{row.name}</span>
+            {row.kind === 'directory' && vaultRoots.includes(row.path) && (
+              <span
+                className={`shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide ${
+                  isVaultUnlocked(row.path)
+                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
+                    : 'bg-blue-200 text-blue-950 dark:bg-blue-900 dark:text-blue-100'
+                }`}
+              >
+                {isVaultUnlocked(row.path) ? 'Tresor · offen' : 'Tresor'}
+              </span>
+            )}
+            {meta && (
+              <span title="Metadaten-JSON vorhanden" className="inline-flex">
+                <FileJson className="h-3.5 w-3.5 shrink-0 text-blue-700" />
+              </span>
+            )}
+            {inSearch && <span className="truncate text-xs text-zinc-400">{row.path}</span>}
+          </span>
+          <span className="text-xs text-zinc-500 tabular-nums">
+            {row.kind === 'file' ? formatBytes(row.size ?? 0) : '—'}
+          </span>
+          <span className="text-xs text-zinc-500">{formatDate(row.lastModified)}</span>
+        </button>
+      )
+    },
+    [
+      canWrite,
+      hasSidecar,
+      inSearch,
+      listing,
+      onFileContextMenu,
+      onNavigate,
+      onOpenViewer,
+      onSelectEntry,
+      selectedId,
+      selectedIds,
+      vaultRoots,
+    ],
+  )
+
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white dark:bg-zinc-950">
       {!inSearch && (
@@ -216,6 +380,8 @@ export function FileBrowser({
           scopePath={scopePath}
           onSelectScope={onNavigate}
           vaultRoots={vaultRoots}
+          onRefreshScope={onRefreshScope}
+          refreshingScope={refreshingScope}
         />
       )}
       <div className="shrink-0">
@@ -290,12 +456,8 @@ export function FileBrowser({
           </>
         )}
       </div>
-      <ul
-        className={`relative min-h-0 flex-1 overflow-y-auto overscroll-contain ${
-          fileDropActive
-            ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
-            : ''
-        }`}
+      <div
+        className={listSurfaceClass}
         onDragEnter={onFileListDragEnter}
         onDragLeave={onFileListDragLeave}
         onDragOver={onFileListDragOver}
@@ -303,148 +465,28 @@ export function FileBrowser({
         onContextMenu={onFileListContextMenu}
       >
         {fileDropActive && (
-          <li className="pointer-events-none sticky top-0 z-10 flex items-center justify-center gap-2 border-b border-emerald-300 bg-emerald-100/95 px-3 py-2 text-xs font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
+          <div className="pointer-events-none sticky top-0 z-10 flex items-center justify-center gap-2 border-b border-emerald-300 bg-emerald-100/95 px-3 py-2 text-xs font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
             <Upload className="h-4 w-4 shrink-0" />
             Dateien hier ablegen — werden in diesen Ordner kopiert
-          </li>
+          </div>
         )}
-        {listing.length === 0 && (
-          <li className="px-4 py-8 text-center text-sm text-zinc-500">
-            {inSearch
-              ? 'Keine Treffer.'
-              : isHiddenEt2Scope(scopePath, showEt2DotFiles)
-                ? 'Legacy-Systemordner (.et2) — in der Scope-Leiste einen Ordner darüber wählen oder *.tsk.json anlegen.'
-                : canWrite && onUploadFiles && !scopeVaultLocked
-                  ? 'Keine Einträge. Dateien hierher ziehen oder oben anlegen.'
-                  : 'Keine Einträge. Oben „Aufgaben-Datei“ oder Ordner anlegen.'}
-          </li>
+        {useVirtualList ? (
+          <VirtualList
+            items={listing}
+            getKey={(row) => row.id}
+            renderRow={renderListingRow}
+            empty={emptyListing}
+          />
+        ) : (
+          <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {listing.length === 0 ? (
+              <li>{emptyListing}</li>
+            ) : (
+              listing.map((row) => <li key={row.id}>{renderListingRow(row)}</li>)
+            )}
+          </ul>
         )}
-        {listing.map((row) => {
-          const isSelected = selectedIds?.has(row.id) ?? selectedId === row.id
-          const isPrimary = selectedId === row.id
-          const meta = row.kind === 'file' && hasSidecar(row.path)
-          return (
-            <li key={row.id}>
-              <button
-                type="button"
-                draggable={canWrite}
-                onDragStart={(e) => {
-                  if (!canWrite) return
-                  const dragRows =
-                    selectedIds && selectedIds.has(row.id) && selectedIds.size > 1
-                      ? listing.filter((r) => selectedIds.has(r.id))
-                      : [row]
-                  const batch =
-                    dragRows.length > 1
-                      ? dragRows.map((r) => ({
-                          path: r.path,
-                          id: r.id,
-                          name: r.name,
-                          kind: r.kind,
-                        }))
-                      : undefined
-                  e.dataTransfer.setData(
-                    fsidxFileDragMime(),
-                    JSON.stringify({
-                      path: row.path,
-                      id: row.id,
-                      name: row.name,
-                      kind: row.kind,
-                      batch,
-                    }),
-                  )
-                  e.dataTransfer.effectAllowed = 'move'
-                }}
-                onClick={(e) => {
-                  const ordered = listing.map((r) => r.id)
-                  onSelectEntry(row.id, e, ordered)
-                  if (row.kind === 'directory' && !inSearch && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                    onNavigate(row.path)
-                  }
-                }}
-                onDoubleClick={() => {
-                  if (row.kind === 'directory') {
-                    onNavigate(row.path)
-                    return
-                  }
-                  onSelectEntry(row.id)
-                  if (isTskJsonPath(row.path)) return
-                  const kind = defaultViewerForFile(row.path, row.extension)
-                  onOpenViewer(kind, row.path, row.name, row.id, row.size)
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onFileContextMenu({
-                    id: row.id,
-                    path: row.path,
-                    name: row.name,
-                    kind: row.kind,
-                    extension: row.extension,
-                    x: e.clientX,
-                    y: e.clientY,
-                  })
-                }}
-                className={`grid w-full grid-cols-[1fr_auto_auto] gap-3 border-b px-3 py-2 text-left text-sm dark:border-zinc-800/80 ${
-                  row.kind === 'directory' && vaultRoots.includes(row.path)
-                    ? 'border-blue-200/80 bg-blue-50/40 hover:bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/25'
-                    : 'border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-900'
-                } ${
-                  isSelected
-                    ? isPrimary
-                      ? 'bg-emerald-50/80 ring-1 ring-inset ring-emerald-400/60 dark:bg-emerald-950/30 dark:ring-emerald-600/50'
-                      : 'bg-emerald-50/50 dark:bg-emerald-950/20'
-                    : ''
-                }`}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  {row.kind === 'directory' && vaultRoots.includes(row.path) ? (
-                    <Shield className="h-4 w-4 shrink-0 text-blue-800" />
-                  ) : row.kind === 'directory' ? (
-                    <Folder className="h-4 w-4 shrink-0 text-amber-500" />
-                  ) : isTskJsonPath(row.path) ? (
-                    <ListTodo className="h-4 w-4 shrink-0 text-blue-700" />
-                  ) : isLinkJsonPath(row.path) ? (
-                    <Link2 className="h-4 w-4 shrink-0 text-violet-700" />
-                  ) : isDrawioPath(row.path) ? (
-                    <PenLine className="h-4 w-4 shrink-0 text-orange-700" />
-                  ) : isE2JsonPath(row.path) ? (
-                    <LayoutGrid className="h-4 w-4 shrink-0 text-violet-700" />
-                  ) : (
-                    <File className="h-4 w-4 shrink-0 text-sky-500" />
-                  )}
-                  <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{row.name}</span>
-                  {row.kind === 'directory' && vaultRoots.includes(row.path) && (
-                    <span
-                      className={`shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide ${
-                        isVaultUnlocked(row.path)
-                          ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
-                          : 'bg-blue-200 text-blue-950 dark:bg-blue-900 dark:text-blue-100'
-                      }`}
-                    >
-                      {isVaultUnlocked(row.path) ? 'Tresor · offen' : 'Tresor'}
-                    </span>
-                  )}
-                  {meta && (
-                    <span title="Metadaten-JSON vorhanden" className="inline-flex">
-                      <FileJson className="h-3.5 w-3.5 shrink-0 text-blue-700" />
-                    </span>
-                  )}
-                  {inSearch && (
-                    <span className="truncate text-xs text-zinc-400">{row.path}</span>
-                  )}
-                </span>
-                <span className="text-xs text-zinc-500 tabular-nums">
-                  {row.kind === 'file' ? formatBytes(row.size ?? 0) : '—'}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  {formatDate(row.lastModified)}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      </div>
     </section>
   )
 }

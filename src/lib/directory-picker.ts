@@ -109,7 +109,32 @@ export type DirectoryWalkOptions = {
   shouldAbort?: () => boolean
 }
 
-const INDEX_BATCH_SIZE = 300
+const INDEX_BATCH_SIZE = 800
+
+async function resolveDirectoryHandle(
+  root: FileSystemDirectoryHandle,
+  relativeDir: string,
+): Promise<FileSystemDirectoryHandle> {
+  if (!relativeDir) return root
+  let current = root
+  for (const segment of relativeDir.split('/').filter(Boolean)) {
+    current = await current.getDirectoryHandle(segment)
+  }
+  return current
+}
+
+/** Nur direkte Kinder eines Ordners (für Scope-Aktualisierung). */
+export async function listDirectoryRowsAtHandle(
+  root: FileSystemDirectoryHandle,
+  dirPath: string,
+  handles: Map<string, FileSystemFileHandle>,
+  vaultRoots: string[],
+): Promise<RawFileRow[]> {
+  const rows: RawFileRow[] = []
+  const dir = await resolveDirectoryHandle(root, dirPath)
+  await listDirectoryShallow(dir, dirPath, rows, handles, vaultRoots)
+  return rows
+}
 
 /** Ordnerpicker + nur erste Ebene (schnelles UI), Vollindex danach im Hintergrund. */
 export async function pickDirectoryForProgressiveIndex(): Promise<{

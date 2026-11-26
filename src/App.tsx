@@ -124,6 +124,7 @@ function App() {
 
   const {
     manifest,
+    manifestIndexes,
     fileSources,
     progress,
     currentPath,
@@ -154,7 +155,15 @@ function App() {
     reconnectLastFolder,
     setFileSources,
     replaceManifest,
+    refreshCurrentScope,
   } = useFileIndex()
+
+  const [scopeRefreshing, setScopeRefreshing] = useState(false)
+  const handleRefreshScope = useCallback(() => {
+    if (!fileSources) return
+    setScopeRefreshing(true)
+    void refreshCurrentScope().finally(() => setScopeRefreshing(false))
+  }, [fileSources, refreshCurrentScope])
 
   const setSelectedId = useCallback(
     (id: string | null) => {
@@ -1800,6 +1809,7 @@ function App() {
     <FileBrowser
       rootName={manifest.rootName}
       entries={manifest.entries}
+      entriesByParent={manifestIndexes?.byParent}
       onNavigate={(path) => navigateToPath(path, null)}
       onSelectEntry={handleSelectEntry}
       selectedId={selectedId}
@@ -1825,6 +1835,8 @@ function App() {
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}
       onLockVault={handleVaultLock}
+      onRefreshScope={fileSources ? handleRefreshScope : undefined}
+      refreshingScope={scopeRefreshing}
     />
   )
 
@@ -1913,6 +1925,7 @@ function App() {
             <TreeNav
               root={manifest.tree}
               entries={manifest.entries}
+              entriesByParent={manifestIndexes?.byParent}
               rootName={manifest.rootName}
               currentPath={currentPath}
               selectedId={selectedId}

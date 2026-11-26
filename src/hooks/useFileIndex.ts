@@ -25,7 +25,13 @@ import { isEntryInScope } from '../lib/workspace-scope'
 import type { FileIndexManifest, IndexEntry, IndexingProgress, IndexNode } from '../types'
 import { findNodeByPath, type RawFileRow } from '../lib/build-manifest'
 import { rebuildManifestTreeFromEntries } from '../lib/manifest-sync-tree'
-import { appendFileToManifest, appendRowsToManifest } from '../lib/manifest-append'
+import {
+  appendFileToManifest,
+  appendRowsToManifestEntriesOnly,
+} from '../lib/manifest-append'
+import { buildManifestIndexes, collectEntriesInScope } from '../lib/manifest-index'
+import { entryToShallowNode } from '../lib/manifest-children'
+import { refreshScopeFromDisk } from '../lib/scope-refresh'
 import { removePathFromManifest } from '../lib/manifest-remove'
 import { sidecarPathForFile } from '../lib/sidecar'
 import {
@@ -74,19 +80,26 @@ export function useFileIndex() {
   const [taskTitleGeneration, setTaskTitleGeneration] = useState(0)
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const backgroundIndexGen = useRef(0)
+  const pendingIndexRows = useRef<RawFileRow[]>([])
+  const indexFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const manifestIndexes = useMemo(
+    () => (manifest ? buildManifestIndexes(manifest.entries) : null),
+    [manifest],
+  )
 
   const currentNode = useMemo(() => {
-    if (!manifest) return null
-    const node = findNodeByPath(manifest.tree, currentPath)
-    if (!node) return null
-    if (node.kind === 'file') {
-      const parentPath = node.path.includes('/')
-        ? node.path.replace(/\/[^/]+$/, '')
-        : ''
-      return findNodeByPath(manifest.tree, parentPath) ?? manifest.tree
+    if (!manifest || !manifestIndexes) return null
+    const entry = manifestIndexes.byPath.get(currentPath)
+    if (entry?.kind === 'directory') return entryToShallowNode(entry)
+    if (entry?.kind === 'file') {
+      const parentPath = entry.parentPath
+      const parent = manifestIndexes.byPath.get(parentPath)
+      return parent ? entryToShallowNode(parent) : manifest.tree
     }
-    return node
-  }, [manifest, currentPath])
+    const legacy = findNodeByPath(manifest.tree, currentPath)
+    return legacy
+  }, [manifest, manifestIndexes, currentPath])
 
   const et2TaskHits = useMemo(() => {
     if (!manifest) return []
@@ -100,7 +113,9 @@ export function useFileIndex() {
 
   const searchResults = useMemo(() => {
     if (!manifest || !searchQuery.trim()) return []
-    const scopedEntries = manifest.entries.filter((e) => isEntryInScope(e.path, currentPath))
+    const scopedEntries = manifestIndexes
+      ? collectEntriesInScope(manifestIndexes.byParent, currentPath)
+      : manifest.entries.filter((e) => isEntryInScope(e.path, currentPath))
     const scopedEt2Hits = et2TaskHits.filter((h) => isEntryInScope(h.relativePath.split('#')[0], currentPath))
     const et2Hits = searchEt2Tasks(scopedEt2Hits, searchQuery, taskTitlesRef.current)
     const fromTasks = et2Hits.map(et2SearchHitToIndexEntry)
@@ -137,14 +152,20 @@ export function useFileIndex() {
       merged.push(e)
     }
     return merged
-  }, [manifest, searchQuery, et2TaskHits, currentPath, searchTasksOnly, taskTitleGeneration])
+  }, [
+    manifest,
+    manifestIndexes,
+    searchQuery,
+    et2TaskHits,
+    currentPath,
+    searchTasksOnly,
+    taskTitleGeneration,
+  ])
 
-  const indexedFilePaths = useMemo(() => {
-    if (!manifest) return new Set<string>()
-    return new Set(
-      manifest.entries.filter((e) => e.kind === 'file').map((e) => e.path),
-    )
-  }, [manifest])
+  const indexedFilePaths = useMemo(
+    () => manifestIndexes?.filePaths ?? new Set<string>(),
+    [manifestIndexes],
+  )
 
   const sidecarPaths = useMemo(() => {
     const set = new Set<string>()
@@ -246,11 +267,11 @@ export function useFileIndex() {
   )
 
   const selectedNode = useMemo((): IndexNode | null => {
-    if (!manifest || !selectedId) return null
-    const entry = manifest.entries.find((e) => e.id === selectedId)
+    if (!manifestIndexes || !selectedId) return null
+    const entry = manifestIndexes.byId.get(selectedId)
     if (!entry) return null
-    return findNodeByPath(manifest.tree, entry.path)
-  }, [manifest, selectedId])
+    return findNodeByPath(manifest!.tree, entry.path) ?? entryToShallowNode(entry)
+  }, [manifest, manifestIndexes, selectedId])
 
   const persistNow = useCallback(
     (
@@ -411,23 +432,40 @@ export function useFileIndex() {
         },
         onBatch: (batch) => {
           if (runId !== backgroundIndexGen.current) return
-          startTransition(() => {
-            setManifest((m) => (m ? appendRowsToManifest(m, batch) : m))
-          })
+          pendingIndexRows.current.push(...batch)
+          if (indexFlushTimer.current) return
+          indexFlushTimer.current = setTimeout(() => {
+            indexFlushTimer.current = null
+            const chunk = pendingIndexRows.current
+            pendingIndexRows.current = []
+            if (chunk.length === 0) return
+            startTransition(() => {
+              setManifest((m) =>
+                m ? appendRowsToManifestEntriesOnly(m, chunk) : m,
+              )
+            })
+          }, 350)
         },
         shouldAbort: () => runId !== backgroundIndexGen.current,
       })
         .then((walkVaultRoots) => {
           if (runId !== backgroundIndexGen.current) return
+          if (indexFlushTimer.current) {
+            clearTimeout(indexFlushTimer.current)
+            indexFlushTimer.current = null
+          }
+          const tail = pendingIndexRows.current
+          pendingIndexRows.current = []
           let mergedVaults: string[] = walkVaultRoots
           setManifest((m) => {
             if (!m) return m
+            let base = tail.length > 0 ? appendRowsToManifestEntriesOnly(m, tail) : m
             mergedVaults = mergeVaultRootLists(
               walkVaultRoots,
-              inferVaultRootsFromMarkerEntries(m.entries.map((e) => e.path)),
+              inferVaultRootsFromMarkerEntries(base.entries.map((e) => e.path)),
             )
             const reconciled = rebuildManifestTreeFromEntries(
-              reconcileLockedVaultsInManifest(m, mergedVaults),
+              reconcileLockedVaultsInManifest(base, mergedVaults),
             )
             persistNow(reconciled, 'handles', '', null, mergedVaults)
             return reconciled
@@ -566,8 +604,17 @@ export function useFileIndex() {
     setManifest(next)
   }, [])
 
+  const refreshCurrentScope = useCallback(async (): Promise<boolean> => {
+    if (!manifest || !fileSources) return false
+    const next = await refreshScopeFromDisk(manifest, currentPath, fileSources)
+    if (!next) return false
+    setManifest(next)
+    return true
+  }, [manifest, fileSources, currentPath])
+
   return {
     manifest,
+    manifestIndexes,
     fileSources,
     setFileSources,
     replaceManifest,
@@ -598,5 +645,6 @@ export function useFileIndex() {
     sessionReady,
     needsFolderReconnect,
     reconnectLastFolder,
+    refreshCurrentScope,
   }
 }

@@ -1,4 +1,4 @@
-import { ChevronRight, Focus, Lock, Shield } from 'lucide-react'
+import { ChevronRight, Focus, Lock, RefreshCw, Shield } from 'lucide-react'
 import { scopeAncestorCrumbs } from '../lib/workspace-scope'
 import { scopeVaultRoot } from '../lib/vault/vault-paths'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
@@ -9,6 +9,8 @@ interface ScopeBarProps {
   onSelectScope: (path: string) => void
   variant?: 'default' | 'compact'
   vaultRoots?: string[]
+  onRefreshScope?: () => void
+  refreshingScope?: boolean
 }
 
 export function ScopeBar({
@@ -17,6 +19,8 @@ export function ScopeBar({
   onSelectScope,
   variant = 'default',
   vaultRoots = [],
+  onRefreshScope,
+  refreshingScope = false,
 }: ScopeBarProps) {
   const crumbs = scopeAncestorCrumbs(scopePath, workspaceRootName)
   const isCompact = variant === 'compact'
@@ -67,6 +71,18 @@ export function ScopeBar({
           </span>
         )
       })}
+      {onRefreshScope && (
+        <button
+          type="button"
+          disabled={refreshingScope}
+          onClick={onRefreshScope}
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+          title="Diesen Ordner mit dem Dateisystem abgleichen (neue/gelöschte Dateien)"
+        >
+          <RefreshCw className={`h-3 w-3 ${refreshingScope ? 'animate-spin' : ''}`} aria-hidden />
+          Aktualisieren
+        </button>
+      )}
     </div>
   )
 }

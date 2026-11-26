@@ -35,10 +35,116 @@ function buildSearchText(parts: {
     .toLowerCase()
 }
 
+function rowToEntry(row: RawFileRow, id: string): IndexEntry {
+  const parts = row.relativePath.split('/').filter(Boolean)
+  const ext = row.kind === 'file' ? extensionFromName(row.name) : undefined
+  const taskTag = row.relativePath.includes('/.et2/tasks/') ? 'et2 task' : ''
+  return {
+    id,
+    kind: row.kind,
+    name: row.name,
+    path: row.relativePath,
+    parentPath: parentPathOf(row.relativePath),
+    depth: parts.length,
+    extension: ext,
+    size: row.size,
+    lastModified: row.lastModified,
+    searchText: buildSearchText({
+      name: row.name,
+      path: row.relativePath,
+      extension: ext,
+      kind: row.kind,
+      extra: row.kind === 'file' ? taskTag : undefined,
+    }),
+  }
+}
+
+/**
+ * Schneller Batch: nur `entries` + Stats. Baum erst später per `rebuildManifestTreeFromEntries`.
+ */
+export function appendRowsToManifestEntriesOnly(
+  manifest: FileIndexManifest,
+  rows: RawFileRow[],
+): FileIndexManifest {
+  if (rows.length === 0) return manifest
+  if (rows.length <= 3) {
+    let next = manifest
+    for (const row of rows) next = appendFileToManifest(next, row)
+    return next
+  }
+
+  const pathSet = new Set(manifest.entries.map((e) => e.path))
+  const newEntries: IndexEntry[] = []
+  let filesAdded = 0
+  let dirsAdded = 0
+  let bytesAdded = 0
+  let maxDepth = manifest.stats.maxDepth
+
+  const ensureDir = (dirPath: string, name: string) => {
+    if (pathSet.has(dirPath)) return
+    const id = nextNodeId()
+    pathSet.add(dirPath)
+    const depth = dirPath.split('/').filter(Boolean).length
+    maxDepth = Math.max(maxDepth, depth)
+    dirsAdded += 1
+    newEntries.push(
+      rowToEntry(
+        { relativePath: dirPath, name, kind: 'directory' },
+        id,
+      ),
+    )
+  }
+
+  for (const row of rows) {
+    if (pathSet.has(row.relativePath)) continue
+
+    const parts = row.relativePath.split('/').filter(Boolean)
+    if (parts.length === 0) continue
+
+    let parentPath = ''
+    for (let i = 0; i < parts.length - 1; i++) {
+      const segment = parts[i]!
+      const dirPath = joinPath(parentPath, segment)
+      ensureDir(dirPath, segment)
+      parentPath = dirPath
+    }
+
+    const id = nextNodeId()
+    pathSet.add(row.relativePath)
+  const depth = parts.length
+    maxDepth = Math.max(maxDepth, depth)
+    newEntries.push(rowToEntry(row, id))
+    if (row.kind === 'file') {
+      filesAdded += 1
+      bytesAdded += row.size ?? 0
+    } else {
+      dirsAdded += 1
+    }
+  }
+
+  if (newEntries.length === 0) return manifest
+
+  return {
+    ...manifest,
+    indexedAt: new Date().toISOString(),
+    entries: [...manifest.entries, ...newEntries],
+    stats: {
+      files: manifest.stats.files + filesAdded,
+      directories: manifest.stats.directories + dirsAdded,
+      totalBytes: manifest.stats.totalBytes + bytesAdded,
+      maxDepth,
+    },
+  }
+}
+
 export function appendRowsToManifest(
   manifest: FileIndexManifest,
   rows: RawFileRow[],
 ): FileIndexManifest {
+  if (rows.length === 0) return manifest
+  if (rows.length > 3) {
+    return appendRowsToManifestEntriesOnly(manifest, rows)
+  }
   let next = manifest
   for (const row of rows) {
     next = appendFileToManifest(next, row)

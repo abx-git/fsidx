@@ -448,14 +448,6 @@ export function TreeNav({
       className="flex h-full min-h-0 w-full flex-col border-r border-zinc-200 dark:border-zinc-800"
       aria-label="Ordnerbaum"
     >
-      <div className="shrink-0 border-b border-zinc-100 px-2 py-2 dark:border-zinc-800">
-        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Ordnerbaum</p>
-        {canWrite && (
-          <p className="px-1 pt-0.5 text-[9px] text-zinc-400">
-            Dateien/Ordner ziehen · Strg/Cmd oder Umschalt für Mehrfachauswahl in der Liste
-          </p>
-        )}
-      </div>
       <div
         ref={treeScrollRef}
         role="tree"

@@ -2038,7 +2038,7 @@ function App() {
               side="right"
               mode="expand"
               onClick={toggleSidebarCollapsed}
-              title="Seitenleiste einblenden"
+              title="Detailbereich einblenden"
             />
           )}
           {!treeCollapsed && (
@@ -2077,7 +2077,14 @@ function App() {
           )}
           <div className="fsidx-pane min-h-0">{centerPane}</div>
           {!sidebarCollapsed && (
-          <div className="fsidx-pane hidden lg:flex">
+          <div className="relative hidden min-h-0 lg:flex">
+            <SidePanelToggle
+              side="right"
+              mode="collapse"
+              onClick={toggleSidebarCollapsed}
+              title="Detailbereich ausblenden"
+            />
+            <div className="fsidx-pane min-h-0 flex-1">
           <DetailPanel
             manifest={manifest}
             node={inspectNode}
@@ -2297,8 +2304,8 @@ function App() {
             sidebarMaxWidth={sidebarMaxWidthEffective}
             metadataVisible={detailMetadataVisible}
             onMetadataVisibleChange={setDetailMetadataVisible}
-            onCollapseSidebar={toggleSidebarCollapsed}
           />
+            </div>
           </div>
           )}
         </div>

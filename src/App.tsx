@@ -98,6 +98,8 @@ import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
+import { useTreePanelLayout } from './hooks/useTreePanelLayout'
+import { TreeResizeHandle } from './components/TreeResizeHandle'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
@@ -230,6 +232,14 @@ function App() {
     maxWidthDrawio,
     maxWidthForDrawio,
   } = useViewerSidebarLayout()
+  const {
+    treeWidthPx,
+    setTreeWidthPx,
+    treeCollapsed,
+    toggleTreeCollapsed,
+    minTreeWidth,
+    maxTreeWidth,
+  } = useTreePanelLayout()
   const [drawioDetailFullscreen, setDrawioDetailFullscreen] = useState(false)
   const [drawioSaving, setDrawioSaving] = useState(false)
   const [drawioSaveError, setDrawioSaveError] = useState<string | null>(null)
@@ -872,6 +882,20 @@ function App() {
       setSidebarWidthPx(width, sidebarMaxWidthEffective)
     },
     [setSidebarWidthPx, sidebarMaxWidthEffective],
+  )
+
+  const handleTreeResizeLive = useCallback(
+    (width: number) => {
+      setTreeWidthPx(width, { persist: false })
+    },
+    [setTreeWidthPx],
+  )
+
+  const handleTreeResizeCommit = useCallback(
+    (width: number) => {
+      setTreeWidthPx(width)
+    },
+    [setTreeWidthPx],
   )
 
   const handleWidenDrawioPanel = useCallback(() => {
@@ -1947,6 +1971,8 @@ function App() {
         hasLegacyEt2={hasLegacyEt2}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
         vaultRoots={fileSources?.vaultRoots}
+        treeVisible={!treeCollapsed}
+        onToggleTree={manifest ? toggleTreeCollapsed : undefined}
       />
       </div>
 
@@ -1986,11 +2012,16 @@ function App() {
         />
       ) : (
         <div
-          className="fsidx-main-grid min-h-0 flex-1"
-          style={{ ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px` }}
+          className={`fsidx-main-grid min-h-0 flex-1${treeCollapsed ? ' fsidx-main-grid--tree-hidden' : ''}`}
+          style={{
+            ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px`,
+            ['--fsidx-tree-w' as string]: `${treeWidthPx}px`,
+          }}
         >
-          <div className="fsidx-pane hidden lg:flex">
-            <TreeNav
+          {!treeCollapsed && (
+            <div className="relative hidden min-h-0 lg:flex">
+              <div className="fsidx-pane min-h-0 flex-1">
+                <TreeNav
               root={manifest.tree}
               entries={manifest.entries}
               entriesByParent={manifestIndexes?.byParent}
@@ -2004,8 +2035,17 @@ function App() {
               canWrite={canWrite}
               onDropFileToDir={(path, dir, kind) => void handleMoveEntryToDirectory(path, dir, kind)}
               vaultRoots={fileSources?.vaultRoots}
-            />
-          </div>
+                />
+              </div>
+              <TreeResizeHandle
+                minWidth={minTreeWidth}
+                maxWidth={maxTreeWidth}
+                getCurrentWidth={() => treeWidthPx}
+                onResize={handleTreeResizeLive}
+                onResizeCommit={handleTreeResizeCommit}
+              />
+            </div>
+          )}
           <div className="fsidx-pane min-h-0">{centerPane}</div>
           <div className="fsidx-pane hidden lg:flex">
           <DetailPanel

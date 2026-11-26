@@ -37,7 +37,11 @@ body {
 
 @media (min-width: 1024px) {
   .fsidx-main-grid {
-    grid-template-columns: 240px 1fr var(--fsidx-sidebar-w, 320px);
+    grid-template-columns: var(--fsidx-tree-w, 240px) 1fr var(--fsidx-sidebar-w, 320px);
+  }
+
+  .fsidx-main-grid.fsidx-main-grid--tree-hidden {
+    grid-template-columns: 1fr var(--fsidx-sidebar-w, 320px);
   }
 }
 

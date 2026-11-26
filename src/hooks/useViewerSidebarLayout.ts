@@ -1,11 +1,20 @@
 import { useCallback, useState } from 'react'
 
 const KEY_WIDTH = 'fsidx.sidebarWidthPx'
+const KEY_COLLAPSED = 'fsidx.sidebarCollapsed'
 
 const MIN_WIDTH = 280
 const MAX_WIDTH = 960
 const MAX_WIDTH_DRAWIO = 2400
 const DEFAULT_WIDTH = 380
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(KEY_COLLAPSED) === '1'
+  } catch {
+    return false
+  }
+}
 
 function readWidth(): number {
   try {
@@ -20,6 +29,7 @@ function readWidth(): number {
 
 export function useViewerSidebarLayout() {
   const [widthPx, setWidthPxState] = useState(readWidth)
+  const [collapsed, setCollapsedState] = useState(readCollapsed)
 
   const setWidthPx = useCallback(
     (value: number, maxCap = MAX_WIDTH, options?: { persist?: boolean }) => {
@@ -41,9 +51,33 @@ export function useViewerSidebarLayout() {
     return Math.min(MAX_WIDTH_DRAWIO, Math.floor(window.innerWidth * 0.92))
   }, [])
 
+  const setCollapsed = useCallback((value: boolean) => {
+    setCollapsedState(value)
+    try {
+      localStorage.setItem(KEY_COLLAPSED, value ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsedState((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(KEY_COLLAPSED, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+
   return {
     widthPx,
     setWidthPx,
+    sidebarCollapsed: collapsed,
+    setSidebarCollapsed: setCollapsed,
+    toggleSidebarCollapsed: toggleCollapsed,
     minWidth: MIN_WIDTH,
     maxWidth: MAX_WIDTH,
     maxWidthDrawio: MAX_WIDTH_DRAWIO,

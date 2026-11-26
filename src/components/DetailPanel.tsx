@@ -1,6 +1,7 @@
 import { FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SidebarResizeHandle } from './SidebarResizeHandle'
+import { SidePanelToggle } from './SidePanelToggle'
 import type { FileIndexManifest, IndexNode } from '../types'
 import { formatBytes, formatDate } from '../lib/format'
 import { DIRECTORY_README_NAME } from '../lib/directory-readme'
@@ -31,6 +32,7 @@ interface DetailPanelProps {
   e2DetailSlot?: ReactNode
   e2Fullscreen?: boolean
   rBaseDetailSlot?: ReactNode
+  onCollapseSidebar?: () => void
 }
 
 export function DetailPanel({
@@ -58,6 +60,7 @@ export function DetailPanel({
   e2DetailSlot,
   e2Fullscreen = false,
   rBaseDetailSlot,
+  onCollapseSidebar,
 }: DetailPanelProps) {
   const detailFullscreen = drawioFullscreen || e2Fullscreen
   const showViewer = viewerPinned && viewerSlot && !detailFullscreen
@@ -94,6 +97,14 @@ export function DetailPanel({
 
   return (
     <aside className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden border-l border-zinc-200 dark:border-zinc-800">
+      {onCollapseSidebar && !detailFullscreen && (
+        <SidePanelToggle
+          side="right"
+          mode="collapse"
+          onClick={onCollapseSidebar}
+          title="Seitenleiste ausblenden"
+        />
+      )}
       {onSidebarWidthChange && !detailFullscreen && (
         <SidebarResizeHandle
           minWidth={sidebarMinWidth}

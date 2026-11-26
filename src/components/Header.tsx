@@ -7,8 +7,6 @@ import {
   Upload,
   Import,
   Shield,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from 'lucide-react'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
 import type { FileIndexManifest, IndexingProgress } from '../types'
@@ -34,8 +32,6 @@ interface HeaderProps {
   hasLegacyEt2?: boolean
   onEt2Migrate: () => void
   vaultRoots?: string[]
-  treeVisible?: boolean
-  onToggleTree?: () => void
 }
 
 export function Header({
@@ -56,8 +52,6 @@ export function Header({
   hasLegacyEt2 = false,
   onEt2Migrate,
   vaultRoots = [],
-  treeVisible = true,
-  onToggleTree,
 }: HeaderProps) {
   const vaultCount = vaultRoots.length
   const anyVaultLocked =
@@ -95,22 +89,6 @@ export function Header({
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {manifest && onToggleTree && (
-            <button
-              type="button"
-              onClick={onToggleTree}
-              className="hidden items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 lg:inline-flex dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              title={treeVisible ? 'Ordnerbaum ausblenden' : 'Ordnerbaum einblenden'}
-              aria-pressed={treeVisible}
-            >
-              {treeVisible ? (
-                <PanelLeftClose className="h-4 w-4" aria-hidden />
-              ) : (
-                <PanelLeftOpen className="h-4 w-4" aria-hidden />
-              )}
-              <span className="hidden xl:inline">Baum</span>
-            </button>
-          )}
           {supportsFsPicker ? (
             <button
               type="button"

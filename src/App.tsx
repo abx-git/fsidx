@@ -100,6 +100,7 @@ import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
 import { useTreePanelLayout } from './hooks/useTreePanelLayout'
 import { TreeResizeHandle } from './components/TreeResizeHandle'
+import { SidePanelToggle } from './components/SidePanelToggle'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
@@ -227,6 +228,8 @@ function App() {
   const {
     widthPx: sidebarWidthPx,
     setWidthPx: setSidebarWidthPx,
+    sidebarCollapsed,
+    toggleSidebarCollapsed,
     minWidth: sidebarMinWidth,
     maxWidth: sidebarMaxWidth,
     maxWidthDrawio,
@@ -1971,8 +1974,6 @@ function App() {
         hasLegacyEt2={hasLegacyEt2}
         onEt2Migrate={() => setEt2MigrateOpen(true)}
         vaultRoots={fileSources?.vaultRoots}
-        treeVisible={!treeCollapsed}
-        onToggleTree={manifest ? toggleTreeCollapsed : undefined}
       />
       </div>
 
@@ -2012,14 +2013,42 @@ function App() {
         />
       ) : (
         <div
-          className={`fsidx-main-grid min-h-0 flex-1${treeCollapsed ? ' fsidx-main-grid--tree-hidden' : ''}`}
+          className={[
+            'fsidx-main-grid relative min-h-0 flex-1',
+            treeCollapsed ? 'fsidx-main-grid--tree-hidden' : '',
+            sidebarCollapsed ? 'fsidx-main-grid--sidebar-hidden' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           style={{
             ['--fsidx-sidebar-w' as string]: `${sidebarWidthPx}px`,
             ['--fsidx-tree-w' as string]: `${treeWidthPx}px`,
           }}
         >
+          {treeCollapsed && (
+            <SidePanelToggle
+              side="left"
+              mode="expand"
+              onClick={toggleTreeCollapsed}
+              title="Ordnerbaum einblenden"
+            />
+          )}
+          {sidebarCollapsed && (
+            <SidePanelToggle
+              side="right"
+              mode="expand"
+              onClick={toggleSidebarCollapsed}
+              title="Seitenleiste einblenden"
+            />
+          )}
           {!treeCollapsed && (
             <div className="relative hidden min-h-0 lg:flex">
+              <SidePanelToggle
+                side="left"
+                mode="collapse"
+                onClick={toggleTreeCollapsed}
+                title="Ordnerbaum ausblenden"
+              />
               <div className="fsidx-pane min-h-0 flex-1">
                 <TreeNav
               root={manifest.tree}
@@ -2047,6 +2076,7 @@ function App() {
             </div>
           )}
           <div className="fsidx-pane min-h-0">{centerPane}</div>
+          {!sidebarCollapsed && (
           <div className="fsidx-pane hidden lg:flex">
           <DetailPanel
             manifest={manifest}
@@ -2267,8 +2297,10 @@ function App() {
             sidebarMaxWidth={sidebarMaxWidthEffective}
             metadataVisible={detailMetadataVisible}
             onMetadataVisibleChange={setDetailMetadataVisible}
+            onCollapseSidebar={toggleSidebarCollapsed}
           />
           </div>
+          )}
         </div>
       )}
 

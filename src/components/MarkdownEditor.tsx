@@ -76,11 +76,12 @@ export function MarkdownEditor({
     [canWrite, content, onViewModeChange, viewMode],
   )
 
-  const handlePreviewClick = useCallback(
+  const handlePreviewDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
       if (!canWrite) return
       const target = e.target as HTMLElement
       if (target.closest('a, button, input, textarea, [data-md-no-inline-edit]')) return
+      e.preventDefault()
       jumpFromPreview(e.clientX, e.clientY)
     },
     [canWrite, jumpFromPreview],
@@ -169,8 +170,8 @@ export function MarkdownEditor({
           className={`markdown-preview mx-auto max-w-3xl px-4 py-6 text-[15px] leading-relaxed text-zinc-900 dark:text-zinc-100 ${
             canWrite ? 'md-preview-linked cursor-default' : ''
           }`}
-          title={canWrite ? 'Klick: gleiche Stelle im Quelltext' : undefined}
-          onClick={handlePreviewClick}
+          title={canWrite ? 'Doppelklick: geteilte Ansicht und Bearbeiten an dieser Stelle' : undefined}
+          onDoubleClick={handlePreviewDoubleClick}
         >
           {content.trim() ? (
             <MarkdownContent
@@ -316,11 +317,17 @@ export function MarkdownEditor({
             Markdown wird geladen…
           </p>
         )}
+        {!loading && !error && canWrite && viewMode === 'view' && (
+          <p className="mx-auto max-w-3xl shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-center text-[11px] leading-snug text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
+            <span className="font-medium">Doppelklick</span> in der Vorschau öffnet die geteilte Ansicht zum Bearbeiten
+            an der gewählten Stelle. Tab <span className="font-medium">Geteilt</span> oder{' '}
+            <span className="font-medium">Quelltext</span> jederzeit manuell.
+          </p>
+        )}
         {!loading && !error && canWrite && viewMode === 'split' && (
           <p className="mx-auto max-w-none shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-center text-[11px] leading-snug text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
-            Wie in <span className="font-medium">VS Code / Obsidian (Quellmodus)</span>: links normales
-            Markdown bearbeiten, rechts die Vorschau. Klick in der Vorschau springt zur gleichen Stelle
-            im Quelltext.
+            Links Quelltext, rechts Vorschau — <span className="font-medium">Doppelklick</span> in der Vorschau springt
+            im Quelltext zur gleichen Stelle.
           </p>
         )}
         {!loading && !error && showSource && viewMode === 'split' && (

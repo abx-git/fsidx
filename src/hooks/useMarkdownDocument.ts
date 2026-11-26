@@ -48,6 +48,7 @@ export function useMarkdownDocument(
       setContent(cached)
       setDirty(true)
       setError(null)
+      setViewMode('view')
       return
     }
 
@@ -80,7 +81,7 @@ export function useMarkdownDocument(
           setContent(text)
         }
         loadedPathRef.current = path
-        setViewMode('split')
+        setViewMode('view')
       })
       .catch((err) => {
         if (cancelled) return

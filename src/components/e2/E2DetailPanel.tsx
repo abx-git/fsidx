@@ -1,7 +1,7 @@
-import { Maximize2, Minimize2, PenLine, Loader2, Save } from 'lucide-react'
+import { ExternalLink, Maximize2, Minimize2, PenLine, Loader2 } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { useRef } from 'react'
-import { E2Embed, type E2EmbedHandle } from './E2Embed'
+import { E2Embed } from './E2Embed'
+import { openE2EditorTab } from '../../lib/e2/e2-editor-tab'
 
 interface E2DetailPanelProps {
   filePath: string
@@ -10,11 +10,8 @@ interface E2DetailPanelProps {
   loading: boolean
   loadError: string | null
   canWrite: boolean
-  saving?: boolean
-  saveError?: string | null
   fullscreen: boolean
   onToggleFullscreen: () => void
-  onJsonChange: (json: string, hostFileId: string, reason: 'autosave' | 'flush') => void
   onWidenPanel?: () => void
 }
 
@@ -24,16 +21,11 @@ export function E2DetailPanel({
   loading,
   loadError,
   canWrite,
-  saving,
-  saveError,
   fullscreen,
   onToggleFullscreen,
-  onJsonChange,
   onWidenPanel,
   filePath,
 }: E2DetailPanelProps) {
-  const embedRef = useRef<E2EmbedHandle>(null)
-
   const panel = (
     <div
       className={
@@ -53,23 +45,18 @@ export function E2DetailPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          <span
-            className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
-              canWrite
-                ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200'
-                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-            }`}
-          >
-            {canWrite ? 'Bearbeiten' : 'Nur Lesen'}
+          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            Vorschau
           </span>
           {canWrite && !loading && !loadError && (
             <button
               type="button"
-              onClick={() => embedRef.current?.requestFlush()}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium dark:border-zinc-600"
+              onClick={() => openE2EditorTab(filePath)}
+              className="inline-flex items-center gap-1 rounded-md border border-violet-300 bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-900 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100"
+              title="Bearbeitung in eigenem Tab — pro Datei ein Tab, Speichern nur in diese Datei"
             >
-              <Save className="h-3.5 w-3.5" />
-              Speichern
+              <ExternalLink className="h-3.5 w-3.5" />
+              In E2 bearbeiten…
             </button>
           )}
           {onWidenPanel && !fullscreen && (
@@ -85,7 +72,7 @@ export function E2DetailPanel({
             type="button"
             onClick={onToggleFullscreen}
             className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-[10px] font-medium dark:border-zinc-600"
-            title={fullscreen ? 'Vollbild beenden' : 'Vollbild'}
+            title={fullscreen ? 'Vollbild beenden' : 'Vorschau Vollbild'}
           >
             {fullscreen ? (
               <>
@@ -100,18 +87,6 @@ export function E2DetailPanel({
         </div>
       </div>
 
-      {saving && (
-        <p className="flex items-center gap-1 border-b border-zinc-100 px-3 py-1 text-[10px] text-zinc-500 dark:border-zinc-800">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Speichern…
-        </p>
-      )}
-      {saveError && (
-        <p className="border-b border-red-200 bg-red-50 px-3 py-1 text-[10px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-          {saveError}
-        </p>
-      )}
-
       {loading || loadError ? (
         <div className="flex flex-1 items-center justify-center p-4 text-sm text-zinc-500">
           {loading ? (
@@ -124,13 +99,7 @@ export function E2DetailPanel({
           )}
         </div>
       ) : (
-        <E2Embed
-          ref={embedRef}
-          hostFileId={filePath}
-          json={json}
-          canWrite={canWrite}
-          onJsonChange={onJsonChange}
-        />
+        <E2Embed hostFileId={filePath} json={json} canWrite={false} className="min-h-0 flex-1" />
       )}
     </div>
   )

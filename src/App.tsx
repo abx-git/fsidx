@@ -6,7 +6,7 @@ import {
   buildDefaultDirectoryReadme,
   directoryReadmePath,
 } from './lib/directory-readme'
-import { canWriteToStore, writeTextToStore } from './lib/file-sources'
+import { canWriteToStore, readTextFromStore, writeTextToStore } from './lib/file-sources'
 import { isSidecarForIndexedFile, sidecarPathForFile } from './lib/sidecar'
 import { Header } from './components/Header'
 import { TskDetailPanel } from './components/et2/TskDetailPanel'
@@ -70,6 +70,8 @@ import { createDrawioInScope } from './lib/drawio/create-drawio'
 import { useDrawioFile } from './hooks/useDrawioFile'
 import { isE2JsonPath } from './lib/e2/e2-board-paths'
 import { createE2BoardInScope } from './lib/e2/create-e2-board'
+import { openE2EditorTab } from './lib/e2/e2-editor-tab'
+import { subscribeE2Saved } from './lib/e2/e2-save-broadcast'
 import { useE2File } from './hooks/useE2File'
 import {
   createNewLinkFile,
@@ -203,9 +205,6 @@ function App() {
   const [drawioSaveError, setDrawioSaveError] = useState<string | null>(null)
   const drawioSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [e2DetailFullscreen, setE2DetailFullscreen] = useState(false)
-  const [e2Saving, setE2Saving] = useState(false)
-  const [e2SaveError, setE2SaveError] = useState<string | null>(null)
-  const e2SaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -362,6 +361,33 @@ function App() {
   const linkFile = useLinkFile(activeLinkPath, fileSources)
   const drawioFile = useDrawioFile(activeDrawioPath, fileSources)
   const e2File = useE2File(activeE2Path, fileSources)
+  const e2PinnedPath =
+    fileView?.viewer === 'e2-board' && viewerPinned ? fileView.path : null
+  const e2PinnedFile = useE2File(e2PinnedPath, fileSources)
+
+  useEffect(() => {
+    return subscribeE2Saved((msg) => {
+      if (!fileSources || !canWrite) return
+      if (activeE2Path && msg.path === activeE2Path) void e2File.reload()
+      if (e2PinnedPath && msg.path === e2PinnedPath) void e2PinnedFile.reload()
+      void (async () => {
+        try {
+          const text = await readTextFromStore(fileSources, msg.path)
+          const name = msg.path.split('/').pop() ?? msg.path
+          registerSidecarFile({
+            relativePath: msg.path,
+            name,
+            kind: 'file',
+            size: new Blob([text]).size,
+            lastModified: msg.savedAt,
+          })
+        } catch {
+          /* Datei evtl. gelöscht */
+        }
+      })()
+    })
+  }, [activeE2Path, e2PinnedPath, canWrite, e2File, e2PinnedFile, fileSources, registerSidecarFile])
+
   const [linkDraft, setLinkDraft] = useState<FsidxLinkFile | null>(null)
   const [linkSaving, setLinkSaving] = useState(false)
   const [linkSaveError, setLinkSaveError] = useState<string | null>(null)
@@ -865,77 +891,17 @@ function App() {
     [activeDrawioPath, canWrite, drawioFile, persistDrawioXml],
   )
 
-  const persistE2Json = useCallback(
-    async (json: string, e2Path: string) => {
-      if (!fileSources || !canWrite) return
-      const name = e2Path.split('/').pop() ?? e2Path
-      await writeTextToStore(fileSources, e2Path, json)
-      registerSidecarFile({
-        relativePath: e2Path,
-        name,
-        kind: 'file',
-        size: new Blob([json]).size,
-        lastModified: Date.now(),
-      })
-    },
-    [fileSources, canWrite, registerSidecarFile],
-  )
-
-  const e2EditingPath = activeE2Path ?? (fileView?.viewer === 'e2-board' ? fileView.path : null)
-
-  const handleE2JsonChange = useCallback(
-    (json: string, hostFileId: string, reason: 'autosave' | 'flush' = 'autosave') => {
-      if (!e2EditingPath || !canWrite || hostFileId !== e2EditingPath) return
-      if (reason === 'flush') e2File.setJson(json)
-      setE2SaveError(null)
-      const save = () => {
-        void (async () => {
-          setE2Saving(true)
-          try {
-            await persistE2Json(json, e2EditingPath)
-          } catch (err) {
-            setE2SaveError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen')
-          } finally {
-            setE2Saving(false)
-          }
-        })()
-      }
-      if (reason === 'flush') {
-        if (e2SaveTimerRef.current) clearTimeout(e2SaveTimerRef.current)
-        save()
-        return
-      }
-      if (e2SaveTimerRef.current) clearTimeout(e2SaveTimerRef.current)
-      e2SaveTimerRef.current = setTimeout(save, 700)
-    },
-    [e2EditingPath, canWrite, e2File, persistE2Json],
-  )
-
   const e2BoardViewerProps = useMemo(
     () =>
-      fileView?.viewer === 'e2-board' && e2EditingPath === fileView.path
+      e2PinnedPath
         ? {
-            json: e2File.json,
-            loading: e2File.loading,
-            error: e2File.error,
+            json: e2PinnedFile.json,
+            loading: e2PinnedFile.loading,
+            error: e2PinnedFile.error,
             canWrite,
-            saving: e2Saving,
-            saveError: e2SaveError,
-            onJsonChange: handleE2JsonChange,
           }
         : null,
-    [
-      fileView?.viewer,
-      fileView?.path,
-      e2EditingPath,
-      e2File.json,
-      e2File.loading,
-      e2File.error,
-      canWrite,
-      e2Saving,
-      e2SaveError,
-      handleE2JsonChange,
-    ],
+    [e2PinnedPath, e2PinnedFile.json, e2PinnedFile.loading, e2PinnedFile.error, canWrite],
   )
 
   const handleNewDrawioFile = useCallback(
@@ -1003,6 +969,7 @@ function App() {
         if (newId) {
           handleSelectEntry(newId)
           openViewer('e2-board', row.relativePath, row.name, newId, row.size)
+          openE2EditorTab(row.relativePath)
         }
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'E2-Board konnte nicht angelegt werden')
@@ -2070,11 +2037,8 @@ function App() {
                   loading={e2File.loading}
                   loadError={e2File.error}
                   canWrite={canWrite}
-                  saving={e2Saving}
-                  saveError={e2SaveError}
                   fullscreen={e2DetailFullscreen}
                   onToggleFullscreen={() => setE2DetailFullscreen((v) => !v)}
-                  onJsonChange={handleE2JsonChange}
                   onWidenPanel={handleWidenDrawioPanel}
                 />
               ) : undefined

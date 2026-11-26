@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abx-git.github.io/fsidx/schemas/fsidx-mail-account-config.v1.schema.json",
+  "title": "fsidx-mail-account-config-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "mailboxId", "transportMode", "updatedAt"],
+  "properties": {
+    "schema": { "const": "fsidx-mail-account-config-v1" },
+    "version": { "const": 1 },
+    "mailboxId": { "type": "string", "minLength": 1 },
+    "transportMode": { "enum": ["import", "oauth"] },
+    "defaultProvider": { "enum": ["google", "microsoft"] },
+    "defaultFrom": { "type": "string" },
+    "accountLabel": { "type": "string" },
+    "googleClientId": { "type": "string" },
+    "microsoftClientId": { "type": "string" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

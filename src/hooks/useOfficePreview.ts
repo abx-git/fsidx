@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readBlobFromStore } from '../lib/file-sources'
+import { PREVIEW_LOAD_TIMEOUT_MS, PREVIEW_LOAD_TIMEOUT_MESSAGE } from '../lib/preview-load-timeout'
 import { extensionFromName } from '../lib/mime-hint'
 import {
   type OpenDocumentPreview,
@@ -33,6 +34,14 @@ export function useSpreadsheetPreview(path: string | null, fileSources: FileSour
     setLoading(true)
     setError(null)
 
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      cancelled = true
+      setLoading(false)
+      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
+      setData(null)
+    }, PREVIEW_LOAD_TIMEOUT_MS)
+
     readBlobFromStore(fileSources, path)
       .then(async (blob) => {
         const buf = await blob.arrayBuffer()
@@ -51,6 +60,7 @@ export function useSpreadsheetPreview(path: string | null, fileSources: FileSour
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [path, fileSources])
 
@@ -79,6 +89,14 @@ export function useOpenDocumentPreview(path: string | null, fileSources: FileSou
     setLoading(true)
     setError(null)
 
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      cancelled = true
+      setLoading(false)
+      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
+      setData(null)
+    }, PREVIEW_LOAD_TIMEOUT_MS)
+
     readBlobFromStore(fileSources, path)
       .then(async (blob) => {
         if (cancelled) return
@@ -96,6 +114,7 @@ export function useOpenDocumentPreview(path: string | null, fileSources: FileSou
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [path, fileSources])
 

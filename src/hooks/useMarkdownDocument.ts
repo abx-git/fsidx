@@ -5,6 +5,7 @@ import { isTaskFilePath, taskIdFromPath } from '../lib/et2/paths'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { useEt2Autosave } from './useEt2Autosave'
+import { PREVIEW_LOAD_TIMEOUT_MS, PREVIEW_LOAD_TIMEOUT_MESSAGE } from '../lib/preview-load-timeout'
 
 /** Vorschau, Quelltext oder geteilte Ansicht (VS Code / Obsidian Quellmodus). */
 export type MarkdownViewMode = 'view' | 'edit' | 'split'
@@ -70,6 +71,14 @@ export function useMarkdownDocument(
     setDirty(false)
     setSaveError(null)
 
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      cancelled = true
+      setLoading(false)
+      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
+      setContent('')
+    }, PREVIEW_LOAD_TIMEOUT_MS)
+
     readTextFromStore(fileSources, path)
       .then((text) => {
         if (cancelled) return
@@ -94,6 +103,7 @@ export function useMarkdownDocument(
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [path, fileSources])
 

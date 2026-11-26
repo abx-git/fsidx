@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FileSourceStore } from '../lib/file-sources'
 import { readBlobFromStore, readTextFromStore } from '../lib/file-sources'
+import { PREVIEW_LOAD_TIMEOUT_MS, PREVIEW_LOAD_TIMEOUT_MESSAGE } from '../lib/preview-load-timeout'
 
 export function useFileBlob(path: string | null, fileSources: FileSourceStore | null) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
@@ -21,6 +22,15 @@ export function useFileBlob(path: string | null, fileSources: FileSourceStore | 
     setLoading(true)
     setError(null)
 
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      cancelled = true
+      setLoading(false)
+      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
+      setBlob(null)
+      setObjectUrl(null)
+    }, PREVIEW_LOAD_TIMEOUT_MS)
+
     readBlobFromStore(fileSources, path)
       .then((b) => {
         if (cancelled) return
@@ -40,6 +50,7 @@ export function useFileBlob(path: string | null, fileSources: FileSourceStore | 
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
       if (url) URL.revokeObjectURL(url)
     }
   }, [path, fileSources])
@@ -63,6 +74,14 @@ export function useFileText(path: string | null, fileSources: FileSourceStore | 
     setLoading(true)
     setError(null)
 
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      cancelled = true
+      setLoading(false)
+      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
+      setText('')
+    }, PREVIEW_LOAD_TIMEOUT_MS)
+
     readTextFromStore(fileSources, path)
       .then((t) => {
         if (!cancelled) setText(t)
@@ -79,6 +98,7 @@ export function useFileText(path: string | null, fileSources: FileSourceStore | 
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [path, fileSources])
 

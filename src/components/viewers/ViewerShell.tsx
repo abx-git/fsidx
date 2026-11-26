@@ -1,5 +1,6 @@
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { usePreviewLoadTimeout } from '../../hooks/usePreviewLoadTimeout'
 
 interface ViewerShellProps {
   title: string
@@ -28,6 +29,8 @@ export function ViewerShell({
   toolbar,
   children,
 }: ViewerShellProps) {
+  usePreviewLoadTimeout(Boolean(loading) && !error, onClose)
+
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
       {!hideHeader && (

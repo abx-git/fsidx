@@ -10,6 +10,7 @@ import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
+import { usePreviewLoadTimeout } from '../hooks/usePreviewLoadTimeout'
 
 const SCROLL_ANCHOR_PX = 96
 
@@ -48,6 +49,7 @@ export function MarkdownEditor({
   saveError,
   fileSources,
 }: MarkdownEditorProps) {
+  usePreviewLoadTimeout(Boolean(loading) && !error, onClose)
   const viewScrollRef = useRef<HTMLDivElement>(null)
   const previewArticleRef = useRef<HTMLElement>(null)
   const [editFocus, setEditFocus] = useState<{ start: number; end: number; line: number } | null>(

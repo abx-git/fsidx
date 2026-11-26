@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         e2Edit: path.resolve(__dirname, 'e2-edit.html'),
+        rbaseOpen: path.resolve(__dirname, 'rbase-open.html'),
       },
     },
   },

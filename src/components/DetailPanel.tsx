@@ -30,6 +30,7 @@ interface DetailPanelProps {
   drawioFullscreen?: boolean
   e2DetailSlot?: ReactNode
   e2Fullscreen?: boolean
+  rBaseDetailSlot?: ReactNode
 }
 
 export function DetailPanel({
@@ -56,21 +57,30 @@ export function DetailPanel({
   drawioFullscreen = false,
   e2DetailSlot,
   e2Fullscreen = false,
+  rBaseDetailSlot,
 }: DetailPanelProps) {
   const detailFullscreen = drawioFullscreen || e2Fullscreen
   const showViewer = viewerPinned && viewerSlot && !detailFullscreen
   const showAggregateTasks = Boolean(aggregateTaskSlot) && !detailFullscreen
   const showTskDetail = Boolean(tskDetailSlot) && !showAggregateTasks
   const showLinkDetail = Boolean(linkDetailSlot) && !showAggregateTasks && !showTskDetail
+  const showRBaseDetail =
+    Boolean(rBaseDetailSlot) && !showAggregateTasks && !showTskDetail && !showLinkDetail
   const showE2Detail =
-    Boolean(e2DetailSlot) && !showAggregateTasks && !showTskDetail && !showLinkDetail
+    Boolean(e2DetailSlot) &&
+    !showAggregateTasks &&
+    !showTskDetail &&
+    !showLinkDetail &&
+    !showRBaseDetail
   const showDrawioDetail =
     Boolean(drawioDetailSlot) &&
     !showAggregateTasks &&
     !showTskDetail &&
     !showLinkDetail &&
-    !showE2Detail
-  const showLegacyNotice = Boolean(legacyNoticeSlot) && !showDrawioDetail && !showE2Detail
+    !showE2Detail &&
+    !showRBaseDetail
+  const showLegacyNotice =
+    Boolean(legacyNoticeSlot) && !showDrawioDetail && !showE2Detail && !showRBaseDetail
   const showFileMetadata =
     metadataVisible &&
     !showViewer &&
@@ -78,6 +88,7 @@ export function DetailPanel({
     !showLinkDetail &&
     !showDrawioDetail &&
     !showE2Detail &&
+    !showRBaseDetail &&
     !showLegacyNotice &&
     !detailFullscreen
 
@@ -152,6 +163,9 @@ export function DetailPanel({
           >
             {drawioDetailSlot}
           </div>
+        )}
+        {showRBaseDetail && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{rBaseDetailSlot}</div>
         )}
         {showE2Detail && e2Fullscreen && (
           <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-zinc-500">

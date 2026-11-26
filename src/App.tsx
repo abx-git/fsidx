@@ -64,11 +64,14 @@ import { useLinkFile } from './hooks/useLinkFile'
 import { LinkDetailPanel } from './components/link/LinkDetailPanel'
 import { DrawioDetailPanel } from './components/drawio/DrawioDetailPanel'
 import { E2DetailPanel } from './components/e2/E2DetailPanel'
+import { RBaseDetailPanel } from './components/r-base/RBaseDetailPanel'
 import { isLinkJsonPath } from './lib/link/link-paths'
 import { isDrawioPath } from './lib/drawio'
 import { createDrawioInScope } from './lib/drawio/create-drawio'
 import { useDrawioFile } from './hooks/useDrawioFile'
 import { isE2JsonPath } from './lib/e2/e2-board-paths'
+import { isRBaseIndexedPath } from './lib/r-base/r-base-paths'
+import { useRBaseFile } from './hooks/useRBaseFile'
 import { createE2BoardInScope } from './lib/e2/create-e2-board'
 import { openE2EditorTab } from './lib/e2/e2-editor-tab'
 import { subscribeE2Saved } from './lib/e2/e2-save-broadcast'
@@ -235,6 +238,29 @@ function App() {
       }
       return
     }
+    if (isRBaseIndexedPath(selectedNode.path)) {
+      if (viewerPinned) {
+        setFileView((prev) => {
+          if (
+            prev?.id === selectedNode.id &&
+            prev.path === selectedNode.path &&
+            prev.viewer === 'r-base'
+          ) {
+            return prev
+          }
+          return {
+            viewer: 'r-base',
+            path: selectedNode.path,
+            name: selectedNode.name,
+            id: selectedNode.id,
+            size: selectedNode.size,
+          }
+        })
+      } else {
+        setFileView(null)
+      }
+      return
+    }
     if (
       isTskJsonPath(selectedNode.path) ||
       isTaskFilePath(selectedNode.path) ||
@@ -352,6 +378,11 @@ function App() {
     return selectedNode.path
   }, [selectedNode])
 
+  const activeRBasePath = useMemo(() => {
+    if (selectedNode?.kind !== 'file' || !isRBaseIndexedPath(selectedNode.path)) return null
+    return selectedNode.path
+  }, [selectedNode])
+
   const isLegacyTaskFile = useMemo(
     () => selectedNode?.kind === 'file' && isTaskFilePath(selectedNode.path),
     [selectedNode],
@@ -364,6 +395,13 @@ function App() {
   const e2PinnedPath =
     fileView?.viewer === 'e2-board' && viewerPinned ? fileView.path : null
   const e2PinnedFile = useE2File(e2PinnedPath, fileSources)
+  const rBaseViewPath = fileView?.viewer === 'r-base' ? fileView.path : null
+  const rBaseViewFile = useRBaseFile(rBaseViewPath, fileSources)
+
+  const indexedPathsList = useMemo(
+    () => manifest?.entries.map((e) => e.path) ?? [],
+    [manifest?.entries],
+  )
 
   useEffect(() => {
     return subscribeE2Saved((msg) => {
@@ -903,6 +941,30 @@ function App() {
         : null,
     [e2PinnedPath, e2PinnedFile.json, e2PinnedFile.loading, e2PinnedFile.error, canWrite],
   )
+
+  const rBaseViewerProps = useMemo(
+    () =>
+      rBaseViewPath
+        ? {
+            kind: rBaseViewFile.kind,
+            dataset: rBaseViewFile.dataset,
+            project: rBaseViewFile.project,
+            loading: rBaseViewFile.loading,
+            error: rBaseViewFile.error,
+            workspaceRoot: null,
+          }
+        : null,
+    [
+      rBaseViewPath,
+      rBaseViewFile.kind,
+      rBaseViewFile.dataset,
+      rBaseViewFile.project,
+      rBaseViewFile.loading,
+      rBaseViewFile.error,
+    ],
+  )
+
+  const rBaseActiveFile = useRBaseFile(activeRBasePath, fileSources)
 
   const handleNewDrawioFile = useCallback(
     async (parentPath: string) => {
@@ -1770,6 +1832,8 @@ function App() {
       variant="center"
       markdown={markdownEditorProps}
       e2Board={e2BoardViewerProps}
+      rBase={rBaseViewerProps}
+      indexedPaths={indexedPathsList}
       size={fileView.size}
     />
   ) : (
@@ -2005,7 +2069,8 @@ function App() {
               selectedNode &&
               !activeTskPath &&
               !activeLinkPath &&
-              !activeE2Path ? (
+              !activeE2Path &&
+              !activeRBasePath ? (
                 <DrawioDetailPanel
                   filePath={activeDrawioPath}
                   fileName={selectedNode.name}
@@ -2023,13 +2088,37 @@ function App() {
               ) : undefined
             }
             drawioFullscreen={drawioDetailFullscreen}
+            rBaseDetailSlot={
+              !viewerPinned &&
+              activeRBasePath &&
+              selectedNode &&
+              !activeTskPath &&
+              !activeLinkPath &&
+              !activeDrawioPath &&
+              !activeE2Path ? (
+                <RBaseDetailPanel
+                  filePath={activeRBasePath}
+                  fileName={selectedNode.name}
+                  indexedPaths={indexedPathsList}
+                  rBase={{
+                    kind: rBaseActiveFile.kind,
+                    dataset: rBaseActiveFile.dataset,
+                    project: rBaseActiveFile.project,
+                    loading: rBaseActiveFile.loading,
+                    error: rBaseActiveFile.error,
+                    workspaceRoot: null,
+                  }}
+                />
+              ) : undefined
+            }
             e2DetailSlot={
               !viewerPinned &&
               activeE2Path &&
               selectedNode &&
               !activeTskPath &&
               !activeLinkPath &&
-              !activeDrawioPath ? (
+              !activeDrawioPath &&
+              !activeRBasePath ? (
                 <E2DetailPanel
                   filePath={activeE2Path}
                   fileName={selectedNode.name}
@@ -2082,6 +2171,8 @@ function App() {
                   variant="sidebar"
                   markdown={markdownEditorProps}
                   e2Board={e2BoardViewerProps}
+                  rBase={rBaseViewerProps}
+                  indexedPaths={indexedPathsList}
                   size={fileView.size}
                 />
               ) : undefined

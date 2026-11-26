@@ -13,6 +13,7 @@ import { SpreadsheetViewer } from './SpreadsheetViewer'
 import { OpenDocumentViewer } from './OpenDocumentViewer'
 import { LinkViewer } from './LinkViewer'
 import { E2BoardViewer, type E2BoardViewerSlice } from './E2BoardViewer'
+import { RBaseViewer, type RBaseViewerSlice } from './RBaseViewer'
 import { parseLinkFile } from '../../lib/link/link-file'
 import { useMemo } from 'react'
 
@@ -40,6 +41,8 @@ interface FileViewerRouterProps {
   onClose: () => void
   markdown?: MarkdownSlice | null
   e2Board?: E2BoardViewerSlice | null
+  rBase?: RBaseViewerSlice | null
+  indexedPaths?: string[]
   size?: number
   /** Full center pane vs compact right sidebar (hides Zurück). */
   variant?: 'center' | 'sidebar'
@@ -51,6 +54,8 @@ export function FileViewerRouter({
   onClose,
   markdown,
   e2Board,
+  rBase,
+  indexedPaths = [],
   size,
   variant = 'center',
 }: FileViewerRouterProps) {
@@ -91,6 +96,20 @@ export function FileViewerRouter({
         showBackButton={showBackButton}
         fillHeight={fillHeight}
         e2={e2Board}
+      />
+    )
+  }
+
+  if (target.viewer === 'r-base' && rBase) {
+    return (
+      <RBaseViewer
+        fileName={target.name}
+        filePath={target.path}
+        onClose={onClose}
+        showBackButton={showBackButton}
+        fillHeight={fillHeight}
+        indexedPaths={indexedPaths}
+        rBase={rBase}
       />
     )
   }

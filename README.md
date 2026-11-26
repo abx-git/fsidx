@@ -55,6 +55,14 @@ projekt/phase/
 - **Panel verbreitern** (bis ca. 92 % der Fensterbreite) und **Vollbild** über die ganze App (Esc oder „Vollbild aus“ beendet). **Vorschau** (Viewer/Markdown) nutzt den chromeless-Modus von diagrams.net **ohne** deren Toolbar; in der angehefteten Seitenleiste zusätzlich ohne fsidx-Vorschau-Kopf.
 - Unterstützte Endungen: `.drawio`, `.dio`, `.drawio.xml`.
 
+### R-Base (Datensatz `meta.json` & Workspace `r-base.project.json`)
+
+- **[R-Base](https://github.com/abx-git/r-base)** — lokale Datensätze mit `meta.json`, WebDAV-Sync, Excel (separate App).
+- In fsidx: **Vorschau** von Datensatz-`meta.json` (Loc-ID, Bezeichnung, Dateiliste) und `r-base.project.json` (Workspace-Hinweis).
+- **In R-Base öffnen…** → eigener Tab (`rbase-open.html?path=…`) mit Kurzinfo und Link zur App (Workspace-Handle aus dem gleichen Browser wie fsidx).
+- **R-Base-App** öffnet [abx-git.github.io/r-base](https://abx-git.github.io/r-base/) — dort denselben **lokalen Stammordner** wählen wie in fsidx. Optional wird die Loc-ID in `sessionStorage` (`r-base.pendingLocId`) hinterlegt (für künftiges Deep-Linking in R-Base).
+- Optional: `VITE_RBASE_APP_ORIGIN` für eine andere R-Base-Instanz (analog `VITE_E2_EMBED_ORIGIN`).
+
 ### E2 Domänenmodell (`*.e2.json`)
 
 - **[E2](https://github.com/abx-git/E2)** (Event Storming, DDD, BDD, …) — **nicht** dasselbe wie **ET2** (Aufgaben / `*.tsk.json`).

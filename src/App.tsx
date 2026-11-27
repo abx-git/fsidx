@@ -66,7 +66,17 @@ import { DrawioDetailPanel } from './components/drawio/DrawioDetailPanel'
 import { E2DetailPanel } from './components/e2/E2DetailPanel'
 import { RBaseDetailPanel } from './components/r-base/RBaseDetailPanel'
 import { RBaseEmbed } from './components/r-base/RBaseEmbed'
-import { isRBaseTechnicalEntryPath, scopeRBaseRoot } from './lib/r-base/rbase-roots'
+import {
+  createRBaseDatasetInScope,
+  createRBaseWorkspaceAtScope,
+  projectConfigPathForScope,
+  suggestNextLocId,
+} from './lib/r-base/create-r-base-workspace'
+import {
+  isRBaseTechnicalEntryPath,
+  mergeRBaseRootLists,
+  scopeRBaseRoot,
+} from './lib/r-base/rbase-roots'
 import { isLinkJsonPath } from './lib/link/link-paths'
 import { isDrawioPath } from './lib/drawio'
 import { createDrawioInScope } from './lib/drawio/create-drawio'
@@ -1169,6 +1179,104 @@ function App() {
     ],
   )
 
+  const handleNewRBase = useCallback(
+    async (parentPath: string) => {
+      if (!fileSources || !canWrite || !manifest) {
+        window.alert('R-Base anlegen: Chrome/Edge mit Schreibzugriff.')
+        return
+      }
+      const norm = parentPath.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+      const roots = fileSources.rbaseRoots ?? []
+      const workspaceRoot = scopeRBaseRoot(norm, roots)
+      const projectPath = projectConfigPathForScope(norm)
+      const projectInIndex = manifest.entries.some((e) => e.path === projectPath)
+
+      try {
+        if (!projectInIndex && (workspaceRoot === null || workspaceRoot === norm)) {
+          if (
+            !window.confirm(
+              `In diesem Ordner einen R-Base-Workspace anlegen?\n\nEs wird „r-base.project.json“ geschrieben. Im Scope auf diesen Ordner siehst du die eingebettete R-Base-Oberfläche.`,
+            )
+          ) {
+            return
+          }
+          const withDataset = window.confirm('Gleich einen leeren Datensatz-Ordner mit meta.json anlegen?')
+          let datasetFolderName: string | undefined
+          let locId: string | undefined
+          let bezeichnung: string | undefined
+          if (withDataset) {
+            const suggested = suggestNextLocId(
+              manifest.entries.map((e) => e.path),
+              norm,
+            )
+            const folder = window.prompt('Ordnername für den Datensatz:', suggested)
+            if (folder === null) return
+            datasetFolderName = folder.trim() || suggested
+            const locInput = window.prompt('locId (R-Base):', suggested)
+            if (locInput === null) return
+            locId = locInput.trim() || suggested
+            const bez = window.prompt('Bezeichnung:', datasetFolderName)
+            if (bez === null) return
+            bezeichnung = bez.trim() || datasetFolderName
+          }
+          const { rows, rbaseRoot } = await createRBaseWorkspaceAtScope(fileSources, norm, {
+            datasetFolderName,
+            locId,
+            bezeichnung,
+          })
+          for (const row of rows) registerSidecarFile(row)
+          setFileSources((prev) => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              rbaseRoots: mergeRBaseRootLists(prev.rbaseRoots, [rbaseRoot]),
+            }
+          })
+          navigateToPath(norm, null)
+          return
+        }
+
+        if (workspaceRoot !== null) {
+          const suggested = suggestNextLocId(
+            manifest.entries.map((e) => e.path),
+            workspaceRoot,
+          )
+          const folder = window.prompt('Neuer Datensatz — Ordnername:', suggested)
+          if (folder === null || !folder.trim()) return
+          const locInput = window.prompt('locId:', suggested)
+          if (locInput === null) return
+          const locId = locInput.trim() || suggested
+          const bez = window.prompt('Bezeichnung:', folder.trim())
+          if (bez === null) return
+          const { rows, datasetDir } = await createRBaseDatasetInScope(
+            fileSources,
+            norm,
+            folder.trim(),
+            locId,
+            bez.trim() || folder.trim(),
+          )
+          for (const row of rows) registerSidecarFile(row)
+          navigateToPath(datasetDir, null)
+          return
+        }
+
+        window.alert(
+          'Kein R-Base hier: In den gewünschten Ordner wechseln (Scope) und dort „R-Base anlegen“ — oder innerhalb eines bestehenden R-Base-Workspaces einen Datensatz anlegen.',
+        )
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'R-Base konnte nicht angelegt werden.')
+      }
+    },
+    [
+      fileSources,
+      canWrite,
+      manifest,
+      registerSidecarFile,
+      setFileSources,
+      navigateToPath,
+    ],
+  )
+
   const handleNewE2Board = useCallback(
     async (parentPath: string) => {
       if (!fileSources || !canWrite) {
@@ -2035,6 +2143,7 @@ function App() {
       onNewLinkFile={() => void handleNewLinkFile(currentPath)}
       onNewDrawioFile={() => void handleNewDrawioFile(currentPath)}
       onNewE2Board={() => void handleNewE2Board(currentPath)}
+      onNewRBase={() => void handleNewRBase(currentPath)}
       onUploadFiles={(files) => void handleUploadFilesToScope(currentPath, files)}
       vaultRoots={fileSources?.vaultRoots}
       onUnlockVault={(root) => setVaultUnlockTarget(root)}

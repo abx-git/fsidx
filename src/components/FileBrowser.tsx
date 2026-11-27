@@ -53,6 +53,7 @@ interface FileBrowserProps {
   onNewLinkFile?: () => void
   onNewDrawioFile?: () => void
   onNewE2Board?: () => void
+  onNewRBase?: () => void
   onNewVaultFolder?: () => void
   vaultRoots?: string[]
   onUnlockVault?: (vaultRoot: string) => void
@@ -104,6 +105,7 @@ export function FileBrowser({
   onNewLinkFile,
   onNewDrawioFile,
   onNewE2Board,
+  onNewRBase,
   onNewVaultFolder,
   vaultRoots = [],
   onUnlockVault,
@@ -419,6 +421,7 @@ export function FileBrowser({
             onNewLinkFile={onNewLinkFile}
             onNewDrawioFile={onNewDrawioFile}
             onNewE2Board={onNewE2Board}
+            onNewRBase={onNewRBase}
             onNewVaultFolder={onNewVaultFolder}
           />
         )}

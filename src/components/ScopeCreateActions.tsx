@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FolderPlus, LayoutGrid, Link2, PenLine, Shield } from 'lucide-react'
+import { CheckSquare, Database, FileText, FolderPlus, LayoutGrid, Link2, PenLine, Shield } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface ScopeCreateActionsProps {
@@ -10,6 +10,7 @@ interface ScopeCreateActionsProps {
   onNewDrawioFile?: () => void
   onNewE2Board?: () => void
   onNewVaultFolder?: () => void
+  onNewRBase?: () => void
   compact?: boolean
   /** Optional extra chips after Markdown (e.g. header “Neue Aufgaben-Datei”). */
   extra?: ReactNode
@@ -24,6 +25,7 @@ export function ScopeCreateActions({
   onNewDrawioFile,
   onNewE2Board,
   onNewVaultFolder,
+  onNewRBase,
   compact,
   extra,
 }: ScopeCreateActionsProps) {
@@ -79,6 +81,18 @@ export function ScopeCreateActions({
           aria-label="E2-Board anlegen"
         >
           <LayoutGrid className="h-4 w-4" />
+        </button>
+      )}
+      {onNewRBase && (
+        <button
+          type="button"
+          disabled={!canWrite}
+          onClick={onNewRBase}
+          className={iconBtn}
+          title="R-Base-Workspace oder Datensatz in diesem Scope anlegen"
+          aria-label="R-Base anlegen"
+        >
+          <Database className="h-4 w-4" />
         </button>
       )}
       {extra}

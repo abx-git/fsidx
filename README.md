@@ -58,7 +58,7 @@ projekt/phase/
 ### R-Base (Ordner-Typ & Datensatz-Metadaten)
 
 - **[R-Base](https://github.com/abx-git/r-base)** — lokale Datensätze mit `meta.json`, WebDAV-Sync, Excel.
-- **Ordner-Typ:** Liegt im indexierten Baum eine [`r-base.project.json`](https://github.com/abx-git/r-base/blob/main/src/lib/project-config.ts), gilt der übergeordnete Ordner als **R-Base-Workspace**. Navigierst du im Scope **genau auf diesen Stamm**, ersetzt fsidx die Dateiliste durch die **eingebettete R-Base-Oberfläche** (Iframe, Handle-Übergabe per Host-Protokoll v1).
+- **Ordner-Typ:** Liegt im indexierten Baum eine [`r-base.project.json`](https://github.com/abx-git/r-base/blob/main/src/lib/project-config.ts), gilt der übergeordnete Ordner als **R-Base-Workspace**. Navigierst du im Scope **genau auf diesen Stamm**, ersetzt fsidx die Dateiliste durch die **eingebettete R-Base-Oberfläche** (Iframe, Handle-Übergabe per Host-Protokoll v1). **Anlegen:** Toolbar „Anlegen“ → R-Base (Datenbank-Symbol) im gewünschten Scope — legt die Projektdatei und optional einen ersten Datensatz-Ordner mit `meta.json` an; in einem bestehenden Workspace dasselbe Symbol für weitere Datensätze.
 - Technische Unterordner `_imports/`, `_exports/`, `deleted/` werden in der Dateiliste ausgeblendet; **Verschieben/Umbenennen innerhalb des R-Base-Workspaces** ist in fsidx gesperrt (Änderungen nur über R-Base im Embed oder die standalone App).
 - Nach Änderungen in R-Base aktualisiert fsidx den Index **verzögert** (Scope-Aktualisierung).
 - **Einzeldateien:** `meta.json` / `r-base.project.json` weiterhin **Vorschau** + **In R-Base öffnen…** (`rbase-open.html?path=…`).

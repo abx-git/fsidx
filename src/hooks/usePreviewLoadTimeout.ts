@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import { PREVIEW_LOAD_TIMEOUT_MS } from '../lib/preview-load-timeout'
 
 /**
- * Startet einen Timer, solange `active` true ist. Wird `active` false (Laden fertig),
- * wird der Timer gekündigt.
+ * Startet einen Timer, solange `active` true ist (nur einfache Vorschauen in {@link ViewerShell}).
+ * Schließt den Viewer — **nicht** für Markdown-Editor verwenden.
  */
 export function usePreviewLoadTimeout(
   active: boolean,

@@ -5,13 +5,9 @@ import { isTaskFilePath, taskIdFromPath } from '../lib/et2/paths'
 import { parseTaskMd } from '../lib/et2/parse-task-md'
 import { serializeTaskMd } from '../lib/et2/serialize-task-md'
 import { useEt2Autosave } from './useEt2Autosave'
-import { PREVIEW_LOAD_TIMEOUT_MS, PREVIEW_LOAD_TIMEOUT_MESSAGE } from '../lib/preview-load-timeout'
 
 /** Vorschau, Quelltext oder geteilte Ansicht (VS Code / Obsidian Quellmodus). */
 export type MarkdownViewMode = 'view' | 'edit' | 'split'
-
-/** Markdown-Lesen darf länger dauern als Binär-Vorschau; Timeout schließt den Editor nicht. */
-const MARKDOWN_LOAD_TIMEOUT_MS = Math.max(PREVIEW_LOAD_TIMEOUT_MS, 120_000)
 
 const draftCache = new Map<string, string>()
 
@@ -94,21 +90,6 @@ export function useMarkdownDocument(
     setError(null)
     setSaveError(null)
 
-    const timeoutId = window.setTimeout(() => {
-      if (cancelled) return
-      cancelled = true
-      setLoading(false)
-      const draft = draftCache.get(path)
-      if (draft != null) {
-        setContent(draft)
-        setDirty(true)
-        loadedPathRef.current = path
-        setError('Laden dauert länger — zwischengespeicherter Entwurf wird angezeigt.')
-        return
-      }
-      setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
-    }, MARKDOWN_LOAD_TIMEOUT_MS)
-
     readTextFromStore(fs, path)
       .then((text) => {
         if (cancelled) return
@@ -150,7 +131,6 @@ export function useMarkdownDocument(
 
     return () => {
       cancelled = true
-      clearTimeout(timeoutId)
       setLoading(false)
     }
   }, [path, restoreDraft])

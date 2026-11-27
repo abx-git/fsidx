@@ -1,5 +1,5 @@
 import { ChevronRight, Focus, Lock, RefreshCw, Shield } from 'lucide-react'
-import { ScopeTerminalButton } from './ScopeTerminalDialog'
+import { ScopeCopyPathButton, ScopeToolsButton } from './ScopeToolsDialog'
 import { scopeAncestorCrumbs } from '../lib/workspace-scope'
 import { scopeVaultRoot } from '../lib/vault/vault-paths'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
@@ -12,6 +12,7 @@ interface ScopeBarProps {
   vaultRoots?: string[]
   onRefreshScope?: () => void
   refreshingScope?: boolean
+  selectedFilePath?: string | null
 }
 
 export function ScopeBar({
@@ -22,6 +23,7 @@ export function ScopeBar({
   vaultRoots = [],
   onRefreshScope,
   refreshingScope = false,
+  selectedFilePath = null,
 }: ScopeBarProps) {
   const crumbs = scopeAncestorCrumbs(scopePath, workspaceRootName)
   const isCompact = variant === 'compact'
@@ -73,7 +75,12 @@ export function ScopeBar({
         )
       })}
       <div className="ml-auto flex flex-wrap items-center gap-1">
-        <ScopeTerminalButton workspaceRootName={workspaceRootName} scopePath={scopePath} />
+        <ScopeCopyPathButton workspaceRootName={workspaceRootName} scopePath={scopePath} />
+        <ScopeToolsButton
+          workspaceRootName={workspaceRootName}
+          scopePath={scopePath}
+          selectedFilePath={selectedFilePath}
+        />
         {onRefreshScope && (
           <button
             type="button"

@@ -10,6 +10,7 @@ import {
   FolderPlus,
   ListTodo,
   Pencil,
+  Star,
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
@@ -67,6 +68,8 @@ interface FileContextMenuProps {
   onRename?: () => void
   onOpenInScope?: () => void
   onAggregateTasks?: () => void
+  bookmarked?: boolean
+  onToggleBookmark?: () => void
 }
 
 export function FileContextMenu({
@@ -87,6 +90,8 @@ export function FileContextMenu({
   onRename,
   onOpenInScope,
   onAggregateTasks,
+  bookmarked = false,
+  onToggleBookmark,
 }: FileContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -131,6 +136,22 @@ export function FileContextMenu({
           {target.name || target.path}
         </p>
         <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Ordner</p>
+        {onToggleBookmark && (
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            onClick={() => {
+              onToggleBookmark()
+              onClose()
+            }}
+          >
+            <Star
+              className={`h-4 w-4 shrink-0 ${bookmarked ? 'fill-amber-400 text-amber-500' : 'text-zinc-500'}`}
+            />
+            <span>{bookmarked ? 'Lesezeichen entfernen' : 'Ordner als Lesezeichen'}</span>
+          </button>
+        )}
         {onOpenInScope && (
           <button
             type="button"
@@ -296,6 +317,19 @@ export function FileContextMenu({
         <Copy className="h-4 w-4 shrink-0 text-zinc-500" />
         <span className="truncate">Vollständigen Pfad kopieren</span>
       </button>
+      {onToggleBookmark && (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          onClick={onToggleBookmark}
+        >
+          <Star
+            className={`h-4 w-4 shrink-0 ${bookmarked ? 'fill-amber-400 text-amber-500' : 'text-zinc-500'}`}
+          />
+          <span>{bookmarked ? 'Lesezeichen entfernen' : 'Lesezeichen setzen'}</span>
+        </button>
+      )}
       <div className="my-1 border-t border-zinc-100 dark:border-zinc-800" role="separator" />
       {!isTsk && (
         <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Öffnen mit</p>

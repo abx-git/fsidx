@@ -98,6 +98,8 @@ import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
 import { readUsualSidebarWidth, useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
+import { useWorkspaceBookmarks } from './hooks/useWorkspaceBookmarks'
+import type { WorkspaceBookmark } from './lib/bookmarks'
 import { clampSidebarWidthForGrid } from './lib/main-grid-layout'
 import { useTreePanelLayout } from './hooks/useTreePanelLayout'
 import { TreeResizeHandle } from './components/TreeResizeHandle'
@@ -257,6 +259,27 @@ function App() {
   const [e2DetailFullscreen, setE2DetailFullscreen] = useState(false)
   const [heavyPreviewConfirm, setHeavyPreviewConfirm] =
     useState<HeavyPreviewConfirmRequest | null>(null)
+
+  const {
+    bookmarks,
+    toggleBookmark,
+    isBookmarked,
+    removeBookmark,
+  } = useWorkspaceBookmarks(manifest?.rootName)
+
+  const selectedEntryPath =
+    selectedNode?.kind === 'file' ? selectedNode.path : null
+
+  const scopePathNorm = useMemo(
+    () => currentPath.replace(/\\/g, '/').replace(/^\/+/, ''),
+    [currentPath],
+  )
+
+  const scopeBookmarked = isBookmarked(scopePathNorm, 'scope')
+
+  const handleToggleScopeBookmark = useCallback(() => {
+    toggleBookmark(scopePathNorm, 'scope')
+  }, [scopePathNorm, toggleBookmark])
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -616,6 +639,23 @@ function App() {
       setSearchQuery,
       navigateToPath,
     ],
+  )
+
+  const handleBookmarkActivate = useCallback(
+    (bookmark: WorkspaceBookmark) => {
+      if (!manifest) return
+      if (bookmark.kind === 'file') {
+        const parent = bookmark.path.includes('/')
+          ? bookmark.path.slice(0, bookmark.path.lastIndexOf('/'))
+          : ''
+        const entry = manifest.entries.find((e) => e.path === bookmark.path)
+        navigateToPath(parent, entry?.id ?? null)
+        if (entry) handleSelectEntry(entry.id)
+        return
+      }
+      navigateToPath(bookmark.path, null)
+    },
+    [manifest, navigateToPath, handleSelectEntry],
   )
 
   const handleOpenTaskFromAggregate = useCallback(
@@ -2001,6 +2041,12 @@ function App() {
       onLockVault={handleVaultLock}
       onRefreshScope={fileSources ? handleRefreshScope : undefined}
       refreshingScope={scopeRefreshing}
+      bookmarks={bookmarks}
+      selectedEntryPath={selectedEntryPath}
+      scopeBookmarked={scopeBookmarked}
+      onToggleScopeBookmark={handleToggleScopeBookmark}
+      onBookmarkActivate={handleBookmarkActivate}
+      onBookmarkRemove={removeBookmark}
     />
   )
 
@@ -2466,6 +2512,23 @@ function App() {
         onDelete={
           contextMenu && (contextMenu.kind === 'file' || contextMenu.path !== '')
             ? () => void handleDeleteContextTarget()
+            : undefined
+        }
+        bookmarked={
+          contextMenu
+            ? isBookmarked(
+                contextMenu.path,
+                contextMenu.kind === 'file' ? 'file' : 'scope',
+              )
+            : false
+        }
+        onToggleBookmark={
+          contextMenu
+            ? () => {
+                const kind = contextMenu.kind === 'file' ? 'file' : 'scope'
+                toggleBookmark(contextMenu.path, kind, contextMenu.name)
+                setContextMenu(null)
+              }
             : undefined
         }
       />

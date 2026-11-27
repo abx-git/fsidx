@@ -14,6 +14,8 @@ import { isEt2InternalPath } from '../lib/et2/is-et2-internal'
 import { shouldShowDirectoryInTree } from '../lib/tree-display-filter'
 import { isHiddenEt2Scope } from '../lib/scope-sanitize'
 import { ScopeBar } from './ScopeBar'
+import { BookmarksStrip } from './BookmarksStrip'
+import type { WorkspaceBookmark } from '../lib/bookmarks'
 import { ScopeCreateActions } from './ScopeCreateActions'
 import { VirtualList } from './ui/VirtualList'
 import { fsidxFileDragMime } from '../lib/move-workspace'
@@ -58,6 +60,12 @@ interface FileBrowserProps {
   onUploadFiles?: (files: File[]) => void
   onRefreshScope?: () => void
   refreshingScope?: boolean
+  bookmarks?: WorkspaceBookmark[]
+  selectedEntryPath?: string | null
+  scopeBookmarked?: boolean
+  onToggleScopeBookmark?: () => void
+  onBookmarkActivate?: (bookmark: WorkspaceBookmark) => void
+  onBookmarkRemove?: (id: string) => void
 }
 
 const VIRTUAL_LIST_MIN = 80
@@ -103,6 +111,12 @@ export function FileBrowser({
   onUploadFiles,
   onRefreshScope,
   refreshingScope = false,
+  bookmarks = [],
+  selectedEntryPath = null,
+  scopeBookmarked = false,
+  onToggleScopeBookmark,
+  onBookmarkActivate,
+  onBookmarkRemove,
 }: FileBrowserProps) {
   const [fileDropActive, setFileDropActive] = useState(false)
   const fileDropDepth = useRef(0)
@@ -382,6 +396,18 @@ export function FileBrowser({
           vaultRoots={vaultRoots}
           onRefreshScope={onRefreshScope}
           refreshingScope={refreshingScope}
+          selectedFilePath={selectedEntryPath}
+        />
+      )}
+      {!inSearch && onToggleScopeBookmark && onBookmarkActivate && onBookmarkRemove && (
+        <BookmarksStrip
+          bookmarks={bookmarks}
+          scopePath={scopePath}
+          selectedPath={selectedEntryPath}
+          scopeBookmarked={scopeBookmarked}
+          onToggleScopeBookmark={onToggleScopeBookmark}
+          onActivate={onBookmarkActivate}
+          onRemove={onBookmarkRemove}
         />
       )}
       <div className="shrink-0">
@@ -448,6 +474,7 @@ export function FileBrowser({
               onSelectScope={onNavigate}
               variant="compact"
               vaultRoots={vaultRoots}
+              selectedFilePath={selectedEntryPath}
             />
             <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               {searchResults.length} Treffer für &quot;{searchQuery}&quot;

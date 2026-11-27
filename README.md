@@ -76,6 +76,8 @@ projekt/phase/
 
 Der **aktuelle Ordner** ist der Scope: Baum links zeigt nur diesen Teilbaum (z. B. bei `A` siehst du `A`, `B`, `C`; bei `B` nur `B` und darunter). Suche, Aufgabenliste und Dateiliste beziehen sich auf denselben Teilbaum. In der Kopfzeile filtert **Nur Aufgaben** die Suche auf ET2-Aufgabentitel. Am Ordner-Kontextmenü erzeugt **Aufgabenübersicht (Unterbaum)** eine lesende Gesamtliste aller Aufgaben im Unterbaum (Bearbeitung weiterhin in den jeweiligen `*.tsk.json`). Mit Schreibzugriff lassen sich **Dateien und Ordner aus der Mitte per Drag & Drop auf einen Ordner im linken Baum** verschieben (inkl. Unterbaum, Metadaten-Sidecar `.json` und Tresor-Marker; nicht in sich selbst oder in Unterordner). Die **Scope-Leiste** oben in der Mitte springt zu übergeordneten Ordnern zurück; ein Klick auf einen Unterordner (Baum oder Liste) verengt den Scope.
 
+In der **Scope-Leiste** (Mitte): **Terminal** kopiert einen `cd`-Befehl für den aktuellen Ordner relativ zum geöffneten Workspace — ein echtes Terminal kann die Browser-App aus Sicherheitsgründen nicht selbst starten.
+
 Mit **Schreibzugriff** legst du **Ordner**, **Markdown**, **draw.io**, **E2-Board**, **Web-Link** und **`.tsk.json`** an (Toolbar „Anlegen“). Eine `.tsk.json` in der Mitte auswählen → rechts **Baumliste** (ein-/ausklappen, Unterkarte, Löschen) und **Karten-Details** wie in ET2: Titel, Beschreibung, Status, Tags, Fälligkeit, Link, Befehl, Aufwand. **Unteraufgaben** per `parentId` in derselben Datei.
 
 ### Verschlüsselter Tresor (Vault)

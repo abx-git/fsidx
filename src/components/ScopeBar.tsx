@@ -1,4 +1,5 @@
 import { ChevronRight, Focus, Lock, RefreshCw, Shield } from 'lucide-react'
+import { ScopeTerminalButton } from './ScopeTerminalDialog'
 import { scopeAncestorCrumbs } from '../lib/workspace-scope'
 import { scopeVaultRoot } from '../lib/vault/vault-paths'
 import { isVaultUnlocked } from '../lib/vault/vault-session'
@@ -71,18 +72,21 @@ export function ScopeBar({
           </span>
         )
       })}
-      {onRefreshScope && (
-        <button
-          type="button"
-          disabled={refreshingScope}
-          onClick={onRefreshScope}
-          className="ml-auto inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
-          title="Diesen Ordner mit dem Dateisystem abgleichen (neue/gelöschte Dateien)"
-        >
-          <RefreshCw className={`h-3 w-3 ${refreshingScope ? 'animate-spin' : ''}`} aria-hidden />
-          Aktualisieren
-        </button>
-      )}
+      <div className="ml-auto flex flex-wrap items-center gap-1">
+        <ScopeTerminalButton workspaceRootName={workspaceRootName} scopePath={scopePath} />
+        {onRefreshScope && (
+          <button
+            type="button"
+            disabled={refreshingScope}
+            onClick={onRefreshScope}
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+            title="Diesen Ordner mit dem Dateisystem abgleichen (neue/gelöschte Dateien)"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshingScope ? 'animate-spin' : ''}`} aria-hidden />
+            Aktualisieren
+          </button>
+        )}
+      </div>
     </div>
   )
 }

@@ -70,7 +70,7 @@ const PDF = new Set(['pdf'])
 const AUDIO = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'weba'])
 const VIDEO = new Set(['mp4', 'webm', 'ogv', 'mov', 'mkv'])
 
-const MENU_LABELS: Record<FileViewerKind, string> = {
+export const VIEWER_MENU_LABELS: Record<FileViewerKind, string> = {
   markdown: 'Markdown (Lesen / Bearbeiten)',
   image: 'Bildvorschau',
   diagram: 'Diagramm (Mermaid / PlantUML / draw.io)',
@@ -133,7 +133,7 @@ export function viewerOptionsForFile(path: string, ext?: string): ViewerMenuOpti
 
   return order
     .filter((k) => kinds.has(k))
-    .map((kind) => ({ kind, label: MENU_LABELS[kind] }))
+    .map((kind) => ({ kind, label: VIEWER_MENU_LABELS[kind] }))
 }
 
 export function defaultViewerForFile(path: string, ext?: string): FileViewerKind {

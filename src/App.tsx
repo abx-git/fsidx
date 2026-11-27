@@ -105,6 +105,11 @@ import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDoc
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
+import {
+  HeavyPreviewConfirmDialog,
+  type HeavyPreviewConfirmRequest,
+} from './components/HeavyPreviewConfirmDialog'
+import { shouldConfirmHeavyPreview } from './lib/heavy-preview'
 import { formatScopeLabel, getWorkspaceConnectionState } from './lib/workspace-connection'
 
 function App() {
@@ -249,6 +254,8 @@ function App() {
   const [drawioSaveError, setDrawioSaveError] = useState<string | null>(null)
   const drawioSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [e2DetailFullscreen, setE2DetailFullscreen] = useState(false)
+  const [heavyPreviewConfirm, setHeavyPreviewConfirm] =
+    useState<HeavyPreviewConfirmRequest | null>(null)
 
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
@@ -635,10 +642,23 @@ function App() {
     ) => {
       setMetadataTarget(null)
       setSelectedId(id)
-      setFileView({ viewer, path, name, id, size })
+      const entrySize =
+        size ?? manifest?.entries.find((e) => e.id === id)?.size
+      if (shouldConfirmHeavyPreview(viewer, entrySize)) {
+        setHeavyPreviewConfirm({
+          viewer,
+          path,
+          name,
+          id,
+          size: entrySize,
+        })
+        return
+      }
+      setHeavyPreviewConfirm(null)
+      setFileView({ viewer, path, name, id, size: entrySize ?? size })
       setSearchQuery('')
     },
-    [setSelectedId, setSearchQuery],
+    [manifest?.entries, setSelectedId, setSearchQuery],
   )
 
   const markdownEditorProps = useMemo(
@@ -2312,6 +2332,24 @@ function App() {
           )}
         </div>
       )}
+
+      <HeavyPreviewConfirmDialog
+        request={heavyPreviewConfirm}
+        onConfirm={() => {
+          if (!heavyPreviewConfirm) return
+          const p = heavyPreviewConfirm
+          setHeavyPreviewConfirm(null)
+          setFileView({
+            viewer: p.viewer,
+            path: p.path,
+            name: p.name,
+            id: p.id,
+            size: p.size,
+          })
+          setSearchQuery('')
+        }}
+        onCancel={() => setHeavyPreviewConfirm(null)}
+      />
 
       {newEt2TaskRequest && (
         <Et2NewTaskDialog

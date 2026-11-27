@@ -10,7 +10,15 @@ import { PREVIEW_LOAD_TIMEOUT_MS, PREVIEW_LOAD_TIMEOUT_MESSAGE } from '../lib/pr
 /** Vorschau, Quelltext oder geteilte Ansicht (VS Code / Obsidian Quellmodus). */
 export type MarkdownViewMode = 'view' | 'edit' | 'split'
 
+/** Markdown-Lesen darf länger dauern als Binär-Vorschau; Timeout schließt den Editor nicht. */
+const MARKDOWN_LOAD_TIMEOUT_MS = Math.max(PREVIEW_LOAD_TIMEOUT_MS, 120_000)
+
 const draftCache = new Map<string, string>()
+
+const OFFLINE_READ_MESSAGE =
+  'Ordner nicht verbunden — Entwurf bleibt im Browser. Ordner erneut öffnen zum Speichern.'
+const IMPORTED_INDEX_MESSAGE =
+  'Index ohne Datei-Inhalt. Ordner erneut öffnen, um zu lesen und zu speichern.'
 
 export function useMarkdownDocument(
   path: string | null,
@@ -22,7 +30,10 @@ export function useMarkdownDocument(
 ) {
   const onPersistedRef = useRef(options?.onPersisted)
   onPersistedRef.current = options?.onPersisted
-  /** Verhindert erneutes Lesen von der Platte bei gleicher Datei (z. B. neues fileSources-Objekt nach Index-Update). */
+  const fileSourcesRef = useRef(fileSources)
+  fileSourcesRef.current = fileSources
+
+  /** Verhindert erneutes Lesen von der Platte bei gleicher Datei. */
   const loadedPathRef = useRef<string | null>(null)
   const [content, setContent] = useState('')
   const [viewMode, setViewMode] = useState<MarkdownViewMode>('view')
@@ -32,6 +43,18 @@ export function useMarkdownDocument(
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const restoreDraft = useCallback((targetPath: string) => {
+    const cached = draftCache.get(targetPath)
+    if (cached == null) return false
+    loadedPathRef.current = targetPath
+    setContent(cached)
+    setDirty(true)
+    setError(null)
+    setLoading(false)
+    return true
+  }, [])
+
+  /** Nur `path` löst Platten-Lesen aus — nicht jedes neue fileSources-Objekt (Index-Hintergrund). */
   useEffect(() => {
     if (!path) {
       loadedPathRef.current = null
@@ -40,60 +63,84 @@ export function useMarkdownDocument(
       setDirty(false)
       setViewMode('view')
       setSaveError(null)
+      setLoading(false)
       return
     }
 
-    const cached = draftCache.get(path)
-    if (cached != null) {
-      loadedPathRef.current = path
-      setContent(cached)
-      setDirty(true)
-      setError(null)
-      setViewMode('view')
-      return
-    }
+    if (restoreDraft(path)) return
 
-    if (!fileSources) {
+    const fs = fileSourcesRef.current
+    if (!fs) {
+      if (loadedPathRef.current === path) {
+        setError(IMPORTED_INDEX_MESSAGE)
+        setLoading(false)
+        return
+      }
       setContent('')
-      setError('Re-open the folder to read this file. Imported JSON indexes do not include file contents.')
+      setError(IMPORTED_INDEX_MESSAGE)
       setDirty(false)
-      setViewMode('view')
+      setLoading(false)
       return
     }
 
     if (loadedPathRef.current === path) {
+      setLoading(false)
+      setError(null)
       return
     }
 
     let cancelled = false
     setLoading(true)
     setError(null)
-    setDirty(false)
     setSaveError(null)
 
     const timeoutId = window.setTimeout(() => {
       if (cancelled) return
       cancelled = true
       setLoading(false)
+      const draft = draftCache.get(path)
+      if (draft != null) {
+        setContent(draft)
+        setDirty(true)
+        loadedPathRef.current = path
+        setError('Laden dauert länger — zwischengespeicherter Entwurf wird angezeigt.')
+        return
+      }
       setError(PREVIEW_LOAD_TIMEOUT_MESSAGE)
-      setContent('')
-    }, PREVIEW_LOAD_TIMEOUT_MS)
+    }, MARKDOWN_LOAD_TIMEOUT_MS)
 
-    readTextFromStore(fileSources, path)
+    readTextFromStore(fs, path)
       .then((text) => {
         if (cancelled) return
-        if (isTaskFilePath(path)) {
+        const draft = draftCache.get(path)
+        if (draft != null) {
+          setContent(draft)
+          setDirty(true)
+        } else if (isTaskFilePath(path)) {
           const id = taskIdFromPath(path) ?? path
           const doc = parseTaskMd(text, id)
           setContent(doc.body)
+          setDirty(false)
         } else {
           setContent(text)
+          setDirty(false)
         }
         loadedPathRef.current = path
-        setViewMode('view')
       })
       .catch((err) => {
         if (cancelled) return
+        const draft = draftCache.get(path)
+        if (draft != null) {
+          setContent(draft)
+          setDirty(true)
+          setError(
+            err instanceof Error
+              ? `${err.message} — Entwurf aus Zwischenspeicher.`
+              : 'Lesen fehlgeschlagen — Entwurf aus Zwischenspeicher.',
+          )
+          loadedPathRef.current = path
+          return
+        }
         setError(err instanceof Error ? err.message : 'Could not read file')
         setContent('')
       })
@@ -104,8 +151,23 @@ export function useMarkdownDocument(
     return () => {
       cancelled = true
       clearTimeout(timeoutId)
+      setLoading(false)
     }
-  }, [path, fileSources])
+  }, [path, restoreDraft])
+
+  /** Ordner-Verbindung weg — Inhalt/Entwurf nicht löschen. */
+  useEffect(() => {
+    if (!path || fileSources) {
+      if (path && fileSources && error === OFFLINE_READ_MESSAGE) {
+        setError(null)
+      }
+      return
+    }
+    if (restoreDraft(path) || loadedPathRef.current === path) {
+      setError(OFFLINE_READ_MESSAGE)
+      setLoading(false)
+    }
+  }, [path, fileSources, error, restoreDraft])
 
   const updateContent = useCallback(
     (next: string) => {
@@ -113,20 +175,24 @@ export function useMarkdownDocument(
       setContent(next)
       setDirty(true)
       draftCache.set(path, next)
+      setLoading(false)
     },
     [path],
   )
 
   const save = useCallback(async (): Promise<{ size: number; lastModified: number } | null> => {
-    if (!path || !fileSources) return null
+    const fs = fileSourcesRef.current
+    if (!path || !fs) {
+      throw new Error(OFFLINE_READ_MESSAGE)
+    }
     if (isTaskFilePath(path)) {
       const id = taskIdFromPath(path) ?? path
-      const existing = await readTextFromStore(fileSources, path)
+      const existing = await readTextFromStore(fs, path)
       const doc = parseTaskMd(existing, id)
       const text = serializeTaskMd({ frontmatter: doc.frontmatter, body: content })
-      await writeTextToStore(fileSources, path, text)
+      await writeTextToStore(fs, path, text)
     } else {
-      await writeTextToStore(fileSources, path, content)
+      await writeTextToStore(fs, path, content)
     }
     draftCache.delete(path)
     setDirty(false)
@@ -134,7 +200,7 @@ export function useMarkdownDocument(
     const stats = { size: new Blob([content]).size, lastModified }
     onPersistedRef.current?.(stats)
     return stats
-  }, [path, fileSources, content])
+  }, [path, content])
 
   const autosave = useCallback(async () => {
     setSaveError(null)
@@ -148,6 +214,24 @@ export function useMarkdownDocument(
       setSaving(false)
     }
   }, [save])
+
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
+
+  useEffect(() => {
+    const flush = () => {
+      if (!dirtyRef.current || !path || !fileSourcesRef.current || !options?.autosave) return
+      void save().catch(() => {
+        /* page hide — still cached in draftCache */
+      })
+    }
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+    }
+  }, [path, save, options?.autosave])
 
   useEt2Autosave({
     enabled: Boolean(options?.autosave && path && fileSources),

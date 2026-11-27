@@ -10,8 +10,6 @@ import type { MarkdownViewMode } from '../hooks/useMarkdownDocument'
 import { isTaskFilePath } from '../lib/et2/paths'
 import { MarkdownContent } from './markdown/MarkdownContent'
 import { MarkdownTextareaWithToolbar } from './markdown/MarkdownTextareaWithToolbar'
-import { usePreviewLoadTimeout } from '../hooks/usePreviewLoadTimeout'
-
 const SCROLL_ANCHOR_PX = 96
 
 interface MarkdownEditorProps {
@@ -49,7 +47,6 @@ export function MarkdownEditor({
   saveError,
   fileSources,
 }: MarkdownEditorProps) {
-  usePreviewLoadTimeout(Boolean(loading) && !error, onClose)
   const viewScrollRef = useRef<HTMLDivElement>(null)
   const previewArticleRef = useRef<HTMLElement>(null)
   const [editFocus, setEditFocus] = useState<{ start: number; end: number; line: number } | null>(
@@ -313,10 +310,20 @@ export function MarkdownEditor({
             {saveError}
           </p>
         )}
-        {loading && (
+        {loading && !content && (
           <p className="flex flex-1 items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" />
             Markdown wird geladen…
+          </p>
+        )}
+        {loading && content ? (
+          <p className="mx-4 mt-2 shrink-0 text-center text-[11px] text-zinc-500" role="status">
+            Hintergrund: Datei wird noch von der Platte gelesen… Bearbeitung bleibt möglich.
+          </p>
+        ) : null}
+        {error && (
+          <p className="mx-4 mt-2 shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+            {error}
           </p>
         )}
         {!loading && !error && canWrite && viewMode === 'view' && (
@@ -332,7 +339,7 @@ export function MarkdownEditor({
             im Quelltext zur gleichen Stelle.
           </p>
         )}
-        {!loading && !error && showSource && viewMode === 'split' && (
+        {showSource && viewMode === 'split' && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-zinc-200 dark:border-zinc-800 lg:max-w-[50%] lg:border-b-0 lg:border-r">
               <div className="mx-auto flex min-h-0 w-full max-w-none flex-1 flex-col px-2 py-2 lg:px-3">
@@ -352,7 +359,7 @@ export function MarkdownEditor({
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">{previewPane}</div>
           </div>
         )}
-        {!loading && !error && showSource && viewMode === 'edit' && (
+        {showSource && viewMode === 'edit' && (
           <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-3 py-2">
             <MarkdownTextareaWithToolbar
               value={content}
@@ -366,7 +373,7 @@ export function MarkdownEditor({
             />
           </div>
         )}
-        {!loading && !error && viewMode === 'view' && previewPane}
+        {viewMode === 'view' && previewPane}
       </div>
     </section>
   )

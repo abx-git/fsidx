@@ -3,19 +3,25 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fsidxPwaScopePlugin } from './vite-plugins/fsidx-pwa-scope.js'
 
 const appName = 'LocalDir Index'
 const appShortName = 'fsidx'
+const basePath = process.env.VITE_BASE_PATH ?? '/'
+const baseWithSlash = basePath.endsWith('/') ? basePath : `${basePath}/`
+const icon = (file: string) => `${baseWithSlash}${file}`
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH ?? '/',
+  base: basePath,
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      scope: baseWithSlash,
       includeAssets: ['favicon.svg', 'icons.svg', 'schemas/**/*.json'],
       manifest: {
+        id: `${baseWithSlash}`,
         name: appName,
         short_name: appShortName,
         description:
@@ -23,23 +29,25 @@ export default defineConfig({
         theme_color: '#059669',
         background_color: '#fafafa',
         display: 'standalone',
+        start_url: baseWithSlash,
+        scope: baseWithSlash,
         orientation: 'any',
         lang: 'de',
         dir: 'ltr',
         categories: ['productivity', 'utilities'],
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: icon('pwa-192x192.png'),
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: icon('pwa-512x512.png'),
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: icon('pwa-512x512.png'),
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -48,7 +56,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
-        navigateFallback: 'index.html',
+        globIgnores: ['**/e2-edit.html', '**/rbase-open.html'],
+        navigateFallback: `${baseWithSlash}index.html`,
         navigateFallbackDenylist: [
           /\/e2-edit\.html/,
           /\/rbase-open\.html/,
@@ -66,10 +75,10 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true,
-        navigateFallback: 'index.html',
+        enabled: false,
       },
     }),
+    fsidxPwaScopePlugin(),
   ],
   build: {
     rollupOptions: {

@@ -145,6 +145,8 @@ fsidx ist eine **Progressive Web App**: Shell, Skripte und JSON-Schemas werden p
 
 **Hinweis:** Der **Ordnerzugriff** (File System Access API) braucht weiterhin Netz bzw. eine erlaubte lokale HTTPS-Origin — offline kann die Oberfläche laden, aber kein neuer Workspace geöffnet werden. Bereits importierte Manifest-JSON bleiben im Speicher der Session nutzbar.
 
+Nur **https://…/fsidx/** installieren (nicht den E2-Editor-Tab `e2-edit.html`). Nach einem fehlerhaften Shortcut einmal die alte App deinstallieren und neu von der Start-URL installieren.
+
 Symbole nach Änderung am Favicon: `npm run pwa:icons`
 
 ## Run locally

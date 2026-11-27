@@ -104,6 +104,7 @@ import { SidePanelToggle } from './components/SidePanelToggle'
 import { clearMarkdownDrafts, useMarkdownDocument } from './hooks/useMarkdownDocument'
 import { clearSidecarDrafts, useSidecarMetadata } from './hooks/useSidecarMetadata'
 import { WorkspaceConnectionBanner } from './components/WorkspaceConnectionBanner'
+import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { formatScopeLabel, getWorkspaceConnectionState } from './lib/workspace-connection'
 
 function App() {
@@ -1956,6 +1957,7 @@ function App() {
       />
 
       <div className="shrink-0">
+      <PwaUpdateBanner />
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

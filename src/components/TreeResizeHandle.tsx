@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react'
+import { startPanelPointerResize } from '../lib/panel-pointer-resize'
 
 interface TreeResizeHandleProps {
   onResize: (widthPx: number) => void
@@ -6,10 +7,6 @@ interface TreeResizeHandleProps {
   minWidth: number
   maxWidth: number
   getCurrentWidth: () => number
-}
-
-function clampWidth(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, Math.round(value)))
 }
 
 /** Ziehpunkt zwischen Ordnerbaum und Mitte (Breite nach rechts vergrößern). */
@@ -20,43 +17,25 @@ export function TreeResizeHandle({
   maxWidth,
   getCurrentWidth,
 }: TreeResizeHandleProps) {
-  const dragging = useRef(false)
-  const lastWidth = useRef(0)
+  const sessionRef = useRef<{ abort: () => void } | null>(null)
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button !== 0) return
       e.preventDefault()
-      dragging.current = true
-      const startX = e.clientX
-      const startWidth = getCurrentWidth()
-      lastWidth.current = startWidth
+      sessionRef.current?.abort()
       const target = e.currentTarget as HTMLElement
-      target.setPointerCapture(e.pointerId)
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-
-      const onMove = (ev: PointerEvent) => {
-        if (!dragging.current) return
-        const delta = ev.clientX - startX
-        const next = clampWidth(startWidth + delta, minWidth, maxWidth)
-        lastWidth.current = next
-        onResize(next)
-      }
-
-      const onUp = (ev: PointerEvent) => {
-        dragging.current = false
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-        target.releasePointerCapture(ev.pointerId)
-        window.removeEventListener('pointermove', onMove)
-        window.removeEventListener('pointerup', onUp)
-        const commit = onResizeCommit ?? onResize
-        commit(lastWidth.current)
-      }
-
-      window.addEventListener('pointermove', onMove)
-      window.addEventListener('pointerup', onUp)
+      sessionRef.current = startPanelPointerResize({
+        pointerId: e.pointerId,
+        target,
+        startX: e.clientX,
+        startWidth: getCurrentWidth(),
+        minWidth,
+        maxWidth,
+        widthDelta: (startX, clientX) => clientX - startX,
+        onResize,
+        onCommit: onResizeCommit ?? onResize,
+      })
     },
     [getCurrentWidth, maxWidth, minWidth, onResize, onResizeCommit],
   )

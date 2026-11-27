@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 
 const KEY_WIDTH = 'fsidx.sidebarWidthPx'
+const KEY_USUAL_WIDTH = 'fsidx.sidebarWidthPxUsual'
 const KEY_COLLAPSED = 'fsidx.sidebarCollapsed'
 
 const MIN_WIDTH = 280
@@ -16,12 +17,28 @@ function readCollapsed(): boolean {
   }
 }
 
+function clampStoredSidebarWidth(n: number): number {
+  return Math.min(MAX_WIDTH_DRAWIO, Math.max(MIN_WIDTH, n))
+}
+
 function readWidth(): number {
   try {
     const raw = localStorage.getItem(KEY_WIDTH)
     const n = raw ? Number(raw) : DEFAULT_WIDTH
     if (!Number.isFinite(n)) return DEFAULT_WIDTH
-    return Math.min(MAX_WIDTH_DRAWIO, Math.max(MIN_WIDTH, n))
+    return clampStoredSidebarWidth(n)
+  } catch {
+    return DEFAULT_WIDTH
+  }
+}
+
+/** Breite vor temporärer Verbreiterung (E2 / draw.io), maximal STANDARD-Max. */
+export function readUsualSidebarWidth(): number {
+  try {
+    const raw = localStorage.getItem(KEY_USUAL_WIDTH)
+    const n = raw ? Number(raw) : DEFAULT_WIDTH
+    if (!Number.isFinite(n)) return DEFAULT_WIDTH
+    return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, n))
   } catch {
     return DEFAULT_WIDTH
   }
@@ -39,6 +56,9 @@ export function useViewerSidebarLayout() {
       if (options?.persist === false) return
       try {
         localStorage.setItem(KEY_WIDTH, String(clamped))
+        if (clamped <= MAX_WIDTH) {
+          localStorage.setItem(KEY_USUAL_WIDTH, String(clamped))
+        }
       } catch {
         /* ignore */
       }

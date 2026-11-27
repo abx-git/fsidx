@@ -97,7 +97,8 @@ import {
 import { useFileIndex } from './hooks/useFileIndex'
 import { useViewerPanelPinned } from './hooks/useViewerPanelPinned'
 import { useDetailMetadataVisible } from './hooks/useDetailMetadataVisible'
-import { useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
+import { readUsualSidebarWidth, useViewerSidebarLayout } from './hooks/useViewerSidebarLayout'
+import { clampSidebarWidthForGrid } from './lib/main-grid-layout'
 import { useTreePanelLayout } from './hooks/useTreePanelLayout'
 import { TreeResizeHandle } from './components/TreeResizeHandle'
 import { SidePanelToggle } from './components/SidePanelToggle'
@@ -907,6 +908,53 @@ function App() {
     },
     [setSidebarWidthPx, sidebarMaxWidthEffective],
   )
+
+  const syncMainGridSidebarLayout = useCallback(() => {
+    if (typeof window === 'undefined' || sidebarCollapsed) return
+    const viewportWidth = window.innerWidth
+    let target = clampSidebarWidthForGrid({
+      sidebarWidthPx,
+      sidebarMinWidth,
+      maxAllowed: sidebarMaxWidthEffective,
+      viewportWidth,
+      treeWidthPx,
+      treeCollapsed,
+    })
+    const usual = readUsualSidebarWidth()
+    if (
+      document.visibilityState === 'visible' &&
+      sidebarWidthPx > usual &&
+      !drawioDetailFullscreen &&
+      !e2DetailFullscreen
+    ) {
+      target = Math.min(target, usual)
+    }
+    if (target !== sidebarWidthPx) {
+      setSidebarWidthPx(target, sidebarMaxWidthEffective)
+    }
+  }, [
+    e2DetailFullscreen,
+    drawioDetailFullscreen,
+    setSidebarWidthPx,
+    sidebarCollapsed,
+    sidebarMaxWidthEffective,
+    sidebarMinWidth,
+    sidebarWidthPx,
+    treeCollapsed,
+    treeWidthPx,
+  ])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onLayout = () => syncMainGridSidebarLayout()
+    window.addEventListener('resize', onLayout)
+    document.addEventListener('visibilitychange', onLayout)
+    onLayout()
+    return () => {
+      window.removeEventListener('resize', onLayout)
+      document.removeEventListener('visibilitychange', onLayout)
+    }
+  }, [syncMainGridSidebarLayout])
 
   const handleTreeResizeLive = useCallback(
     (width: number) => {
@@ -2064,7 +2112,7 @@ function App() {
             />
           )}
           {!treeCollapsed && (
-            <div className="relative hidden min-h-0 lg:flex">
+            <div className="relative hidden min-h-0 min-w-0 overflow-hidden lg:flex">
               <SidePanelToggle
                 side="left"
                 mode="collapse"
@@ -2099,7 +2147,7 @@ function App() {
           )}
           <div className="fsidx-pane min-h-0">{centerPane}</div>
           {!sidebarCollapsed && (
-          <div className="relative hidden min-h-0 lg:flex">
+          <div className="relative hidden min-h-0 min-w-0 overflow-hidden lg:flex">
             <SidePanelToggle
               side="right"
               mode="collapse"

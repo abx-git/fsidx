@@ -133,6 +133,20 @@ Ordner-Typ **Tresor** (Toolbar „Anlegen“ → Tresor): gleiche Krypto wie [x-
 
 Repository: https://github.com/abx-git/fsidx
 
+### Als App installieren (PWA)
+
+fsidx ist eine **Progressive Web App**: Shell, Skripte und JSON-Schemas werden per Service Worker gecacht; Updates kommen automatisch nach einem erneuten Besuch bzw. Reload.
+
+| Plattform | Installation |
+|-----------|----------------|
+| **Chrome / Edge (Desktop)** | Adressleiste → „App installieren“ bzw. Menü → **App installieren** |
+| **Android (Chrome)** | Menü → **Zum Startbildschirm hinzufügen** |
+| **iOS (Safari)** | Teilen → **Zum Home-Bildschirm** |
+
+**Hinweis:** Der **Ordnerzugriff** (File System Access API) braucht weiterhin Netz bzw. eine erlaubte lokale HTTPS-Origin — offline kann die Oberfläche laden, aber kein neuer Workspace geöffnet werden. Bereits importierte Manifest-JSON bleiben im Speicher der Session nutzbar.
+
+Symbole nach Änderung am Favicon: `npm run pwa:icons`
+
 ## Run locally
 
 ```bash

@@ -396,7 +396,6 @@ export function FileBrowser({
           vaultRoots={vaultRoots}
           onRefreshScope={onRefreshScope}
           refreshingScope={refreshingScope}
-          selectedFilePath={selectedEntryPath}
         />
       )}
       {!inSearch && onToggleScopeBookmark && onBookmarkActivate && onBookmarkRemove && (
@@ -474,7 +473,6 @@ export function FileBrowser({
               onSelectScope={onNavigate}
               variant="compact"
               vaultRoots={vaultRoots}
-              selectedFilePath={selectedEntryPath}
             />
             <p className="border-b border-zinc-200 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               {searchResults.length} Treffer für &quot;{searchQuery}&quot;

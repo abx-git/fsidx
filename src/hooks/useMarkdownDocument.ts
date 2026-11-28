@@ -9,12 +9,21 @@ import { useEt2Autosave } from './useEt2Autosave'
 /** Vorschau, Quelltext oder geteilte Ansicht (VS Code / Obsidian Quellmodus). */
 export type MarkdownViewMode = 'view' | 'edit' | 'split'
 
-const draftCache = new Map<string, string>()
+type DraftEntry = {
+  text: string
+  dirty: boolean
+}
+
+const draftCache = new Map<string, DraftEntry>()
 
 const OFFLINE_READ_MESSAGE =
   'Ordner nicht verbunden — Entwurf bleibt im Browser. Ordner erneut öffnen zum Speichern.'
 const IMPORTED_INDEX_MESSAGE =
   'Index ohne Datei-Inhalt. Ordner erneut öffnen, um zu lesen und zu speichern.'
+
+function cacheDraft(path: string, text: string, dirty: boolean): void {
+  draftCache.set(path, { text, dirty })
+}
 
 export function useMarkdownDocument(
   path: string | null,
@@ -29,8 +38,10 @@ export function useMarkdownDocument(
   const fileSourcesRef = useRef(fileSources)
   fileSourcesRef.current = fileSources
 
-  /** Verhindert erneutes Lesen von der Platte bei gleicher Datei. */
   const loadedPathRef = useRef<string | null>(null)
+  const pathRef = useRef<string | null>(path)
+  pathRef.current = path
+
   const [content, setContent] = useState('')
   const [viewMode, setViewMode] = useState<MarkdownViewMode>('view')
   const [loading, setLoading] = useState(false)
@@ -41,20 +52,18 @@ export function useMarkdownDocument(
 
   const restoreDraft = useCallback((targetPath: string) => {
     const cached = draftCache.get(targetPath)
-    if (cached == null) return false
+    if (!cached) return false
     loadedPathRef.current = targetPath
-    setContent(cached)
-    setDirty(true)
+    setContent(cached.text)
+    setDirty(cached.dirty)
     setError(null)
     setLoading(false)
     return true
   }, [])
 
-  /** Nur `path` löst Platten-Lesen aus — nicht jedes neue fileSources-Objekt (Index-Hintergrund). */
   useEffect(() => {
     if (!path) {
       loadedPathRef.current = null
-      setContent('')
       setError(null)
       setDirty(false)
       setViewMode('view')
@@ -72,9 +81,16 @@ export function useMarkdownDocument(
         setLoading(false)
         return
       }
-      setContent('')
+      const cached = draftCache.get(path)
+      if (cached) {
+        loadedPathRef.current = path
+        setContent(cached.text)
+        setDirty(cached.dirty)
+      } else {
+        setContent('')
+        setDirty(false)
+      }
       setError(IMPORTED_INDEX_MESSAGE)
-      setDirty(false)
       setLoading(false)
       return
     }
@@ -92,28 +108,30 @@ export function useMarkdownDocument(
 
     readTextFromStore(fs, path)
       .then((text) => {
-        if (cancelled) return
+        if (cancelled || pathRef.current !== path) return
         const draft = draftCache.get(path)
-        if (draft != null) {
-          setContent(draft)
+        if (draft?.dirty) {
+          setContent(draft.text)
           setDirty(true)
         } else if (isTaskFilePath(path)) {
           const id = taskIdFromPath(path) ?? path
           const doc = parseTaskMd(text, id)
           setContent(doc.body)
           setDirty(false)
+          cacheDraft(path, doc.body, false)
         } else {
           setContent(text)
           setDirty(false)
+          cacheDraft(path, text, false)
         }
         loadedPathRef.current = path
       })
       .catch((err) => {
-        if (cancelled) return
+        if (cancelled || pathRef.current !== path) return
         const draft = draftCache.get(path)
-        if (draft != null) {
-          setContent(draft)
-          setDirty(true)
+        if (draft) {
+          setContent(draft.text)
+          setDirty(draft.dirty)
           setError(
             err instanceof Error
               ? `${err.message} — Entwurf aus Zwischenspeicher.`
@@ -123,19 +141,16 @@ export function useMarkdownDocument(
           return
         }
         setError(err instanceof Error ? err.message : 'Could not read file')
-        setContent('')
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && pathRef.current === path) setLoading(false)
       })
 
     return () => {
       cancelled = true
-      setLoading(false)
     }
   }, [path, restoreDraft])
 
-  /** Ordner-Verbindung weg — Inhalt/Entwurf nicht löschen. */
   useEffect(() => {
     if (!path || fileSources) {
       if (path && fileSources && error === OFFLINE_READ_MESSAGE) {
@@ -154,7 +169,7 @@ export function useMarkdownDocument(
       if (!path) return
       setContent(next)
       setDirty(true)
-      draftCache.set(path, next)
+      cacheDraft(path, next, true)
       setLoading(false)
     },
     [path],
@@ -174,7 +189,7 @@ export function useMarkdownDocument(
     } else {
       await writeTextToStore(fs, path, content)
     }
-    draftCache.delete(path)
+    cacheDraft(path, content, false)
     setDirty(false)
     const lastModified = Date.now()
     const stats = { size: new Blob([content]).size, lastModified }
@@ -216,7 +231,7 @@ export function useMarkdownDocument(
   useEt2Autosave({
     enabled: Boolean(options?.autosave && path && fileSources),
     dirty,
-    loading,
+    loading: false,
     save: autosave,
     debounceMs: 450,
     watch: [content],

@@ -14,7 +14,7 @@ export function usePreviewLoadTimeout(
   onTimeoutRef.current = onTimeout
 
   useEffect(() => {
-    if (!active) return
+    if (!active || timeoutMs <= 0) return
     const id = window.setTimeout(() => onTimeoutRef.current(), timeoutMs)
     return () => clearTimeout(id)
   }, [active, timeoutMs])

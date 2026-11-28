@@ -294,7 +294,14 @@ function App() {
   useEffect(() => {
     if (!viewerPinned || metadataTarget) return
     if (!selectedNode || selectedNode.kind !== 'file') {
-      setFileView(null)
+      setFileView((prev) => {
+        if (!prev || !manifest) return null
+        if (prev.viewer !== 'markdown') return null
+        const still = manifest.entries.some(
+          (e) => e.kind === 'file' && (e.id === prev.id || e.path === prev.path),
+        )
+        return still ? prev : null
+      })
       return
     }
     if (isE2JsonPath(selectedNode.path)) {

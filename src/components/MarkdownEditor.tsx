@@ -310,30 +310,29 @@ export function MarkdownEditor({
             {saveError}
           </p>
         )}
-        {loading && !content && (
-          <p className="flex flex-1 items-center justify-center gap-2 px-4 py-16 text-sm text-zinc-500">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Markdown wird geladen…
+        {loading && (
+          <p
+            className="mx-4 mt-2 shrink-0 text-center text-[11px] text-zinc-500"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="mr-1 inline h-3 w-3 animate-spin" aria-hidden />
+            Datei wird von der Platte gelesen — kein Zeitlimit; Inhalt und Entwurf bleiben sichtbar.
           </p>
         )}
-        {loading && content ? (
-          <p className="mx-4 mt-2 shrink-0 text-center text-[11px] text-zinc-500" role="status">
-            Hintergrund: Datei wird noch von der Platte gelesen… Bearbeitung bleibt möglich.
-          </p>
-        ) : null}
         {error && (
           <p className="mx-4 mt-2 shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
             {error}
           </p>
         )}
-        {!loading && !error && canWrite && viewMode === 'view' && (
+        {!error && canWrite && viewMode === 'view' && (
           <p className="mx-auto max-w-3xl shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-center text-[11px] leading-snug text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
             <span className="font-medium">Doppelklick</span> in der Vorschau öffnet die geteilte Ansicht zum Bearbeiten
             an der gewählten Stelle. Tab <span className="font-medium">Geteilt</span> oder{' '}
             <span className="font-medium">Quelltext</span> jederzeit manuell.
           </p>
         )}
-        {!loading && !error && canWrite && viewMode === 'split' && (
+        {!error && canWrite && viewMode === 'split' && (
           <p className="mx-auto max-w-none shrink-0 border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-center text-[11px] leading-snug text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300">
             Links Quelltext, rechts Vorschau — <span className="font-medium">Doppelklick</span> in der Vorschau springt
             im Quelltext zur gleichen Stelle.
